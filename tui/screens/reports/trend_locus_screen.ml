@@ -15,7 +15,6 @@ module O = Ui_render
 let markers = [| "●"; "◆"; "▲"; "■"; "□" |]
 
 module UChart = Ui_chart
-module Cal = Daily_calendar
 module Panel = Ui_panel
 
 let tr = Ui_text.tr
@@ -118,7 +117,7 @@ let default_coordinates (env : Screen.env) t ~boundary ~roles =
       with
       | Error _ -> []
       | Ok start_day -> (
-          match Cal.shift_days observed_at 1 with
+          match Day.shift_days observed_at 1 with
           | Error _ -> []
           | Ok end_exclusive ->
               R.initial_series ~book:env.book ~measure:env.measure
@@ -753,7 +752,7 @@ let source_line t (snap : R.snapshot) visible =
   | R.Day ->
       let last =
         Result.value ~default:snap.R.scope_end_exclusive
-          (Cal.shift_days snap.R.scope_end_exclusive (-1))
+          (Day.shift_days snap.R.scope_end_exclusive (-1))
       in
       snap.R.source ^ separator ^ "Range " ^ R.scope_label snap.R.scope ^ "   "
       ^ short_date snap.R.scope_start ^ " → " ^ short_date last ^ separator ^ "Grain Day"

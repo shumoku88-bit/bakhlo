@@ -4,7 +4,6 @@
 module B = Bakhlo_household.Daily_book
 module O = Ui_render
 module A = Daily_draft
-module Cal = Daily_calendar
 module Panel = Ui_panel
 module Trend = Daily_pace_trend
 
@@ -65,7 +64,7 @@ let target_amount ~book (p : B.daily_pace) target =
       ("Enter a nonnegative target " ^ String.uppercase_ascii p.measure ^ "/day (up to 18 digits).")
   else amount ~book p ("Target " ^ String.uppercase_ascii p.measure ^ "/day") target
 
-let shift day n = match Cal.shift_days day n with Ok d -> Some d | Error _ -> None
+let shift day n = match Day.shift_days day n with Ok d -> Some d | Error _ -> None
 let valid_date date = A.normalize_date date = Ok date
 
 (* [D]/[DD] and [M-D]/[MM-DD] name the first such day after today and before
@@ -85,7 +84,7 @@ let resolve_date (p : B.daily_pace) text =
   match (month, day) with
   | Some month, Some day ->
       let fits date =
-        match Cal.parts date with
+        match Day.parts date with
         | Ok (_, m, d) -> d = day && Option.fold ~none:true ~some:(( = ) m) month
         | Error _ -> false
       in
@@ -229,7 +228,7 @@ let update ~book ~pace t (input : Ui_input.input) =
 (* Painting *)
 
 let weekday date =
-  match Cal.weekday date with
+  match Day.weekday date with
   | Ok i -> List.nth [ "Mon"; "Tue"; "Wed"; "Thu"; "Fri"; "Sat"; "Sun" ] i
   | Error _ -> ""
 

@@ -3,7 +3,6 @@ module B = Bakhlo_household.Daily_book
 module O = Ui_render
 module Panel = Ui_panel
 module Form = Ui_form
-module Cal = Daily_calendar
 module A = Daily_draft
 module Fm = Daily_form
 
@@ -72,7 +71,7 @@ let valid_date date =
   | Ok canonical -> canonical = date && A.is_valid_canonical_date canonical
   | Error _ -> false
 
-let default_through day = match Cal.shift_months day 6 with Ok target -> target | Error _ -> day
+let default_through day = match Day.shift_months day 6 with Ok target -> target | Error _ -> day
 
 (* A monitored cadence preselects the choice; other month counts have no form. *)
 let create ?cadence_months ?observed_at ~book ~base_revision ~source () =
@@ -165,7 +164,7 @@ let month_start year month = Printf.sprintf "%04d-%02d-01" year month
 
 (* The limit is the first day of the month after the [count]-th cadence slot. *)
 let limit_for_count ~cadence_months ~count ~source_day =
-  match Cal.parts source_day with
+  match Day.parts source_day with
   | Error _ -> Error "Source date is not a real Gregorian date."
   | Ok (year, month, _) ->
       let after = month_index year month + (count * cadence_months) + 1 in
@@ -200,7 +199,7 @@ let extend_limit t e =
 (* Occurrences come from the original source anchor; a missing nominal day is
    unresolved, never clamped into an invented date. *)
 let extend_candidates ~observed_at ~limit ~cadence_months ~source_day =
-  match (Cal.parts source_day, Cal.parts observed_at, Cal.parts limit) with
+  match (Day.parts source_day, Day.parts observed_at, Day.parts limit) with
   | ( Ok (source_year, source_month, nominal_day),
       Ok (observed_year, observed_month, _),
       Ok (limit_year, limit_month, _) ) ->
@@ -382,7 +381,7 @@ let selected_cadence t =
 let generate_occurrences ~new_id ~source ~cadence ~through_day =
   let step = cadence_months cadence in
   let rec loop k acc =
-    match Cal.shift_months source.B.day (k * step) with
+    match Day.shift_months source.B.day (k * step) with
     | Error _ -> List.rev acc
     | Ok target_date ->
         if target_date >= through_day then List.rev acc

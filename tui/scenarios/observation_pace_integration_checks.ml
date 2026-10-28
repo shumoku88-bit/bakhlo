@@ -177,7 +177,7 @@ let run ~width_of ~directory (back_home : C.state) =
     | None -> failwith "expected cycle boundaries modal"
   in
   require (Ui_form.get_text cyc_form "name" = Some "test-cycle") "cyc-loads-active-preset-name";
-  let new_stop = get (Cal.shift_days (F.today ()) 14) in
+  let new_stop = get (Day.shift_days (F.today ()) 14) in
   let cyc_edited =
     with_visible_form cyc_state (Ui_form.set_text cyc_form "dates" (F.today () ^ ", " ^ new_stop))
   in

@@ -2,7 +2,6 @@
    entry count and EXPENSE total. *)
 module B = Bakhlo_household.Daily_book
 module Act = Actual_workspace
-module Cal = Daily_calendar
 module O = Ui_render
 module Panel = Ui_panel
 
@@ -14,7 +13,7 @@ let periods = [ Act.Today; Act.Cycle; Act.Month; Act.Year; Act.All ]
 let contains w day = w.start_day <= day && day < w.end_exclusive
 
 let last_day w =
-  match Cal.shift_days w.end_exclusive (-1) with Ok day -> day | Error _ -> w.start_day
+  match Day.shift_days w.end_exclusive (-1) with Ok day -> day | Error _ -> w.start_day
 
 let label period w =
   match period with
@@ -50,9 +49,9 @@ let windows ~book ~today ~reference ~cycle period =
   match period with
   | Act.All -> Ok [ { start_day = "0001-01-01"; end_exclusive = "9999-12-31" } ]
   | Act.Month ->
-      Ok (steps ~first:(String.sub lo 0 8 ^ "01") ~last:hi ~next:(fun d -> Cal.shift_months d 1))
+      Ok (steps ~first:(String.sub lo 0 8 ^ "01") ~last:hi ~next:(fun d -> Day.shift_months d 1))
   | Act.Year ->
-      Ok (steps ~first:(String.sub lo 0 5 ^ "01-01") ~last:hi ~next:(fun d -> Cal.shift_years d 1))
+      Ok (steps ~first:(String.sub lo 0 5 ^ "01-01") ~last:hi ~next:(fun d -> Day.shift_years d 1))
   | Act.Cycle ->
       Result.map (List.map (fun (start_day, end_exclusive) -> { start_day; end_exclusive })) cycle
   | Act.Today ->
@@ -62,7 +61,7 @@ let windows ~book ~today ~reference ~cycle period =
         (today :: reference :: List.map (fun (e : B.entry) -> e.day) entries);
       List.sort String.compare (List.of_seq (Hashtbl.to_seq_keys days))
       |> List.filter_map (fun day ->
-          match Cal.shift_days day 1 with
+          match Day.shift_days day 1 with
           | Ok end_exclusive -> Some { start_day = day; end_exclusive }
           | Error _ -> None)
       |> Result.ok

@@ -1,6 +1,5 @@
 (* Report period windows resolved from the configured boundary presets, shared by
    the reports and the Actual so both read one period engine. *)
-module Cal = Daily_calendar
 
 let boundary_file = "boundary-presets.tsv"
 
@@ -37,10 +36,10 @@ let resolve ~today ~preset ~offset ~boundary_presets_text =
   match preset with
   | Month -> (
       let base_month_start = String.sub today 0 8 ^ "01" in
-      match Cal.shift_months base_month_start offset with
+      match Day.shift_months base_month_start offset with
       | Error e -> Error e
       | Ok start_day -> (
-          match Cal.shift_months start_day 1 with
+          match Day.shift_months start_day 1 with
           | Error e -> Error e
           | Ok end_exclusive ->
               Ok
@@ -52,10 +51,10 @@ let resolve ~today ~preset ~offset ~boundary_presets_text =
                 }))
   | Year -> (
       let base_year_start = String.sub today 0 4 ^ "-01-01" in
-      match Cal.shift_years base_year_start offset with
+      match Day.shift_years base_year_start offset with
       | Error e -> Error e
       | Ok start_day -> (
-          match Cal.shift_years start_day 1 with
+          match Day.shift_years start_day 1 with
           | Error e -> Error e
           | Ok end_exclusive ->
               Ok

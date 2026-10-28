@@ -107,7 +107,7 @@ let picker_rows (env : Screen.env) t (current : IncExp.period) =
       (Bakhlo_household.Daily_book.entries env.book)
   in
   let year_before =
-    match Daily_calendar.shift_years current.start_day (-1) with Ok day -> day | Error _ -> ""
+    match Day.shift_years current.start_day (-1) with Ok day -> day | Error _ -> ""
   in
   let total (rep : IncExp.report) =
     match List.filter IncExp.measure_active rep.summaries with

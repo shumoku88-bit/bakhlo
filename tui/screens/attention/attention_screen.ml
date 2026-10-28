@@ -26,7 +26,6 @@ let detail_focused t = t.pane = Detail_pane
 
 module B = Bakhlo_household.Daily_book
 module D = Bakhlo_domain
-module Cal = Daily_calendar
 
 (* The unresolved holding Locus: Effects whose real account is not known yet.
    It is not an account and never takes a role. *)
@@ -111,7 +110,7 @@ let suspense_holding (env : Screen.env) : holding option =
           match scan.oldest with
           | None -> None
           | Some day -> (
-              match (Cal.day_index env.today, Cal.day_index day) with
+              match (Day.index env.today, Day.index day) with
               | Ok today, Ok then_ -> Some (max 0 (today - then_))
               | _ -> None)
         in

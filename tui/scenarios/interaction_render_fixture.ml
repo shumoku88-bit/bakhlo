@@ -63,7 +63,7 @@ let render_cases state =
     with_session rich
       (E.Scheduled_continuation (Cont.create ~book ~base_revision:rich.session.revision source))
   in
-  let later = { source with id = "render-later"; day = get (Cal.shift_months source.day 1) } in
+  let later = { source with id = "render-later"; day = get (Day.shift_months source.day 1) } in
   let continuation_book = get (B.put_plan book ~replace:false later) in
   let continuation =
     with_session rich

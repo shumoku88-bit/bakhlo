@@ -4,7 +4,6 @@
    presets the reports use. Record actions on the selected entry are requests to
    the Shell, which owns the retained Record draft and the editor sessions. *)
 module Act = Actual_workspace
-module Cal = Daily_calendar
 module Pw = Period_window
 module Picker = Actual_period_picker
 
@@ -45,10 +44,10 @@ let raw_window (env : Screen.env) ws =
           label = window_label period ~start_day:"0001-01-01" ~end_exclusive:"9999-12-31";
         }
   | Act.Today -> (
-      match Cal.shift_days today offset with
+      match Day.shift_days today offset with
       | Error why -> Error why
       | Ok day -> (
-          match Cal.shift_days day 1 with
+          match Day.shift_days day 1 with
           | Error why -> Error why
           | Ok next ->
               Ok
@@ -124,7 +123,7 @@ let move_year (env : Screen.env) ws delta =
   | _ when Act.period ws = Act.All -> (ws, Screen.Message "All time has no year to move.")
   | Error why -> (ws, Screen.Message why)
   | Ok window -> (
-      match Cal.shift_years window.Act.start_day delta with
+      match Day.shift_years window.Act.start_day delta with
       | Error why -> (ws, Screen.Message why)
       | Ok day -> (
           let candidate = Act.set_focus_day day ws in
@@ -139,7 +138,7 @@ let reference (env : Screen.env) ws =
   | Ok w
     when Act.period ws <> Act.All
          && not (w.Act.start_day <= env.today && env.today < w.end_exclusive) -> (
-      match Cal.shift_days w.end_exclusive (-1) with Ok day -> day | Error _ -> env.today)
+      match Day.shift_days w.end_exclusive (-1) with Ok day -> day | Error _ -> env.today)
   | _ -> env.today
 
 (* Every window of [period] with its count and total. The cycle is the configured

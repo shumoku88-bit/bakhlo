@@ -2,7 +2,6 @@
    boundary presets and explicit Custom dates stay independent sources; a named
    source never silently falls back. Nothing is queried before Run. *)
 module A = Daily_draft
-module Cal = Daily_calendar
 module O = Ui_render
 module P = Report_period
 module Frame = Report_frame
@@ -83,11 +82,11 @@ let member_window presets name start_day end_day =
 let month_window day =
   if not (canonical_day day) then None
   else
-    match Cal.parts day with
+    match Day.parts day with
     | Error _ -> None
     | Ok (year, month, _) -> (
         let start_day = Printf.sprintf "%04d-%02d-01" year month in
-        match Cal.shift_months start_day 1 with
+        match Day.shift_months start_day 1 with
         | Ok end_day -> Some (start_day, end_day)
         | Error _ -> None)
 
@@ -253,10 +252,10 @@ let shift_month (env : Screen.env) delta t =
     if canonical_day t.start_day then t.start_day
     else match month_window env.today with Some (start_day, _) -> start_day | None -> ""
   in
-  match Cal.shift_months base delta with
+  match Day.shift_months base delta with
   | Error why -> ({ t with answer = None; notice = why }, Screen.Message why)
   | Ok start_day -> (
-      match Cal.shift_months start_day 1 with
+      match Day.shift_months start_day 1 with
       | Error why -> ({ t with answer = None; notice = why }, Screen.Message why)
       | Ok end_day -> (invalidate { t with kind = Calendar_month; start_day; end_day }, Screen.Stay)
       )

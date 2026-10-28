@@ -7,7 +7,6 @@ module A = Daily_actions
 module O = Ui_render
 module P = Ui_preferences
 module W = Ui_workspace
-module Cal = Daily_calendar
 module M = Ui_commands
 module S = Record_session
 module Rev = Reversal_session

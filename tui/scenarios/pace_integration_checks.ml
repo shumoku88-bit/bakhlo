@@ -21,7 +21,7 @@ let daily_pace_trend_fail_closed_checks ~width_of ~directory () =
   in
   let remove path = if Sys.file_exists path then Unix.unlink path in
   let today = F.today () in
-  let stop = get (Cal.shift_days today 7) in
+  let stop = get (Day.shift_days today 7) in
   let view () = C.open_route { home with session = F.load path } W.Daily_pace in
   (* Painted rows carry frame glyphs and padding; drop them and clip each row to
      its pane so wrapped text still reads as one contiguous string. *)
@@ -740,8 +740,8 @@ let daily_pace_selection_clamp_checks ~width_of ~directory () =
   F.create_copy ~source:Interaction_check_fixture.example_book ~target:path;
   let home = C.initial ~config_home:directory (F.load path) in
   let today = F.today () in
-  let stop = get (Cal.shift_days today 7) in
-  let yesterday = get (Cal.shift_days today (-1)) in
+  let stop = get (Day.shift_days today 7) in
+  let yesterday = get (Day.shift_days today (-1)) in
   let boundary_text = "cycle\t" ^ today ^ "\t" ^ stop ^ "\n" in
   F.write_new (directory ^ "/daily-pace.tsv") "wallet\tjpy\n";
   F.write_new (directory ^ "/boundary-presets.tsv") boundary_text;
@@ -811,7 +811,7 @@ let daily_pace_selection_clamp_checks ~width_of ~directory () =
     (Base.String.is_substring unavailable ~substring:"unavailable"
     && not (Base.String.is_substring unavailable ~substring:"Spent:"))
     "daily-pace-unavailable-context-does-not-infer-spent";
-  let previous_start = get (Cal.shift_days today (-7)) in
+  let previous_start = get (Day.shift_days today (-7)) in
   let previous_env =
     {
       env with
@@ -1439,7 +1439,7 @@ let pool_review_checks ~width_of ~directory () =
   let before = "wallet\tjpy\n" and after = "food\tjpy\n" in
   let boundaries =
     "old\t1900-01-01\t1901-01-01\ncycle\t" ^ F.today () ^ "\t"
-    ^ get (Cal.shift_days (F.today ()) 7)
+    ^ get (Day.shift_days (F.today ()) 7)
     ^ "\n"
   in
   F.write_new pool_path before;

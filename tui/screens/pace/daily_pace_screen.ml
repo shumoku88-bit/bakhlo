@@ -5,7 +5,6 @@ module B = Bakhlo_household.Daily_book
 module D = Bakhlo_domain
 module A = Daily_draft
 module O = Ui_render
-module Cal = Daily_calendar
 module Form = Ui_form
 module Panel = Ui_panel
 module Trend = Daily_pace_trend

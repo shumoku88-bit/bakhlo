@@ -2,7 +2,6 @@
    path exists only after an explicit Run over a typed assumption. That
    assumption is ephemeral: nothing is saved, published or treated as evidence. *)
 module A = Daily_draft
-module Cal = Daily_calendar
 module O = Ui_render
 module P = Report_period
 module Frame = Report_frame
@@ -24,7 +23,7 @@ let run_prompt = "Run the conditional projection; no path is queried before you 
 let create () = { draft = None; focus = Field; scroll = 0; requested = false; notice = "" }
 
 let month_end day =
-  match Cal.parts day with
+  match Day.parts day with
   | Ok (year, month, _) -> Printf.sprintf "%04d-%02d-%02d" year month (A.days_in_month ~year ~month)
   | Error _ -> ""
 

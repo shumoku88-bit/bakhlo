@@ -10,7 +10,6 @@ module A = Daily_draft
 module O = Ui_render
 module Panel = Ui_panel
 module Roles = Locus_roles
-module Cal = Daily_calendar
 
 type period = Today | Cycle | Month | Year | All
 type sort_order = Newest | Oldest | Largest
@@ -446,7 +445,7 @@ let description (entry : B.entry) =
   match entry.memo with None | Some "" -> "(no description)" | Some text -> O.visible text
 
 let weekday_name day =
-  match Cal.weekday day with
+  match Day.weekday day with
   | Ok index -> [| "Mon"; "Tue"; "Wed"; "Thu"; "Fri"; "Sat"; "Sun" |].(index mod 7)
   | Error _ -> ""
 
@@ -1046,7 +1045,7 @@ let period_bar ~width_of ~width ~total t (window : window) =
   let window_part label = if t.period = All then [] else part [ (O.Plain, label) ] in
   (* A cycle within one year names its last day without the year. *)
   let short =
-    match (t.period, Cal.shift_days window.end_exclusive (-1)) with
+    match (t.period, Day.shift_days window.end_exclusive (-1)) with
     | Cycle, Ok last when String.sub last 0 5 = String.sub window.start_day 0 5 ->
         window.start_day ^ ".." ^ String.sub last 5 5
     | _ -> window.label

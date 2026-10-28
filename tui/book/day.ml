@@ -40,5 +40,5 @@ let shift_years day delta =
       let year = y + delta in
       canonical year m (min d (Daily_draft.days_in_month ~year ~month:m))
 
-let day_index text =
+let index text =
   match parts text with Ok (y, m, d) -> Ok (day_number y m d) | Error why -> Error why

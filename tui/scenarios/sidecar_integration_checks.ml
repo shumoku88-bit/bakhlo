@@ -149,7 +149,7 @@ let safety_checks ~width_of ~directory () =
       require (Result.is_error (resolve_pace_pool home)) "pool-rejects-bad-duplicate-or-mixed-rows")
     [ "wallet\tjpy\nbad\n"; "wallet\tjpy\nwallet\tjpy\n"; "wallet\tjpy\nbank\teur\n" ];
   replace pool_path "wallet\tjpy\n";
-  let today = F.today () and stop = get (Cal.shift_days (F.today ()) 7) in
+  let today = F.today () and stop = get (Day.shift_days (F.today ()) 7) in
   let window = "cycle\t" ^ today ^ "\t" ^ stop ^ "\n" in
   List.iter
     (fun raw ->

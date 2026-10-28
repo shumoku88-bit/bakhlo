@@ -252,7 +252,7 @@ let actual_browsing_checks ~width_of ~directory home =
   in
   let clamped = C.open_route stale (W.Selected_day (entry 16).day) in
   require
-    ((Day.browser clamped.screens.day).selected = 2
+    ((Selected_day.browser clamped.screens.day).selected = 2
     && day_id clamped = Some (Record_browser.Actual_row, "actual-15")
     && day_id (key ~width_of clamped (`Arrow `Up)) = Some (Record_browser.Actual_row, "actual-16"))
     "selected-day-entry-persists-clamped-selection-before-motion";
@@ -292,7 +292,7 @@ let actual_browsing_checks ~width_of ~directory home =
   let retained_day = with_day_browser day retained in
   let revisited = C.open_route (C.open_route retained_day W.Home) (W.Selected_day (entry 16).day) in
   require
-    (Day.browser revisited.screens.day = retained
+    (Selected_day.browser revisited.screens.day = retained
     && (not (day_detail revisited))
     && day_scroll revisited = 0)
     "selected-day-revisit-retains-filter-order-and-identity";
@@ -305,7 +305,7 @@ let actual_browsing_checks ~width_of ~directory home =
       selected_id = Some (Record_browser.Actual_row, "actual-15");
     }
   in
-  let raw = Day.with_browser day.screens.day stale_browser in
+  let raw = Selected_day.with_browser day.screens.day stale_browser in
   let reordered =
     get
       (B.put_entry day_book ~replace:false
@@ -318,30 +318,31 @@ let actual_browsing_checks ~width_of ~directory home =
     { screen = (120, 36); body = (120, 34); content = (120, 32); width_of }
   in
   require
-    (match Day.selected_row reordered raw with
+    (match Selected_day.selected_row reordered raw with
     | Some (Record_browser.Actual_entry e) -> e.id = "actual-16"
     | _ -> false)
     "selected-day-refused-snapshot-read-keeps-raw-index";
-  let _, request = Day.handle env geometry raw (`Key (`ASCII 'e', [])) in
+  let _, request = Selected_day.handle env geometry raw (`Key (`ASCII 'e', [])) in
   require
     (match request with
     | Screen.Record_action { target = Some (Screen.Entry e); _ } -> e.id = "actual-16"
     | _ -> false)
     "selected-day-refused-snapshot-action-matches-raw-selection";
-  let detail, _ = Day.handle env geometry raw (`Key (`ASCII 'i', [])) in
+  let detail, _ = Selected_day.handle env geometry raw (`Key (`ASCII 'i', [])) in
   require
-    (contains (Lazy.force (Day.view env geometry detail).rows) "Synthetic purchase 16"
-    && Day.browser detail = stale_browser)
+    (contains (Lazy.force (Selected_day.view env geometry detail).rows) "Synthetic purchase 16"
+    && Selected_day.browser detail = stale_browser)
     "selected-day-refused-snapshot-paint-keeps-raw-browser";
-  let moved, _ = Day.handle env geometry raw (`Key (`ASCII 'j', [])) in
+  let moved, _ = Selected_day.handle env geometry raw (`Key (`ASCII 'j', [])) in
   require
-    (match Day.selected_row reordered moved with
+    (match Selected_day.selected_row reordered moved with
     | Some (Record_browser.Actual_entry e) -> e.id = "actual-15"
     | _ -> false)
     "selected-day-refused-snapshot-first-motion-advances-visible-row";
   require
-    ((Day.browser (Day.synced reordered raw)).selected = 3
-    && (Day.browser (Day.synced reordered raw)).selected_id = stale_browser.selected_id)
+    ((Selected_day.browser (Selected_day.synced reordered raw)).selected = 3
+    && (Selected_day.browser (Selected_day.synced reordered raw)).selected_id
+       = stale_browser.selected_id)
     "selected-day-qualified-sync-explicitly-reanchors-identity";
   let searching =
     key ~width_of { day with message = "search sentinel"; record = closed.record } (`ASCII '/')
@@ -350,7 +351,7 @@ let actual_browsing_checks ~width_of ~directory home =
   require
     ((day_browser searching).query = ""
     && List.length (day_rows searching) = 3
-    && Day.modal searching.screens.day)
+    && Selected_day.modal searching.screens.day)
     "selected-day-search-defers-query-until-enter";
   List.iter
     (fun c ->
@@ -376,7 +377,8 @@ let actual_browsing_checks ~width_of ~directory home =
         | None -> raise (F.Refused "selected-day-search-reload-exited")
       in
       require
-        (Day.modal reloaded.screens.day && (day_browser reloaded).query = ""
+        (Selected_day.modal reloaded.screens.day
+        && (day_browser reloaded).query = ""
         && reloaded.message = C.tr "Reloaded. Unsaved draft retained."
         && reloaded.record = searching.record
         && F.read path = before
@@ -388,13 +390,13 @@ let actual_browsing_checks ~width_of ~directory home =
     ((day_browser applied).query = "purchase 16"
     && List.length (day_rows applied) = 1
     && day_id applied = Some (Record_browser.Actual_row, "actual-16")
-    && not (Day.modal applied.screens.day))
+    && not (Selected_day.modal applied.screens.day))
     "selected-day-search-enter-applies-retained-query";
   let cleared_day = key ~width_of (key ~width_of applied (`ASCII '/')) `Escape in
   require
     ((day_browser cleared_day).query = ""
     && List.length (day_rows cleared_day) = 3
-    && not (Day.modal cleared_day.screens.day))
+    && not (Selected_day.modal cleared_day.screens.day))
     "selected-day-search-escape-clears";
   (* A failed reload kept the old central viewport; both extracted owners must
      preserve that viewport and a retained Record without accepting bad bytes. *)
@@ -521,7 +523,7 @@ let actual_browsing_checks ~width_of ~directory home =
     (actual_detail returned && actual_scroll returned = actual_scroll at_details)
     "actual-return-restores-detail-focus-and-scroll";
   require
-    (Day.browser returned.screens.day = Day.browser drilled.screens.day)
+    (Selected_day.browser returned.screens.day = Selected_day.browser drilled.screens.day)
     "actual-return-does-not-overwrite-selected-day-browser";
   let corrected_book =
     get (B.put_entry book ~replace:true { (entry 16) with day = "2026-09-01" } ~plan:None)

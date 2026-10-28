@@ -2,7 +2,6 @@
 module B = Bakhlo_household.Daily_book
 module Roles = Locus_roles
 module O = Ui_render
-module Cal = Daily_calendar
 module A = Daily_draft
 module D = Bakhlo_domain
 
@@ -53,9 +52,7 @@ let resolve_period = Period_window.resolve
 (* How much of [period] has elapsed at [today]: (completed days, total days).
    A window that has not started yet reports 0; a finished window reports M of M. *)
 let elapsed ~today (period : period) =
-  match
-    (Cal.day_index today, Cal.day_index period.start_day, Cal.day_index period.end_exclusive)
-  with
+  match (Day.index today, Day.index period.start_day, Day.index period.end_exclusive) with
   | Ok now, Ok start, Ok stop ->
       let total = max 0 (stop - start) in
       (max 0 (min total (now - start + 1)), total)
@@ -67,7 +64,7 @@ let elapsed ~today (period : period) =
 let truncate_to_days (period : period) days =
   if days <= 0 then { period with end_exclusive = period.start_day }
   else
-    match Cal.shift_days period.start_day days with
+    match Day.shift_days period.start_day days with
     | Ok day -> { period with end_exclusive = day }
     | Error _ -> period
 
@@ -236,7 +233,7 @@ let item_lines ~width_of ~pad_w ~book ~measure ~with_bar ~compared items =
     rows
 
 let last_day (period : period) =
-  match Cal.shift_days period.end_exclusive (-1) with Ok day -> day | Error _ -> period.start_day
+  match Day.shift_days period.end_exclusive (-1) with Ok day -> day | Error _ -> period.start_day
 
 (* A window by its first and last day, as the Actual's period picker names it. *)
 let span (period : period) = period.start_day ^ " .. " ^ last_day period

@@ -445,7 +445,7 @@ Esc／qは変更前の配色と元のCommands選択へ戻す。選択日・一�
 `$HOME/.config/bakhlo/ui-theme`の順。次回起動でも選択を復元し、設定不備ではTerminalへ戻る。
 設定を保存できない場合はそのセッションだけ変更し、保存できなかったことを通知する。
 
-- daily_calendar / ui_workspace / ui_commands：純粋な日付計算・画面・階層ナビ。
+- day / ui_workspace / ui_commands：純粋な日付計算・画面・階層ナビ。
 - record_session / ui_input：一つの下書き・Previewと入力型。
 - reversal_session：反転の日付と固定snapshotの元／逆Posting確認。ID割当・永続inverse構築・I/Oは持たない。
 - shell_state：Shell state、初期化、route入場・同期、Record下書き保持とpublication結果処理。

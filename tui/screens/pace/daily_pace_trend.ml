@@ -1,7 +1,6 @@
 (* Daily Pace Trend: retrospective current-truth spending pace analysis over 10d, 30d, month, cycle. *)
 module B = Bakhlo_household.Daily_book
 module O = Ui_render
-module Cal = Daily_calendar
 module A = Daily_draft
 module D = Bakhlo_domain
 module Panel = Ui_panel
@@ -89,10 +88,10 @@ let current_window ~today = function
 let resolve_range ~today ~preset ~boundary_presets_text =
   match preset with
   | Ten_days ->
-      let start = match Cal.shift_days today (-9) with Ok d -> d | Error e -> failwith e in
+      let start = match Day.shift_days today (-9) with Ok d -> d | Error e -> failwith e in
       Ok (start, today, None)
   | Thirty_days ->
-      let start = match Cal.shift_days today (-29) with Ok d -> d | Error e -> failwith e in
+      let start = match Day.shift_days today (-29) with Ok d -> d | Error e -> failwith e in
       Ok (start, today, None)
   | Month ->
       let start = String.sub today 0 8 ^ "01" in
@@ -103,7 +102,7 @@ let resolve_range ~today ~preset ~boundary_presets_text =
         (current_window ~today boundary_presets_text)
   | Previous_cycle ->
       Result.bind (current_window ~today boundary_presets_text) (fun (windows, (name, a, _)) ->
-          let prev_through = match Cal.shift_days a (-1) with Ok d -> d | Error e -> failwith e in
+          let prev_through = match Day.shift_days a (-1) with Ok d -> d | Error e -> failwith e in
           let prev =
             List.filter
               (fun (n, pa, pb) -> n = name && pa <= prev_through && prev_through < pb)
@@ -114,7 +113,7 @@ let resolve_range ~today ~preset ~boundary_presets_text =
           | _ -> Error "Previous cycle boundary is not explicitly configured or not adjacent.")
 
 let day_number text =
-  match Cal.parts text with
+  match Day.parts text with
   | Error _ -> 0
   | Ok (y, m, d) ->
       let prev = y - 1 in
@@ -130,7 +129,7 @@ let dates_between start_day through_day =
   let end_num = day_number through_day in
   let count = max 0 (end_num - start_num + 1) in
   List.init count (fun i ->
-      match Cal.shift_days start_day i with Ok d -> d | Error _ -> start_day)
+      match Day.shift_days start_day i with Ok d -> d | Error _ -> start_day)
 
 (* Exact cause of a refused pool balance, with its coordinate when recoverable. *)
 let format_pace_error why =
@@ -462,7 +461,7 @@ let compare_change ~prev ~current =
   else if prev.end_exclusive <> current.end_exclusive then
     Error "Daily Pace change crosses a cycle boundary."
   else
-    match Cal.shift_days prev.day 1 with
+    match Day.shift_days prev.day 1 with
     | Ok next when next = current.day -> (
         if prev.remaining_days <> current.remaining_days + 1 || current.remaining_days <= 0 then
           Error "Daily Pace change requires a one-day shorter positive horizon."

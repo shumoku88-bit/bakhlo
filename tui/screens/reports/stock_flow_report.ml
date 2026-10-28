@@ -69,7 +69,7 @@ let support_reason = function
   | other -> other
 
 let day_before day =
-  match Daily_calendar.shift_days day (-1) with Ok previous -> Some previous | Error _ -> None
+  match Day.shift_days day (-1) with Ok previous -> Some previous | Error _ -> None
 
 let coordinate_of ~measure locus : (D.Effect_coordinate.t, string) result =
   match (D.Identifier.Locus.of_string locus, D.Identifier.Measure.of_string measure) with

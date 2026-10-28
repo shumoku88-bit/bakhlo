@@ -6,7 +6,6 @@ module R = Shell_view
 module B = Bakhlo_household.Daily_book
 module F = Daily_file
 module W = Ui_workspace
-module Cal = Daily_calendar
 module M = Ui_commands
 
 (* The file revision once the store appends [ops] to [session]. *)
@@ -20,7 +19,7 @@ module Act = Actual_workspace
 module Cancel = Scheduled_cancellation_session
 module Months = Scheduled_months
 module Plans = Scheduled_screen
-module Day = Selected_day_screen
+module Selected_day = Selected_day_screen
 module Cont = Scheduled_continuation_session
 module Sch = Scheduled_session
 module Bulk = Scheduled_bulk_session
@@ -214,22 +213,25 @@ let with_plan_query (state : C.state) query =
 
 (* Selected Day, read through its owner. *)
 let days (state : C.state) = state.screens.day
-let day_rows (state : C.state) = Day.rows state.session.book state.screens.day
-let day_browser state = Day.browser (days state)
+let day_rows (state : C.state) = Selected_day.rows state.session.book state.screens.day
+let day_browser state = Selected_day.browser (days state)
 let day_id state = (day_browser state).selected_id
-let day_detail state = Day.detail_focused (days state)
-let day_scroll state = Day.scroll (days state)
-let day_selected (state : C.state) = Day.selected_row state.session.book state.screens.day
+let day_detail state = Selected_day.detail_focused (days state)
+let day_scroll state = Selected_day.scroll (days state)
+let day_selected (state : C.state) = Selected_day.selected_row state.session.book state.screens.day
 
 let with_day_browser (state : C.state) browser =
-  { state with screens = { state.screens with day = Day.with_browser state.screens.day browser } }
+  {
+    state with
+    screens = { state.screens with day = Selected_day.with_browser state.screens.day browser };
+  }
 
 (* The old workspace record included both browsers and the central pane.
    Retention assertions must compare those semantic fields after ownership moves. *)
 let same_workspace (a : C.state) (b : C.state) =
   a.workspace = b.workspace
-  && Day.browser a.screens.day = Day.browser b.screens.day
-  && Day.detail_focused a.screens.day = Day.detail_focused b.screens.day
+  && Selected_day.browser a.screens.day = Selected_day.browser b.screens.day
+  && Selected_day.detail_focused a.screens.day = Selected_day.detail_focused b.screens.day
 
 (* The Actual's context: the same book, window, day, roles and Measure the
    screen itself reads from the Shell's environment. *)

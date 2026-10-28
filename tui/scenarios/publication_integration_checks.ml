@@ -29,14 +29,14 @@ let run ~width_of ~directory ~path (home : C.state) =
     && (not (C.has_record_draft outside_paste))
     && F.read path = before)
     "paste-executed-home-commands";
-  require (get (Cal.shift_months "2024-01-31" 1) = "2024-02-29") "calendar-month-clamp";
-  require (get (Cal.shift_years "2024-02-29" 1) = "2025-02-28") "calendar-year-clamp";
+  require (get (Day.shift_months "2024-01-31" 1) = "2024-02-29") "calendar-month-clamp";
+  require (get (Day.shift_years "2024-02-29" 1) = "2025-02-28") "calendar-year-clamp";
   require
-    (get (Cal.weekday "0001-01-01") = 0 && get (Cal.weekday "2026-10-11") = 6)
+    (get (Day.weekday "0001-01-01") = 0 && get (Day.weekday "2026-10-11") = 6)
     "calendar-weekday";
   require
-    (Result.is_error (Cal.shift_days "0001-01-01" (-1))
-    && Result.is_error (Cal.shift_days "9999-12-31" 1))
+    (Result.is_error (Day.shift_days "0001-01-01" (-1))
+    && Result.is_error (Day.shift_days "9999-12-31" 1))
     "calendar-boundary";
   let opened = key ~width_of home (`ASCII ' ') in
   (match R.overlay_screen ~dimensions:(80, 24) ~width_of opened with
@@ -220,7 +220,7 @@ let run ~width_of ~directory ~path (home : C.state) =
   let windows_path = directory ^ "/boundary-presets.tsv" in
   F.write_new pace_path "wallet\tjpy\n";
   F.write_new windows_path
-    ("test-cycle\t" ^ F.today () ^ "\t" ^ get (Cal.shift_days (F.today ()) 7) ^ "\n");
+    ("test-cycle\t" ^ F.today () ^ "\t" ^ get (Day.shift_days (F.today ()) 7) ^ "\n");
   let completion = key ~width_of inspected (`ASCII 'c') in
   require completion.record_visible "scheduled-completion-explicit";
   let _ = C.discard completion in

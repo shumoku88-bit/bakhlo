@@ -3,7 +3,6 @@
    role or household-coverage inference. *)
 module B = Bakhlo_household.Daily_book
 module D = Bakhlo_domain
-module Cal = Daily_calendar
 module IncExp = Income_expense_report
 module Roles = Locus_roles
 
@@ -46,7 +45,7 @@ let month_starts = [| 0; 31; 59; 90; 120; 151; 181; 212; 243; 273; 304; 334 |]
 
 (* Proleptic Gregorian ordinal, used only for exact window day counts. *)
 let day_ordinal day =
-  match Cal.parts day with
+  match Day.parts day with
   | Error _ -> None
   | Ok (year, month, day_of_month) ->
       let prior = year - 1 in
@@ -195,7 +194,7 @@ let project ~book ~observed_at ~boundary_presets_text ~grain ~scope ~coordinates
   else
     let* measure = validate_coordinates ~book ~coordinates in
     let* scope_end_exclusive =
-      match Cal.shift_days observed_at 1 with Ok day -> Ok day | Error why -> Error why
+      match Day.shift_days observed_at 1 with Ok day -> Ok day | Error why -> Error why
     in
     let effective_scope = match grain with Day -> scope | Cycle | Month -> All_history in
     let* bounds = configured_bounds ~observed_at ~text:boundary_presets_text in
@@ -205,7 +204,7 @@ let project ~book ~observed_at ~boundary_presets_text ~grain ~scope ~coordinates
       | Current_cycle -> Ok bounds.cycle_start
       | Current_month -> Ok (max (String.sub observed_at 0 8 ^ "01") bounds.history_start)
       | Last_30_days -> (
-          match Cal.shift_days observed_at (-29) with
+          match Day.shift_days observed_at (-29) with
           | Ok from -> Ok (max from bounds.history_start)
           | Error why -> Error why)
     in
@@ -215,7 +214,7 @@ let project ~book ~observed_at ~boundary_presets_text ~grain ~scope ~coordinates
           let rec loop day acc =
             if day >= scope_end_exclusive then Ok (List.rev acc)
             else
-              match Cal.shift_days day 1 with
+              match Day.shift_days day 1 with
               | Error why -> Error why
               | Ok next -> loop next ((day, next, day, next) :: acc)
           in
@@ -224,7 +223,7 @@ let project ~book ~observed_at ~boundary_presets_text ~grain ~scope ~coordinates
           let rec loop natural_start acc =
             if natural_start >= scope_end_exclusive then Ok (List.rev acc)
             else
-              match Cal.shift_months natural_start 1 with
+              match Day.shift_months natural_start 1 with
               | Error why -> Error why
               | Ok natural_end ->
                   let start_day = max natural_start scope_start in

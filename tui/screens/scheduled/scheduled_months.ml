@@ -1,12 +1,11 @@
 module B = Bakhlo_household.Daily_book
 module O = Ui_render
-module C = Daily_calendar
 module P = Ui_panel
 
 type t = { floor : int; ordinal : int; first : string }
 
 let month day =
-  match C.parts day with
+  match Day.parts day with
   | Error _ as error -> error
   | Ok (year, month, _) ->
       Ok (Printf.sprintf "%04d-%02d-01" year month, ((year - 1) * 12) + month - 1)
@@ -22,7 +21,7 @@ let shift t delta =
   if delta < t.floor - t.ordinal then Error "Already at the current calendar month."
   else if delta > (9999 * 12) - 1 - t.ordinal then Error "Month is outside 0001–9999."
   else
-    match C.shift_months t.first delta with
+    match Day.shift_months t.first delta with
     | Error _ as error -> error
     | Ok first -> Ok { t with first; ordinal = t.ordinal + delta }
 
@@ -42,7 +41,7 @@ let visible_months t =
   let rec collect offset =
     if offset = 6 then []
     else
-      match C.shift_months t.first offset with
+      match Day.shift_months t.first offset with
       | Error _ -> []
       | Ok day -> day :: collect (offset + 1)
   in
