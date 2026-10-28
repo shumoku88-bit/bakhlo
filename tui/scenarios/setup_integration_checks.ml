@@ -146,7 +146,7 @@ let run ~width_of ~directory ~path =
   require
     (List.exists
        (fun (e : B.entry) ->
-         List.exists (fun p -> Daily_draft.lstr (D.Effect.locus p) = "food") e.effects)
+         List.exists (fun p -> Draft.lstr (D.Effect.locus p) = "food") e.effects)
        (B.entries used_loci.session.book))
     "fixture-food-is-used";
   require

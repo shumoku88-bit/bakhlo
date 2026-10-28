@@ -1521,7 +1521,7 @@ let pool_review_checks ~width_of ~directory () =
   let cold = fresh () in
   require
     (match resolve_pace_pool cold with
-    | Ok [ coordinate ] -> Daily_draft.lstr coordinate.D.Effect_coordinate.locus = "food"
+    | Ok [ coordinate ] -> Draft.lstr coordinate.D.Effect_coordinate.locus = "food"
     | _ -> false)
     "pool-save-cold-reopen";
   List.iter

@@ -2,7 +2,7 @@
    Drop editors. The memory is saved only through the Shell, which rechecks
    that the file still equals the state this editor started from. *)
 module Att = Attention_data
-module A = Daily_draft
+module A = Draft
 module O = Ui_render
 module Form = Ui_form
 module Panel = Ui_panel

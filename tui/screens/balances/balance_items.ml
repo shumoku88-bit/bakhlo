@@ -1,6 +1,6 @@
 module B = Bakhlo_household.Book
 module D = Bakhlo_domain
-module A = Daily_draft
+module A = Draft
 open Book_display
 open Locus_roles
 

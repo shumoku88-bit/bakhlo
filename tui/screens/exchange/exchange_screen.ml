@@ -3,7 +3,7 @@
    The reviewed entry is published against the bytes it was reviewed from. *)
 module B = Bakhlo_household.Book
 module D = Bakhlo_domain
-module A = Daily_draft
+module A = Draft
 module Form = Ui_form
 
 let tr = Ui_text.tr

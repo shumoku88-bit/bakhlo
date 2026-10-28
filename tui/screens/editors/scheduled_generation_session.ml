@@ -3,7 +3,7 @@ module B = Bakhlo_household.Book
 module O = Ui_render
 module Panel = Ui_panel
 module Form = Ui_form
-module A = Daily_draft
+module A = Draft
 
 type cadence = Monthly | Every_two_months | Every_three_months | Every_six_months | Yearly
 

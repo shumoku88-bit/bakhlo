@@ -1,13 +1,12 @@
-(* Single publication coordinator. Pure candidate construction lives in Daily_draft. *)
-include Daily_draft
+(* Single publication coordinator. Pure candidate construction lives in Draft. *)
+include Draft
 module F = Book_file
 module B = Bakhlo_household.Book
 
 let build_transaction ~book ~mode content =
-  Daily_draft.build_transaction ~new_id:F.new_id ~book ~mode content
+  Draft.build_transaction ~new_id:F.new_id ~book ~mode content
 
-let build_plan ~book ~mode ~day ~draft =
-  Daily_draft.build_plan ~new_id:F.new_id ~book ~mode ~day ~draft
+let build_plan ~book ~mode ~day ~draft = Draft.build_plan ~new_id:F.new_id ~book ~mode ~day ~draft
 
 (* The file revision had the save landed. *)
 type uncertain_evidence = Expected_revision of string

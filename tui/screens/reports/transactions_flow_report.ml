@@ -2,7 +2,7 @@
 module B = Bakhlo_household.Book
 module IncExp = Income_expense_report
 module O = Ui_render
-module A = Daily_draft
+module A = Draft
 module D = Bakhlo_domain
 
 type row_activity = {

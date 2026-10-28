@@ -1,7 +1,7 @@
 (* Local reversal review; only the existing publisher constructs the durable inverse. *)
 module B = Bakhlo_household.Book
 module D = Bakhlo_domain
-module A = Daily_draft
+module A = Draft
 module O = Ui_render
 module Form = Ui_form
 module Panel = Ui_panel

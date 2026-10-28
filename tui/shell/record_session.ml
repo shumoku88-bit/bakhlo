@@ -1,7 +1,7 @@
 (* English-first Record editor. Drafts and preview navigation are local state;
    only an explicit selected Publish action requests the existing publisher. *)
 module B = Bakhlo_household.Book
-module A = Daily_draft
+module A = Draft
 module D = Bakhlo_domain
 module R = Posting_draft
 module O = Ui_render

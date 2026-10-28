@@ -4,7 +4,7 @@
    and cursor behaviour. *)
 
 module B = Bakhlo_household.Book
-module A = Daily_draft
+module A = Draft
 module Act = Actual_workspace
 module Sc = Actual_screen
 module Roles = Locus_roles

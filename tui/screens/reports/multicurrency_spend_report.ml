@@ -3,7 +3,7 @@
    valuation, home currency or cross-Measure arithmetic is inferred. *)
 module B = Bakhlo_household.Book
 module O = Ui_render
-module A = Daily_draft
+module A = Draft
 module D = Bakhlo_domain
 module M = Map.Make (String)
 

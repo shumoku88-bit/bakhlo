@@ -1,5 +1,5 @@
 module B = Bakhlo_household.Book
-module A = Daily_draft
+module A = Draft
 
 type t
 

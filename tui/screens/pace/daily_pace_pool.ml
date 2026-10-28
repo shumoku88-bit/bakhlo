@@ -3,7 +3,7 @@
    visible, and balances dropped from an earlier pool are named in review. *)
 module B = Bakhlo_household.Book
 module O = Ui_render
-module A = Daily_draft
+module A = Draft
 module D = Bakhlo_domain
 
 type t = {

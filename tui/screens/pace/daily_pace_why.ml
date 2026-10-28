@@ -2,7 +2,7 @@
    its pool balances and per-occurrence deductions; this only labels them. *)
 module B = Bakhlo_household.Book
 module O = Ui_render
-module A = Daily_draft
+module A = Draft
 module D = Bakhlo_domain
 module Panel = Ui_panel
 

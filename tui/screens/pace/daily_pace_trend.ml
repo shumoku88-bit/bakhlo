@@ -1,7 +1,7 @@
 (* Daily Pace Trend: retrospective current-truth spending pace analysis over 10d, 30d, month, cycle. *)
 module B = Bakhlo_household.Book
 module O = Ui_render
-module A = Daily_draft
+module A = Draft
 module D = Bakhlo_domain
 module Panel = Ui_panel
 

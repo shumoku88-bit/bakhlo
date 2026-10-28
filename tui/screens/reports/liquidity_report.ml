@@ -3,7 +3,7 @@
    selected changes; it never claims a forecast path or a known low-water mark. *)
 module B = Bakhlo_household.Book
 module O = Ui_render
-module A = Daily_draft
+module A = Draft
 
 type point = { date : string; scheduled_change : Z.t; balance : Z.t }
 

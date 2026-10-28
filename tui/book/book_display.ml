@@ -3,7 +3,7 @@
    Read-only; nothing here publishes. *)
 module B = Bakhlo_household.Book
 module D = Bakhlo_domain
-module A = Daily_draft
+module A = Draft
 
 let tr = Ui_text.tr
 let visible = Ui_render.visible

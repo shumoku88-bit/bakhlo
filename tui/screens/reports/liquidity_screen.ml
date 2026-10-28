@@ -1,7 +1,7 @@
 (* Liquidity: the two unconditional statements stay UNKNOWN, and a conditional
    path exists only after an explicit Run over a typed assumption. That
    assumption is ephemeral: nothing is saved, published or treated as evidence. *)
-module A = Daily_draft
+module A = Draft
 module O = Ui_render
 module P = Report_period
 module Frame = Report_frame

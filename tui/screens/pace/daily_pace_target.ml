@@ -3,7 +3,7 @@
    works: inputs are whole units of the pace Measure, scaled to its quanta. *)
 module B = Bakhlo_household.Book
 module O = Ui_render
-module A = Daily_draft
+module A = Draft
 module Panel = Ui_panel
 module Trend = Daily_pace_trend
 

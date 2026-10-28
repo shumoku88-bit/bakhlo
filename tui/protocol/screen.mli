@@ -81,7 +81,7 @@ type admission =
 type publication =
   | Add_locus of string
   | Set_locus_label of { locus : string; label : string; help : string }
-  | Commit_transaction of { transaction : Daily_draft.transaction; base : string }
+  | Commit_transaction of { transaction : Draft.transaction; base : string }
       (** Publish an entry reviewed against [base]; a different file refuses. *)
   | Observe_quantities of { rows : (string * string * Z.t) list; base : string }
       (** Observe exact quantities together as one reconciliation group. *)

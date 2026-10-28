@@ -6,7 +6,7 @@
 
 module B = Bakhlo_household.Book
 module D = Bakhlo_domain
-module A = Daily_draft
+module A = Draft
 module O = Ui_render
 module Panel = Ui_panel
 module Roles = Locus_roles

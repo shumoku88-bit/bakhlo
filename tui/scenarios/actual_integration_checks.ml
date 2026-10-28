@@ -607,7 +607,7 @@ let actual_browsing_checks ~width_of ~directory home =
     && corrected.effects = (entry 16).effects)
     "actual-correction-cold-retains-id-date-description-and-postings";
   (* LOAM Correction may also change a posting's Locus under the same ID. *)
-  let first_locus (e : B.entry) = Daily_draft.lstr (D.Effect.locus (List.hd e.effects)) in
+  let first_locus (e : B.entry) = Draft.lstr (D.Effect.locus (List.hd e.effects)) in
   let target = if first_locus corrected = "bank" then "wallet" else "bank" in
   let relocating = key ~width_of published (`ASCII 'c') in
   let relocating = key ~width_of (key ~width_of relocating `Tab) `Tab in
@@ -1956,7 +1956,7 @@ let quick_capture_integration_checks ~width_of ~directory () =
     let postings (e : B.entry) =
       List.sort compare
         (List.map
-           (fun p -> (Daily_draft.lstr (D.Effect.locus p), Z.to_string (Daily_draft.quanta p)))
+           (fun p -> (Draft.lstr (D.Effect.locus p), Z.to_string (Draft.quanta p)))
            e.effects)
     in
     a.memo = b.memo && postings a = postings b

@@ -28,7 +28,7 @@ val plan_lines : B.t -> B.plan -> string list
 (** Every expected Effect, the due day, IDs and whether it is open, cancelled or
     completed. *)
 
-val preview_lines : B.t -> Daily_draft.transaction -> string list
+val preview_lines : B.t -> Draft.transaction -> string list
 (** What saving the transaction publishes: new, correction or Scheduled completion,
     then [entry_lines] and the balanced total. *)
 

@@ -1,7 +1,7 @@
 (* Multicurrency Spend: an explicit Actual-only window. Calendar Month, named
    boundary presets and explicit Custom dates stay independent sources; a named
    source never silently falls back. Nothing is queried before Run. *)
-module A = Daily_draft
+module A = Draft
 module O = Ui_render
 module P = Report_period
 module Frame = Report_frame
