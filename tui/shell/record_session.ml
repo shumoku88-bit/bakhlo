@@ -4,7 +4,7 @@ module B = Bakhlo_household.Daily_book
 module A = Daily_draft
 module D = Bakhlo_domain
 module R = Posting_draft
-module O = Daily_overlays
+module O = Ui_render
 module Fm = Daily_form
 
 let tr = Ui_text.tr
@@ -256,7 +256,7 @@ let move_focus t delta =
   in
   settle { t with focus = step t.focus }
 
-let candidates ~book t = if is_locus t then O.locus_candidates book (value t) else []
+let candidates ~book t = if is_locus t then Book_display.locus_candidates book (value t) else []
 
 let accept ~book t =
   let choices = candidates ~book t in
@@ -479,8 +479,8 @@ let edit_original t (ed : original_editor) (updated, cursor) =
 
 let review_lines ~book review =
   match review.payload with
-  | A.Entry_tx tx -> O.preview_lines book tx
-  | A.Plan_tx { plan; replace } -> O.plan_preview_lines book ~replace plan
+  | A.Entry_tx tx -> Book_display.preview_lines book tx
+  | A.Plan_tx { plan; replace } -> Book_display.plan_preview_lines book ~replace plan
 
 let notice_lines ~dimensions:(width, height) ~width_of t =
   let room = max 1 (width - 4) in

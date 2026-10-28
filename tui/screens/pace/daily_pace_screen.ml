@@ -4,7 +4,7 @@
 module B = Bakhlo_household.Daily_book
 module D = Bakhlo_domain
 module A = Daily_draft
-module O = Daily_overlays
+module O = Ui_render
 module Cal = Daily_calendar
 module Form = Ui_form
 module Panel = Ui_panel
@@ -564,7 +564,7 @@ let header_summary env t ~today_pace ~history ~width ~width_of =
     | Ok (pace, _, _) ->
         let text =
           " Today: "
-          ^ O.format_money env.Screen.book pace.B.measure pace.daily_pace_quanta
+          ^ Book_display.format_money env.Screen.book pace.B.measure pace.daily_pace_quanta
           ^ " " ^ pace.measure ^ "/day"
         in
         if width_of text <= width then text else "Today: End, then i for full value"
@@ -582,7 +582,7 @@ let header_summary env t ~today_pace ~history ~width ~width_of =
     | Ok (pace, _, _), Ok (_, _, samples) -> (
         match List.find_opt (fun (sample : Trend.sample) -> sample.day = env.today) samples with
         | Some { activity = Some activity; pace_quanta = Some _; _ } ->
-            let money q = O.format_money env.book pace.B.measure q in
+            let money q = Book_display.format_money env.book pace.B.measure q in
             let margin = Z.sub pace.daily_pace_quanta activity.discretionary_outflow in
             " • Spent: "
             ^ money activity.discretionary_outflow

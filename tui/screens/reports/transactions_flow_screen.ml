@@ -7,7 +7,7 @@ module IncExp = Income_expense_report
 module Flow = Transactions_flow_report
 module P = Report_period
 module Frame = Report_frame
-module O = Daily_overlays
+module O = Ui_render
 
 type t = {
   report : Flow.t;

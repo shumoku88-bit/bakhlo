@@ -4,7 +4,7 @@ open Notty_render
 module F = Daily_file
 module X = Shell_dispatch
 module H = Shell_input
-module O = Daily_overlays
+module O = Ui_render
 
 let run () =
   let directory = "scratch/terminal-check-" ^ F.new_id () in

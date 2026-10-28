@@ -88,7 +88,7 @@ val screen :
   dimensions:int * int ->
   width_of:(string -> int) ->
   t ->
-  (Daily_overlays.style * string) list
+  (Ui_render.style * string) list
 
 type expense_roles
 
@@ -109,7 +109,7 @@ val window_total : ctx:context -> string option
     is that text, already formatted for the title. *)
 
 val footer : dimensions:int * int -> width_of:(string -> int) -> t -> string list
-val search_line : width:int -> width_of:(string -> int) -> t -> Daily_overlays.style * string
+val search_line : width:int -> width_of:(string -> int) -> t -> Ui_render.style * string
 val cursor_position : dimensions:int * int -> width_of:(string -> int) -> t -> (int * int) option
 
 val detail_window :

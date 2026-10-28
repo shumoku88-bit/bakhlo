@@ -1,5 +1,5 @@
 module B = Bakhlo_household.Daily_book
-module O = Daily_overlays
+module O = Ui_render
 module Panel = Ui_panel
 module Form = Ui_form
 module A = Daily_draft

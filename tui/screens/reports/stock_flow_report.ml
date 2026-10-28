@@ -6,7 +6,7 @@
    coordinates are listed, not used to refuse the whole report. *)
 module B = Bakhlo_household.Daily_book
 module IncExp = Income_expense_report
-module O = Daily_overlays
+module O = Ui_render
 module A = Daily_draft
 module D = Bakhlo_domain
 
@@ -202,9 +202,9 @@ let compute_report ~book ~measure ~tracked_coords ~liability_coords ~(period : I
         let classify (locus, _) =
           let positive, negative = Hashtbl.find activities locus in
           let current_balance =
-            match O.quantity_value ~book ~measure locus with
-            | O.Exact quantity -> Some quantity
-            | O.Unsupported -> None
+            match Book_display.quantity_value ~book ~measure locus with
+            | Book_display.Exact quantity -> Some quantity
+            | Book_display.Unsupported -> None
           in
           let base support start_balance end_balance =
             (* The Net cell is the balance motion between the two boundaries: it
@@ -363,9 +363,13 @@ let compute_report ~book ~measure ~tracked_coords ~liability_coords ~(period : I
         })
       (scan (B.entries book))
 
-let signed_amount ~book m z = (if Z.sign z > 0 then "+" else "") ^ O.format_money book m z
-let signed_val ~book m z = (if Z.sign z > 0 then "+" else "") ^ O.format_money book m z ^ " " ^ m
-let unsigned_val ~book m z = O.format_money book m z ^ " " ^ m
+let signed_amount ~book m z =
+  (if Z.sign z > 0 then "+" else "") ^ Book_display.format_money book m z
+
+let signed_val ~book m z =
+  (if Z.sign z > 0 then "+" else "") ^ Book_display.format_money book m z ^ " " ^ m
+
+let unsigned_val ~book m z = Book_display.format_money book m z ^ " " ^ m
 
 let coordinate_label ~book ~measure (c : coordinate_activity) =
   let label = B.label book c.locus in
@@ -406,7 +410,10 @@ let table_columns pad_w =
 let cell ~width_of col text = O.pad_left ~width_of col text
 
 let row_text ~width_of ~col_name ~col_num ~book ~measure (c : coordinate_activity) =
-  let amount = function Some value -> O.format_money book measure value | None -> "—" in
+  let amount = function
+    | Some value -> Book_display.format_money book measure value
+    | None -> "—"
+  in
   let net =
     match c.net_change with Some value -> signed_amount ~book measure value | None -> "—"
   in
@@ -415,9 +422,9 @@ let row_text ~width_of ~col_name ~col_num ~book ~measure (c : coordinate_activit
   ^ " "
   ^ cell ~width_of col_num (amount c.start_balance)
   ^ " "
-  ^ cell ~width_of col_num ("+" ^ O.format_money book measure c.increases)
+  ^ cell ~width_of col_num ("+" ^ Book_display.format_money book measure c.increases)
   ^ " "
-  ^ cell ~width_of col_num (O.format_money book measure c.decreases)
+  ^ cell ~width_of col_num (Book_display.format_money book measure c.decreases)
   ^ " "
   ^ cell ~width_of col_num (amount c.end_balance)
   ^ " " ^ cell ~width_of col_num net
@@ -510,13 +517,13 @@ let render_summary_lines ~width ~width_of ~book ~(report : report) =
     "  "
     ^ O.pad ~width_of col_name ("Total (" ^ m ^ ")")
     ^ " "
-    ^ cell ~width_of col_num (O.format_money book m report.reconstructed_start)
+    ^ cell ~width_of col_num (Book_display.format_money book m report.reconstructed_start)
     ^ " "
-    ^ cell ~width_of col_num ("+" ^ O.format_money book m report.increases_across_events)
+    ^ cell ~width_of col_num ("+" ^ Book_display.format_money book m report.increases_across_events)
     ^ " "
-    ^ cell ~width_of col_num (O.format_money book m report.decreases_across_events)
+    ^ cell ~width_of col_num (Book_display.format_money book m report.decreases_across_events)
     ^ " "
-    ^ cell ~width_of col_num (O.format_money book m report.reconstructed_end)
+    ^ cell ~width_of col_num (Book_display.format_money book m report.reconstructed_end)
     ^ " "
     ^ cell ~width_of col_num
         (match report.net_change with Some value -> signed_amount ~book m value | None -> "—")
@@ -548,11 +555,14 @@ let render_summary_lines ~width ~width_of ~book ~(report : report) =
           else "  Liabilities (end unknown; current quantity only)" )
         :: List.map
              (fun (c : coordinate_activity) ->
-               let amount = function Some value -> O.format_money book m value | None -> "—" in
+               let amount = function
+                 | Some value -> Book_display.format_money book m value
+                 | None -> "—"
+               in
                let now =
                  match (c.end_balance, c.current_balance) with
                  | Some _, _ -> ""
-                 | None, Some value -> "  now " ^ O.format_money book m value
+                 | None, Some value -> "  now " ^ Book_display.format_money book m value
                  | None, None -> ""
                in
                let support =
@@ -562,8 +572,8 @@ let render_summary_lines ~width ~width_of ~book ~(report : report) =
                  Printf.sprintf "    %-22s %10s %10s %10s %10s%s%s"
                    (coordinate_label ~book ~measure:m c)
                    (amount c.start_balance)
-                   ("+" ^ O.format_money book m c.increases)
-                   (O.format_money book m c.decreases)
+                   ("+" ^ Book_display.format_money book m c.increases)
+                   (Book_display.format_money book m c.decreases)
                    (amount c.end_balance) now support ))
              rows_of
         @ [
@@ -572,9 +582,9 @@ let render_summary_lines ~width ~width_of ~book ~(report : report) =
                 (if known_start = [] then "—"
                  else signed_amount ~book m (List.fold_left Z.add Z.zero known_start))
                 ("+"
-                ^ O.format_money book m
+                ^ Book_display.format_money book m
                     (List.fold_left (fun total c -> Z.add total c.increases) Z.zero rows_of))
-                (O.format_money book m
+                (Book_display.format_money book m
                    (List.fold_left (fun total c -> Z.add total c.decreases) Z.zero rows_of))
                 (if known_end = [] && known_now = [] then "—" else signed_amount ~book m total) );
           ]
@@ -622,15 +632,15 @@ let print_summary ~book ~(report : report) =
   add "--------------------------------------------------------------------------------";
   List.iter
     (fun (c : coordinate_activity) ->
-      let amount = function Some value -> O.format_money book m value | None -> "—" in
+      let amount = function Some value -> Book_display.format_money book m value | None -> "—" in
       let net = match c.net_change with Some value -> signed_val ~book m value | None -> "—" in
       add
         (Printf.sprintf "  %-*s %*s %*s %*s %*s %*s" col_name
            (coordinate_label ~book ~measure:m c)
            col_num (amount c.start_balance) col_num
-           ("+" ^ O.format_money book m c.increases)
+           ("+" ^ Book_display.format_money book m c.increases)
            col_num
-           (O.format_money book m c.decreases)
+           (Book_display.format_money book m c.decreases)
            col_num (amount c.end_balance) col_num net))
     report.coordinates;
   List.iter

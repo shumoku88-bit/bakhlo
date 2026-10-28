@@ -8,7 +8,7 @@ module A = Daily_draft
 module Act = Actual_workspace
 module Sc = Actual_screen
 module Roles = Locus_roles
-module O = Daily_overlays
+module O = Ui_render
 module RB = Record_browser
 
 let require condition name =

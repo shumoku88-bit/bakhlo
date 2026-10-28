@@ -7,7 +7,7 @@ type balance_item =
       locus : string;
       measure : string;
       role : Locus_roles.role option;
-      value : Daily_overlays.quantity_value;
+      value : Book_display.quantity_value;
     }
   | Subtotal_row of { role : Locus_roles.role; measure : string; subtotal : Z.t }
   | Balance_sheet_status of { measure : string; complete : bool }

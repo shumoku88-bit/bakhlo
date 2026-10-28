@@ -30,4 +30,4 @@ val chosen : t -> string list
 val with_notice : t -> string -> t
 
 val rows :
-  width_of:(string -> int) -> width:int -> height:int -> t -> (Daily_overlays.style * string) list
+  width_of:(string -> int) -> width:int -> height:int -> t -> (Ui_render.style * string) list

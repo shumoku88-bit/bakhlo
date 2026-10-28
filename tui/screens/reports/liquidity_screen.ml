@@ -3,7 +3,7 @@
    assumption is ephemeral: nothing is saved, published or treated as evidence. *)
 module A = Daily_draft
 module Cal = Daily_calendar
-module O = Daily_overlays
+module O = Ui_render
 module P = Report_period
 module Frame = Report_frame
 module Report = Liquidity_report

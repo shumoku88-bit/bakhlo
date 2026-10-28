@@ -3,7 +3,7 @@
    source never silently falls back. Nothing is queried before Run. *)
 module A = Daily_draft
 module Cal = Daily_calendar
-module O = Daily_overlays
+module O = Ui_render
 module P = Report_period
 module Frame = Report_frame
 module Report = Multicurrency_spend_report

@@ -1,12 +1,12 @@
-(* Shared physical terminal geometry and read-only evidence formatting.
-   Controllers and editors own navigation; these primitives never publish. *)
+(* How book values read on screen: exact quantities and grouped amounts, Locus
+   candidates, and the detail lines of Actual entries, Scheduled plans and Previews.
+   Read-only; nothing here publishes. *)
 module B = Bakhlo_household.Daily_book
 module D = Bakhlo_domain
 module A = Daily_draft
 
 let tr = Ui_text.tr
-
-include Ui_render
+let visible = Ui_render.visible
 
 type quantity_value = Unsupported | Exact of Z.t
 

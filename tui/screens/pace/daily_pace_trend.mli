@@ -87,7 +87,7 @@ val render_chart :
   samples:sample list ->
   selected_index:int ->
   graph_style:graph_style ->
-  (Daily_overlays.style * string) list
+  (Ui_render.style * string) list
 (** Selected date/pace plus change/activity or partial-support summary, braille
     plot and full-date axis; tiny panes retain the exact selected amount when
     it fits. History rows live in {!render_history}. *)
@@ -102,7 +102,7 @@ val render_history :
   samples:sample list ->
   selected_index:int ->
   detail_focused:bool ->
-  (Daily_overlays.style * string) list
+  (Ui_render.style * string) list
 (** LOAM History rows for an inner [height]: blank, heading and a trailing
     window of [height - 2] dates; empty below one date row. Partial history's
     narrow Value / status fallback keeps its selected marker during detail focus. *)
@@ -131,6 +131,6 @@ val render_detail :
   selected_index:int ->
   today:string ->
   preset:preset ->
-  (Daily_overlays.style * string) list
+  (Ui_render.style * string) list
 (** LOAM Selected day lines, already wrapped to [width]: full history when every
     day is supported, otherwise Supported k/n with unknown dates as gaps. *)

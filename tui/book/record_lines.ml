@@ -3,7 +3,7 @@
 module B = Bakhlo_household.Daily_book
 module D = Bakhlo_domain
 module A = Daily_draft
-module O = Daily_overlays
+module O = Ui_render
 module W = Record_browser
 
 let tr = Ui_text.tr
@@ -51,18 +51,8 @@ let amount_summary ~format (entry : B.entry) =
 let actual_amount book entry =
   let format p =
     let measure = A.mstr (D.Effect.measure p) and quanta = A.quanta p in
-    let amount = B.format book measure (Z.abs quanta) in
-    let parts = String.split_on_char '.' amount in
-    let whole = List.hd parts in
-    let grouped = Buffer.create (String.length amount + 16) in
-    String.iteri
-      (fun i c ->
-        if i > 0 && (String.length whole - i) mod 3 = 0 then Buffer.add_char grouped ',';
-        Buffer.add_char grouped c)
-      whole;
     (if Z.sign quanta < 0 then "-" else if Z.sign quanta > 0 then "+" else "")
-    ^ Buffer.contents grouped
-    ^ (match List.tl parts with [] -> "" | xs -> "." ^ String.concat "." xs)
+    ^ Book_display.format_money book measure (Z.abs quanta)
     ^ " " ^ measure
   in
   amount_summary ~format entry

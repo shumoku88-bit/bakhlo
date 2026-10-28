@@ -2,7 +2,7 @@
    any pool Measure works at its own scale, and a leading [+] prices an
    income into the pool ([-] or no sign is a purchase, as in LOAM). *)
 module B = Bakhlo_household.Daily_book
-module O = Daily_overlays
+module O = Ui_render
 module Panel = Ui_panel
 
 type projection = {
@@ -105,7 +105,7 @@ let rows ~width_of ~width ~book ~measure ~pace t =
         info "Current projection unavailable (not zero)."
         @ info ("Current Daily Pace unavailable: " ^ why)
     | Ok (p : B.daily_pace) -> (
-        let fmt q = O.format_money book p.measure q in
+        let fmt q = Book_display.format_money book p.measure q in
         [
           line (" Current: " ^ fmt p.daily_pace_quanta ^ " " ^ p.measure ^ "/day");
           line (" Remaining days: " ^ string_of_int p.remaining_days);

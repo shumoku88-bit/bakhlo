@@ -1,7 +1,7 @@
 (* Income & Expense Report: period-based P/L analysis by month, cycle, year, or all-time. *)
 module B = Bakhlo_household.Daily_book
 module Roles = Locus_roles
-module O = Daily_overlays
+module O = Ui_render
 module Cal = Daily_calendar
 module A = Daily_draft
 module D = Bakhlo_domain
@@ -165,7 +165,7 @@ let by_amount_desc (items : line_item list) =
   List.sort (fun a b -> Z.compare b.amount a.amount) items
 
 let signed book measure value =
-  (if Z.sign value > 0 then "+" else "") ^ O.format_money book measure value
+  (if Z.sign value > 0 then "+" else "") ^ Book_display.format_money book measure value
 
 (* Proportional bar in the room that is left after the label and the exact
    amount. The amount is right-aligned and never clipped; when the room is too
@@ -216,7 +216,9 @@ let item_lines ~width_of ~pad_w ~book ~measure ~with_bar ~compared items =
       Z.zero rows
   in
   let line ~glyph label amount =
-    let amount_cell = O.pad_left ~width_of col_amt (O.format_money book measure amount) in
+    let amount_cell =
+      O.pad_left ~width_of col_amt (Book_display.format_money book measure amount)
+    in
     let label_cell = O.pad ~width_of col_locus label in
     let bar_room =
       if not with_bar then 0 else max 0 (pad_w - width_of label_cell - width_of amount_cell - 2)
@@ -294,7 +296,7 @@ let render_report_lines ~width ~width_of ~book ~report ~today ~comparison =
     let prev_of pick = Option.map pick prev in
     let full_of pick = Option.map pick prev_full in
     let line label current previous_value full_value =
-      let amount = O.format_money book m current ^ " " ^ m in
+      let amount = Book_display.format_money book m current ^ " " ^ m in
       let assemble detail = Printf.sprintf "  %-10s %14s   %s" label amount detail in
       let text =
         match previous_value with
@@ -304,7 +306,7 @@ let render_report_lines ~width ~width_of ~book ~report ~today ~comparison =
             let detailed =
               assemble
                 (Printf.sprintf "vs %s  %s"
-                   (O.format_money book m prev_value)
+                   (Book_display.format_money book m prev_value)
                    (signed book m delta))
             in
             (* Keep the difference itself when the full comparison does not fit. *)
@@ -317,7 +319,7 @@ let render_report_lines ~width ~width_of ~book ~report ~today ~comparison =
         match (previous_value, full_value) with
         | Some partial_value, Some full_value when not (Z.equal partial_value full_value) ->
             let candidate =
-              text ^ Printf.sprintf "  (whole %s)" (O.format_money book m full_value)
+              text ^ Printf.sprintf "  (whole %s)" (Book_display.format_money book m full_value)
             in
             if width_of candidate <= pad_w then candidate else text
         | _ -> text
@@ -337,8 +339,8 @@ let render_report_lines ~width ~width_of ~book ~report ~today ~comparison =
         (full_of (fun (p : measure_summary) -> p.net_savings));
       ( O.Plain,
         Printf.sprintf "  split: Scheduled %s  |  other %s"
-          (O.format_money book m ms.scheduled_expense ^ " " ^ m)
-          (O.format_money book m ms.ordinary_expense ^ " " ^ m) );
+          (Book_display.format_money book m ms.scheduled_expense ^ " " ^ m)
+          (Book_display.format_money book m ms.ordinary_expense ^ " " ^ m) );
       (O.Plain, "");
     ]
   in
@@ -389,7 +391,9 @@ let render_report_lines ~width ~width_of ~book ~report ~today ~comparison =
       ]
       @ List.map
           (fun (date, locus, m, q) ->
-            (O.Plain, Printf.sprintf "  %s  %-20s  %s %s" date locus (O.format_money book m q) m))
+            ( O.Plain,
+              Printf.sprintf "  %s  %-20s  %s %s" date locus (Book_display.format_money book m q) m
+            ))
           report.unresolved_effects
   in
   header @ summaries_lines @ empty_lines @ inactive_lines @ unresolved_lines
@@ -464,7 +468,7 @@ let render_compare_lines ~width ~width_of ~book ~today ~reports =
           | 3 -> summary.ordinary_expense
           | _ -> summary.net_savings
         in
-        O.format_money book measure value
+        Book_display.format_money book measure value
   in
   let row measure label index =
     let cells = List.map (fun (_, r) -> cell measure index (summary_of measure r)) reports in
@@ -496,7 +500,8 @@ let render_compare_lines ~width ~width_of ~book ~today ~reports =
                         if candidate.locus = it.locus then candidate.amount else acc)
                       Z.zero ms.expense_items
                   in
-                  if Z.equal amount Z.zero then "" else O.format_money book measure amount)
+                  if Z.equal amount Z.zero then ""
+                  else Book_display.format_money book measure amount)
             reports
         in
         ( O.Plain,
@@ -529,7 +534,7 @@ let print_summary ~book ~report =
   List.iter
     (fun (ms : measure_summary) ->
       let m = ms.measure in
-      let fmt q = O.format_money book m q ^ " " ^ m in
+      let fmt q = Book_display.format_money book m q ^ " " ^ m in
       add "";
       add (Printf.sprintf "Currency: %s" m);
       add (Printf.sprintf "Income:  %s" (fmt ms.total_income));
@@ -558,7 +563,7 @@ let print_summary ~book ~report =
     add "--- Unresolved Role Effects ---";
     List.iter
       (fun (date, locus, m, q) ->
-        add (Printf.sprintf "  %s  %-20s  %s %s" date locus (O.format_money book m q) m))
+        add (Printf.sprintf "  %s  %-20s  %s %s" date locus (Book_display.format_money book m q) m))
       report.unresolved_effects
   end;
   List.rev !lines

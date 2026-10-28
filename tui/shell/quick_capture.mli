@@ -48,4 +48,4 @@ val view :
   width:int ->
   height:int ->
   t ->
-  (Daily_overlays.style * string) list
+  (Ui_render.style * string) list

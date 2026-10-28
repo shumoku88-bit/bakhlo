@@ -2,7 +2,7 @@
    exact families. Current entry evidence is read directly; no FX rate,
    valuation, home currency or cross-Measure arithmetic is inferred. *)
 module B = Bakhlo_household.Daily_book
-module O = Daily_overlays
+module O = Ui_render
 module A = Daily_draft
 module D = Bakhlo_domain
 module M = Map.Make (String)
@@ -239,7 +239,7 @@ let compute ~book ~roles ~start_day ~end_exclusive =
             uncounted_original = List.rev acc.uncounted_original;
           }
 
-let amount book measure quanta = O.format_money book measure quanta ^ " " ^ measure
+let amount book measure quanta = Book_display.format_money book measure quanta ^ " " ^ measure
 
 let signed_amount book measure quanta =
   (if Z.sign quanta > 0 then "+" else "") ^ amount book measure quanta

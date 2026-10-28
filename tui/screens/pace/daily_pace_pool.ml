@@ -2,7 +2,7 @@
    Two deliberate additions: review refuses to save unless every row is
    visible, and balances dropped from an earlier pool are named in review. *)
 module B = Bakhlo_household.Daily_book
-module O = Daily_overlays
+module O = Ui_render
 module A = Daily_draft
 module D = Bakhlo_domain
 

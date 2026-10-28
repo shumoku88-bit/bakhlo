@@ -94,7 +94,7 @@ let run ~width_of (home : C.state) =
     match Ui_form.handle_input form (`Key (`Escape, [])) with Ui_form.Cancel -> true | _ -> false
   in
   require esc_cancelled "form-escape-cancels";
-  let module O = Daily_overlays in
+  let module O = Ui_render in
   let render ?(width = 40) ?(height = 20) form =
     Ui_form.render_rows ~width ~height ~width_of form
   in

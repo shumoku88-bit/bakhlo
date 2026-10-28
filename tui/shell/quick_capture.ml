@@ -2,7 +2,7 @@
    from the book on every keystroke; amounts are exact quanta at the Measure's
    scale. The record date defaults to Record's own day (LOAM: today). *)
 module B = Bakhlo_household.Daily_book
-module O = Daily_overlays
+module O = Ui_render
 module A = Daily_draft
 module D = Bakhlo_domain
 
@@ -551,7 +551,7 @@ let name_of t token =
   match List.assoc_opt token t.catalog with Some l when l <> "" -> l | _ -> token
 
 let short_date d = if String.length d > 5 then String.sub d 5 (String.length d - 5) else d
-let grouped ~book t q = O.format_money book t.measure q
+let grouped ~book t q = Book_display.format_money book t.measure q
 
 let describe ~book t plan =
   let part l =

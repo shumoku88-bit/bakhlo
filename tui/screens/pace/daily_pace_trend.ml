@@ -1,6 +1,6 @@
 (* Daily Pace Trend: retrospective current-truth spending pace analysis over 10d, 30d, month, cycle. *)
 module B = Bakhlo_household.Daily_book
-module O = Daily_overlays
+module O = Ui_render
 module Cal = Daily_calendar
 module A = Daily_draft
 module D = Bakhlo_domain
@@ -502,8 +502,10 @@ let compare_change ~prev ~current =
 
 (* Shared display helpers: grouped Measure amounts, never raw quanta; a value
    that cannot fit is omitted whole, never cut mid-number. *)
-let money_of book measure q = O.format_money book measure q ^ " " ^ measure ^ "/day"
-let signed_money book measure q = (if Z.sign q > 0 then "+" else "") ^ O.format_money book measure q
+let money_of book measure q = Book_display.format_money book measure q ^ " " ^ measure ^ "/day"
+
+let signed_money book measure q =
+  (if Z.sign q > 0 then "+" else "") ^ Book_display.format_money book measure q
 
 let count_supported samples =
   List.fold_left (fun acc s -> match s.pace_quanta with None -> acc | Some _ -> acc + 1) 0 samples
@@ -586,7 +588,7 @@ let render_history ~width ~height ~width_of ~book ~today ~measure ~samples ~sele
               match s.activity with
               | None -> ("—", "—")
               | Some activity ->
-                  ( O.format_money book measure activity.discretionary_outflow,
+                  ( Book_display.format_money book measure activity.discretionary_outflow,
                     match s.pace_quanta with
                     | None -> "—"
                     | Some q -> signed_money book measure (Z.sub q activity.discretionary_outflow)
@@ -652,7 +654,7 @@ let render_chart ~width ~height ~width_of ~book ~today ~measure ~samples ~select
           match (sel.pace_quanta, sel.activity) with
           | Some pace, Some activity ->
               " • spent "
-              ^ O.format_money book measure activity.discretionary_outflow
+              ^ Book_display.format_money book measure activity.discretionary_outflow
               ^ " " ^ measure ^ " ("
               ^ signed_money book measure (Z.sub pace activity.discretionary_outflow)
               ^ " vs pace)"
@@ -672,7 +674,7 @@ let render_chart ~width ~height ~width_of ~book ~today ~measure ~samples ~select
     let plot_h = if height >= 6 then height - 3 else 0 in
     if plot_h = 0 then List.filteri (fun i _ -> i < height) head
     else
-      let label q = O.format_money book measure q in
+      let label q = Book_display.format_money book measure q in
       let values = List.map (fun s -> s.pace_quanta) samples in
       let numbers = List.filter_map Fun.id values in
       let axis =
@@ -723,7 +725,7 @@ let render_detail ~width ~width_of ~book ~measure ~samples ~selected_index ~toda
     List.map (fun part -> (style, " " ^ part)) (O.wrap_text ~width_of (max 1 (width - 1)) text)
   in
   let plain = line O.Plain and muted = line O.Chrome in
-  let amount q = O.format_money book measure q in
+  let amount q = Book_display.format_money book measure q in
   let count = List.length samples in
   let index = max 0 (min (count - 1) selected_index) in
   let activity_lines ~pace (a : day_activity) =

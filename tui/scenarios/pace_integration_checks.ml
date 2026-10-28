@@ -51,7 +51,7 @@ let daily_pace_trend_fail_closed_checks ~width_of ~directory () =
     let text =
       List.map
         (fun (_, row) ->
-          clean (if pane = `Left then Daily_overlays.clip_text ~width_of room row else row))
+          clean (if pane = `Left then Ui_render.clip_text ~width_of room row else row))
         rows
       |> String.concat ""
     in
@@ -792,7 +792,7 @@ let daily_pace_selection_clamp_checks ~width_of ~directory () =
   in
   let current = context_at 80 entry.C.screens.pace in
   let pace, _, _ = get (Pace.current_pace env) in
-  let margin = O.format_money env.book env.measure pace.B.daily_pace_quanta in
+  let margin = Book_display.format_money env.book env.measure pace.B.daily_pace_quanta in
   require
     (Base.String.is_substring current ~substring:"Spent: 0 jpy"
     && Base.String.is_substring current ~substring:("(+" ^ margin ^ " vs pace)")
@@ -1195,7 +1195,7 @@ let daily_pace_graph_render_checks ~width_of () =
       let joined = String.concat "" (List.map unindent rows) in
       require
         (Base.String.is_substring joined
-           ~substring:("-" ^ O.format_money book "jpy" huge_digit ^ " jpy/day")
+           ~substring:("-" ^ Book_display.format_money book "jpy" huge_digit ^ " jpy/day")
         && Base.String.is_substring joined ~substring:"Scheduled-linked inflow/reversal: +400 jpy")
         "pace-detail-wrap-keeps-signed-quantity-and-linked-inflow";
       let unknown = { selected with Trend.pace_quanta = None; pool_balance = Z.of_int 12345678 } in

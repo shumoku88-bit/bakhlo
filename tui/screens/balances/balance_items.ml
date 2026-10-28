@@ -1,8 +1,10 @@
 module B = Bakhlo_household.Daily_book
 module D = Bakhlo_domain
 module A = Daily_draft
-open Daily_overlays
+open Book_display
 open Locus_roles
+
+let tr = Ui_text.tr
 
 let is_balance_sheet_role = function
   | Asset | Liability | Equity -> true
@@ -94,7 +96,7 @@ let role_balance_items ~book ~roles =
   in
   let amount measure n = (if Z.sign n > 0 then "+" else "") ^ format_money book measure n in
   let signed measure n = amount measure n ^ " " ^ measure in
-  let token_pad = pad ~width_of:String.length 28 in
+  let token_pad = Ui_render.pad ~width_of:String.length 28 in
   let role_name (_, _, role, _) =
     match role with Some r -> role_label r | None -> "Unresolved role"
   in
@@ -161,7 +163,7 @@ let role_balance_items ~book ~roles =
   let text lines = List.map (fun line -> Header_row line) lines in
   let gap_line (locus, measure, _, value) =
     "  ? " ^ token_pad locus
-    ^ pad_left ~width_of:String.length 12
+    ^ Ui_render.pad_left ~width_of:String.length 12
         (match value with Exact n -> amount measure n | _ -> "?")
     ^ " " ^ measure ^ "  role unresolved"
   in
@@ -170,7 +172,7 @@ let role_balance_items ~book ~roles =
   in
   let supported_line ((locus, measure, _, value) as r) =
     "  " ^ token_pad locus
-    ^ pad_left ~width_of:String.length 16
+    ^ Ui_render.pad_left ~width_of:String.length 16
         (match value with Exact n -> signed measure n | _ -> "?")
     ^ "  " ^ role_name r
   in
@@ -276,12 +278,12 @@ let balance_item_line ?(width_of = String.length) ?(width = max_int) ~book item 
       let room = max 0 width in
       let val_w = width_of full_val in
       if room >= 2 + 22 + 2 + 18 && val_w <= 18 then
-        "  " ^ pad ~width_of 22 name ^ "  " ^ pad_left ~width_of 18 full_val
+        "  " ^ Ui_render.pad ~width_of 22 name ^ "  " ^ Ui_render.pad_left ~width_of 18 full_val
       else
         let val_str = if 4 + val_w <= room then full_val else short_val in
         let name_room = min 22 (room - 4 - width_of val_str) in
-        if name_room >= 1 then "  " ^ pad ~width_of name_room name ^ "  " ^ val_str
-        else clip_text ~width_of room val_str
+        if name_room >= 1 then "  " ^ Ui_render.pad ~width_of name_room name ^ "  " ^ val_str
+        else Ui_render.clip_text ~width_of room val_str
   | Subtotal_row { role = _; measure; subtotal } ->
       let sign_str = if Z.sign subtotal > 0 then "+" else "" in
       Printf.sprintf "  Known subtotal: %s%s %s" sign_str (B.format book measure subtotal) measure

@@ -22,25 +22,27 @@ let balance_display_checks ~width_of ~directory () =
   let item value =
     Balance_items.Account_row { locus = "wallet"; measure = "jpy"; role = None; value }
   in
-  let exact = item (O.Exact (Z.of_int 74500)) in
+  let exact = item (Book_display.Exact (Z.of_int 74500)) in
   let line ~width row = Balance_items.balance_item_line ~width_of ~width ~book row in
   let has text needle = Base.String.is_substring text ~substring:needle in
   require (has (line ~width:26 exact) "+74,500 jpy") "balance-narrow-exact-amount";
   let huge = Z.of_string (String.make 100 '7') in
-  let huge_item = item (O.Exact huge) in
+  let huge_item = item (Book_display.Exact huge) in
   require
     (has (line ~width:26 huge_item) "details" && not (has (line ~width:26 huge_item) "777"))
     "balance-unfit-quantity-is-not-partial-digits";
   List.iter
     (fun measure ->
       let row =
-        Balance_items.Account_row { locus = "wallet"; measure; role = None; value = O.Unsupported }
+        Balance_items.Account_row
+          { locus = "wallet"; measure; role = None; value = Book_display.Unsupported }
       in
       require
         (has (Balance_items.balance_item_line ~width_of ~width:26 ~book row) measure)
         "balance-unknown-row-keeps-measure";
       let row =
-        Balance_items.Account_row { locus = "wallet"; measure; role = None; value = O.Exact huge }
+        Balance_items.Account_row
+          { locus = "wallet"; measure; role = None; value = Book_display.Exact huge }
       in
       require
         (has (Balance_items.balance_item_line ~width_of ~width:26 ~book row) measure)
@@ -49,10 +51,10 @@ let balance_display_checks ~width_of ~directory () =
   require
     (has
        (Balance_items.balance_item_line ~width_of ~book huge_item)
-       (O.format_money book "jpy" huge))
+       (Book_display.format_money book "jpy" huge))
     "balance-unbounded-print-retains-huge-quantity";
   require
-    (O.format_money book "eur" (Z.of_int (-123456)) = "-1,234.56")
+    (Book_display.format_money book "eur" (Z.of_int (-123456)) = "-1,234.56")
     "balance-grouping-preserves-sign-scale";
   List.iter
     (fun value ->
@@ -60,10 +62,10 @@ let balance_display_checks ~width_of ~directory () =
         (fun width ->
           require (width_of (line ~width (item value)) <= width) "balance-row-fits-real-width")
         [ 0; 1; 8; 26; 42; 80 ])
-    [ O.Exact huge; O.Exact (Z.of_int (-74500)); O.Unsupported ];
+    [ Book_display.Exact huge; Book_display.Exact (Z.of_int (-74500)); Book_display.Unsupported ];
   require
-    (has (line ~width:26 (item O.Unsupported)) "unsupported"
-    && has (line ~width:26 (item (O.Exact Z.zero))) "0 jpy")
+    (has (line ~width:26 (item Book_display.Unsupported)) "unsupported"
+    && has (line ~width:26 (item (Book_display.Exact Z.zero))) "0 jpy")
     "balance-unknown-zero-distinct";
   let view = C.open_route home W.Balances in
   let coordinate state =
@@ -150,8 +152,8 @@ let balance_display_checks ~width_of ~directory () =
   require
     (List.exists
        (function
-         | Balance_items.Account_row { locus = "bank"; measure = "jpy"; value = O.Unsupported; _ }
-           ->
+         | Balance_items.Account_row
+             { locus = "bank"; measure = "jpy"; value = Book_display.Unsupported; _ } ->
              true
          | _ -> false)
        (accounting_rows live.book))
@@ -250,7 +252,7 @@ let balance_display_checks ~width_of ~directory () =
           let pane_w = min 64 (max 8 (fst dimensions - 4)) in
           let rows = List.concat_map (O.wrap_text ~width_of (max 1 (pane_w - 6))) summary in
           require
-            (has (String.concat "" rows) (O.format_money huge_book "jpy" (Z.neg huge)))
+            (has (String.concat "" rows) (Book_display.format_money huge_book "jpy" (Z.neg huge)))
             "balance-print-wrap-retains-full-negative-quantity";
           let pane_h = min (snd dimensions) (max 3 (List.length rows + 2)) in
           let print_view =

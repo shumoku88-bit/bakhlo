@@ -4,7 +4,6 @@
 module B = Bakhlo_household.Daily_book
 module D = Bakhlo_domain
 module T = Trend_locus_report
-module O = Daily_overlays
 
 let get = function Ok x -> x | Error why -> failwith why
 let require condition why = if not condition then failwith why
@@ -97,7 +96,7 @@ let effects_book_checks () =
        (series_of gamma ~locus:"gamma").points)
     "an admitted locus with no entries records an exact zero flow";
   require
-    (O.quantity_value ~book:primary ~measure:"jpy" "gamma" = O.Unsupported)
+    (Book_display.quantity_value ~book:primary ~measure:"jpy" "gamma" = Book_display.Unsupported)
     "an empty recorded flow invents no balance support";
   let eur = get (project ~grain:T.Day primary observation [ coord "a" "eur" ]) in
   let e = series_of eur ~locus:"a" in

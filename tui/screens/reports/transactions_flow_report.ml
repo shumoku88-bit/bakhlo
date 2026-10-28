@@ -1,7 +1,7 @@
 (* Transactions Flow Report: incidence matrix of activity per coordinate, sorted by gross volume. *)
 module B = Bakhlo_household.Daily_book
 module IncExp = Income_expense_report
-module O = Daily_overlays
+module O = Ui_render
 module A = Daily_draft
 module D = Bakhlo_domain
 
@@ -140,11 +140,11 @@ let render_summary_lines ~width ~width_of ~book ~report ~selected_row =
             else Printf.sprintf "%s/%s" r.locus r.measure
           in
           let net_str =
-            (if Z.sign r.net > 0 then "+" else "") ^ O.format_money book r.measure r.net
+            (if Z.sign r.net > 0 then "+" else "") ^ Book_display.format_money book r.measure r.net
           in
-          let gross_str = O.format_money book r.measure r.gross in
-          let pos_str = "+" ^ O.format_money book r.measure r.positive in
-          let neg_str = O.format_money book r.measure r.negative in
+          let gross_str = Book_display.format_money book r.measure r.gross in
+          let pos_str = "+" ^ Book_display.format_money book r.measure r.positive in
+          let neg_str = Book_display.format_money book r.measure r.negative in
           let ev_str = string_of_int r.active_events in
           let line_text =
             marker
@@ -197,18 +197,19 @@ let render_detail_lines ~book ~report ~selected_row =
           ( O.Plain,
             Printf.sprintf "Net Activity:   %s%s %s"
               (if Z.sign r.net > 0 then "+" else "")
-              (O.format_money book r.measure r.net)
+              (Book_display.format_money book r.measure r.net)
               r.measure );
           ( O.Plain,
-            Printf.sprintf "Gross Volume:   %s %s" (O.format_money book r.measure r.gross) r.measure
-          );
+            Printf.sprintf "Gross Volume:   %s %s"
+              (Book_display.format_money book r.measure r.gross)
+              r.measure );
           ( O.Plain,
             Printf.sprintf "Total Inflows:  +%s %s"
-              (O.format_money book r.measure r.positive)
+              (Book_display.format_money book r.measure r.positive)
               r.measure );
           ( O.Plain,
             Printf.sprintf "Total Outflows: %s %s"
-              (O.format_money book r.measure r.negative)
+              (Book_display.format_money book r.measure r.negative)
               r.measure );
           (O.Plain, Printf.sprintf "Total Events:   %d transactions" r.active_events);
           (O.Chrome, "");
@@ -220,7 +221,7 @@ let render_detail_lines ~book ~report ~selected_row =
           (fun (date, quanta, memo, id) ->
             let amt =
               (if Z.sign quanta > 0 then "+" else "")
-              ^ O.format_money book r.measure quanta
+              ^ Book_display.format_money book r.measure quanta
               ^ " " ^ r.measure
             in
             let desc = if memo = "" then "[" ^ id ^ "]" else memo ^ "  [" ^ id ^ "]" in
@@ -249,12 +250,12 @@ let print_summary ~book ~(report : report) =
       in
       let net =
         (if Z.sign r.net > 0 then "+" else "")
-        ^ O.format_money book r.measure r.net
+        ^ Book_display.format_money book r.measure r.net
         ^ " " ^ r.measure
       in
-      let gross = O.format_money book r.measure r.gross ^ " " ^ r.measure in
-      let pos = "+" ^ O.format_money book r.measure r.positive in
-      let neg = O.format_money book r.measure r.negative in
+      let gross = Book_display.format_money book r.measure r.gross ^ " " ^ r.measure in
+      let pos = "+" ^ Book_display.format_money book r.measure r.positive in
+      let neg = Book_display.format_money book r.measure r.negative in
       add (Printf.sprintf "  %-24s %12s %12s %12s %12s %6d" name net gross pos neg r.active_events))
     report.rows;
   List.rev !lines

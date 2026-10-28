@@ -67,7 +67,7 @@ val render_report_lines :
   report:report ->
   today:string ->
   comparison:comparison option ->
-  (Daily_overlays.style * string) list
+  (Ui_render.style * string) list
 
 val render_compare_lines :
   width:int ->
@@ -75,6 +75,6 @@ val render_compare_lines :
   book:B.t ->
   today:string ->
   reports:(period * report) list ->
-  (Daily_overlays.style * string) list
+  (Ui_render.style * string) list
 
 val print_summary : book:B.t -> report:report -> string list

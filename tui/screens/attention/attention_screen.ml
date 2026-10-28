@@ -3,7 +3,7 @@
    that the file still equals the state this editor started from. *)
 module Att = Attention_data
 module A = Daily_draft
-module O = Daily_overlays
+module O = Ui_render
 module Form = Ui_form
 module Panel = Ui_panel
 
@@ -102,7 +102,7 @@ let suspense_holding (env : Screen.env) : holding option =
         List.filter_map
           (fun (measure, quantity) ->
             if Z.equal quantity Z.zero then None
-            else Some (measure, O.format_money book measure quantity))
+            else Some (measure, Book_display.format_money book measure quantity))
           scan.nets
       in
       if nets = [] then None

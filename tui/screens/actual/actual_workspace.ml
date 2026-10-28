@@ -7,7 +7,7 @@
 module B = Bakhlo_household.Daily_book
 module D = Bakhlo_domain
 module A = Daily_draft
-module O = Daily_overlays
+module O = Ui_render
 module Panel = Ui_panel
 module Roles = Locus_roles
 module Cal = Daily_calendar
@@ -230,7 +230,8 @@ let totals_text ~book totals partial =
   let parts =
     List.filter_map
       (fun (measure, amount) ->
-        if Z.sign amount = 0 then None else Some (O.format_money book measure amount ^ " " ^ measure))
+        if Z.sign amount = 0 then None
+        else Some (Book_display.format_money book measure amount ^ " " ^ measure))
       totals
   in
   match parts with
@@ -431,7 +432,7 @@ let returned_from_detail ~before_book ~after_book t =
 
 let effect_amount book p =
   let measure = A.mstr (D.Effect.measure p) in
-  O.format_money book measure (A.quanta p) ^ " " ^ measure
+  Book_display.format_money book measure (A.quanta p) ^ " " ^ measure
 
 let amount_summary book entry = Record_lines.amount_summary ~format:(effect_amount book) entry
 
@@ -467,12 +468,12 @@ let detail_raw_lines ~book ~width_of ~width (entry_opt : B.entry option) : (O.st
           (* The complete value remains scrollable, never a silently clipped number. *)
           wrapped O.Plain label @ wrapped O.Chrome "Amount (wrapped):" @ wrapped O.Plain amount
       in
-      (* The retained facts O.entry_lines lists after the ID line. *)
+      (* The retained facts Book_display.entry_lines lists after the ID line. *)
       let rec after_id = function
         | [] -> []
         | line :: rest -> if String.starts_with ~prefix:"ID: " line then rest else after_id rest
       in
-      let extras = after_id (O.entry_lines book entry) in
+      let extras = after_id (Book_display.entry_lines book entry) in
       wrapped O.Chrome ("Date: " ^ entry.day)
       @ wrapped O.Chrome (Printf.sprintf "Effects (%d):" (List.length entry.effects))
       @ (if entry.effects = [] then wrapped O.Chrome "(no Effects)"

@@ -142,7 +142,7 @@ let rec lines ?border ?(base = A.empty) theme rows =
           Uutf.String.fold_utf_8
             (fun () offset -> function
               | `Uchar c when !cells < left_width ->
-                  let glyph = Daily_overlays.utf8 c in
+                  let glyph = Ui_render.utf8 c in
                   cells := !cells + width_of glyph;
                   split := offset + String.length glyph
               | `Uchar _ | `Malformed _ -> ())
@@ -159,7 +159,7 @@ let rec lines ?border ?(base = A.empty) theme rows =
       | _ -> (
           let glyphs =
             Uutf.String.fold_utf_8
-              (fun xs _ -> function `Uchar c -> Daily_overlays.utf8 c :: xs | `Malformed _ -> xs)
+              (fun xs _ -> function `Uchar c -> Ui_render.utf8 c :: xs | `Malformed _ -> xs)
               [] row
             |> List.rev
           in

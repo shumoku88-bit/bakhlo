@@ -1,6 +1,6 @@
 (* Selected Day owns its retained browser, two panes and deferred search. *)
 module RB = Record_browser
-module O = Daily_overlays
+module O = Ui_render
 module Panel = Ui_panel
 
 let tr = Ui_text.tr
@@ -126,8 +126,8 @@ let handle (env : Screen.env) (geometry : Screen.geometry) t input =
 let detail_rows ~width_of ~width book t =
   let lines =
     match selected_row book t with
-    | Some (RB.Actual_entry e) -> O.entry_lines book e
-    | Some (RB.Scheduled_plan p) -> O.plan_lines book p
+    | Some (RB.Actual_entry e) -> Book_display.entry_lines book e
+    | Some (RB.Scheduled_plan p) -> Book_display.plan_lines book p
     | None -> [ tr "No selected record." ]
   in
   List.concat_map (O.wrap_text ~width_of (max 1 (width - 6))) lines

@@ -31,7 +31,7 @@ module Roles = Locus_roles
 module D = Bakhlo_domain
 module Stl = Settlement_data
 module Trend = Daily_pace_trend
-module O = Daily_overlays
+module O = Ui_render
 module Balances = Balances_screen
 
 let balance_items (state : C.state) = Balances.items (X.balances_env state) state.screens.balances

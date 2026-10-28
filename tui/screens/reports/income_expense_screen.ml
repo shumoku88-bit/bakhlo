@@ -116,7 +116,7 @@ let picker_rows (env : Screen.env) t (current : IncExp.period) =
         String.concat ", "
           (List.map
              (fun (ms : IncExp.measure_summary) ->
-               Daily_overlays.format_money env.book ms.measure ms.total_expense ^ " " ^ ms.measure)
+               Book_display.format_money env.book ms.measure ms.total_expense ^ " " ^ ms.measure)
              active)
   in
   let rec collect back acc =
@@ -148,10 +148,9 @@ let content (env : Screen.env) (geometry : Screen.geometry) t =
       Frame.Block
         ( "Income & Expense · Period Unavailable",
           [
-            (Daily_overlays.Heading, Ui_text.tr "Report period unavailable:");
-            (Daily_overlays.Plain, why);
-            ( Daily_overlays.Chrome,
-              "Supply an explicit boundary-presets.tsv or choose Month / Year." );
+            (Ui_render.Heading, Ui_text.tr "Report period unavailable:");
+            (Ui_render.Plain, why);
+            (Ui_render.Chrome, "Supply an explicit boundary-presets.tsv or choose Month / Year.");
           ] )
   | Ok period -> (
       match report env period with
@@ -159,9 +158,9 @@ let content (env : Screen.env) (geometry : Screen.geometry) t =
           Frame.Block
             ( "Income & Expense · Accounting Roles Unavailable",
               [
-                (Daily_overlays.Heading, Ui_text.tr "Income & Expense unavailable:");
-                (Daily_overlays.Plain, why);
-                (Daily_overlays.Chrome, "Fix accounting-roles.tsv; no Locus role is guessed.");
+                (Ui_render.Heading, Ui_text.tr "Income & Expense unavailable:");
+                (Ui_render.Plain, why);
+                (Ui_render.Chrome, "Fix accounting-roles.tsv; no Locus role is guessed.");
               ] )
       | Ok rep ->
           if t.table then

@@ -25,6 +25,6 @@ val screen :
   width_of:(string -> int) ->
   selected:B.plan option ->
   t ->
-  (Daily_overlays.style * string) list
+  (Ui_render.style * string) list
 (** Read-only body-sized surface. Plans are all current-open explicit occurrences,
     ordered by canonical date and ID, independently of retained List filters. *)

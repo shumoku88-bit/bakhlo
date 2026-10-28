@@ -1,5 +1,5 @@
 module B = Bakhlo_household.Daily_book
-module O = Daily_overlays
+module O = Ui_render
 module C = Daily_calendar
 module P = Ui_panel
 
@@ -162,7 +162,7 @@ let screen ~book ~plans ~dimensions:(width, height) ~width_of ~selected t =
       else
         (match selected with
           | None -> [ "No Scheduled occurrence selected." ]
-          | Some plan -> O.plan_lines book plan)
+          | Some plan -> Book_display.plan_lines book plan)
         |> List.concat_map (O.wrap_text ~width_of (width - 2))
         |> List.map (fun text -> (O.Plain, text))
     in

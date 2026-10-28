@@ -4,7 +4,7 @@
 
 module B = Bakhlo_household.Daily_book
 module D = Bakhlo_domain
-module O = Daily_overlays
+module O = Ui_render
 module Form = Ui_form
 module Panel = Ui_panel
 module BalView = Balance_view_data
@@ -154,7 +154,7 @@ let selected_account ~book ~measure ~roles ~balance_view_text t =
   let all_items = items ~book ~measure ~roles ~balance_view_text t in
   match List.nth_opt all_items t.selected with
   | Some (Balance_items.Account_row { locus; measure; value; _ }) ->
-      let amount = match value with O.Exact n -> Some n | _ -> None in
+      let amount = match value with Book_display.Exact n -> Some n | _ -> None in
       Some (locus, measure, amount)
   | _ -> None
 
@@ -164,10 +164,12 @@ let balance_lines ?(width_of = String.length) ?(width = max_int) ~book items_lis
 (* Current presents the selected Locus × Measure evidence: the exact ID and the
    Measure-scaled Amount, never a label or a signed adjustment. *)
 let current_amount ~book ~measure = function
-  | O.Exact n -> O.format_money book measure n
-  | O.Unsupported -> "?"
+  | Book_display.Exact n -> Book_display.format_money book measure n
+  | Book_display.Unsupported -> "?"
 
-let current_state = function O.Exact _ -> "exact" | O.Unsupported -> "unsupported"
+let current_state = function
+  | Book_display.Exact _ -> "exact"
+  | Book_display.Unsupported -> "unsupported"
 
 (* A table cell never clips a quantity into a different number. *)
 let quantity_cell ~width_of ~width quantity =
@@ -201,8 +203,8 @@ let current_table ~width_of ~width ~book items_list =
                 if not identified then "see details"
                 else
                   match value with
-                  | O.Exact _ -> current_amount ~book ~measure value
-                  | O.Unsupported -> current_state value
+                  | Book_display.Exact _ -> current_amount ~book ~measure value
+                  | Book_display.Unsupported -> current_state value
               in
               O.pad ~width_of name_width name ^ "  "
               ^ O.pad_left ~width_of quantity_width
@@ -247,8 +249,8 @@ let current_detail ~book item =
   | Balance_items.Account_row { locus; measure; value; _ } ->
       let explanation =
         match value with
-        | O.Exact _ -> []
-        | O.Unsupported ->
+        | Book_display.Exact _ -> []
+        | Book_display.Unsupported ->
             [
               Ui_text.tr
                 "No current quantity support is justified for this coordinate. Do not infer zero.";

@@ -6,6 +6,19 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Book values have one display module (2026-10-28)
+
+- `Daily_overlays` (no overlays; it re-exported `Ui_render` by `include`) is now
+  `Book_display` with a `.mli`: exact quantities, grouped amounts, Locus candidates and
+  the Actual / Scheduled / Preview detail lines. Callers take cell geometry and styles
+  from `Ui_render` directly (`module O = Ui_render`, as in `kit/`).
+- `Record_lines.actual_amount` had its own thousands grouping; it now uses
+  `Book_display.format_money` on the absolute amount (same text: `B.format` of a
+  non-negative amount has no sign and one `.`).
+- `./tools/check`, `./tools/tui --self-check` (48 suites), `./tools/format --check`
+  passed. No intended change to any screen; **latest-data paired comparison not
+  executed**. No household access.
+
 ## Record is in one phase at a time (2026-10-27)
 
 - `Record_session.t` kept its phase in four fields (`quick`, `original_editor`,

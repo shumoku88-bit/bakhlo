@@ -54,6 +54,6 @@ val screen :
   dimensions:int * int ->
   width_of:(string -> int) ->
   t ->
-  (Daily_overlays.style * string) list
+  (Ui_render.style * string) list
 (** [surface] places the quick capture's own bounded modal; without it the
     surface is derived from [dimensions]. *)

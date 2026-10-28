@@ -1,7 +1,7 @@
 (* LOAM DailyPaceWhy over Daily_book.daily_pace: the answer already carries
    its pool balances and per-occurrence deductions; this only labels them. *)
 module B = Bakhlo_household.Daily_book
-module O = Daily_overlays
+module O = Ui_render
 module A = Daily_draft
 module D = Bakhlo_domain
 module Panel = Ui_panel
@@ -17,7 +17,7 @@ let short_date date =
   if String.length date > 5 then String.sub date 5 (String.length date - 5) else date
 
 let lines ~width_of ~width ~book (p : B.daily_pace) =
-  let fmt q = O.format_money book p.measure q in
+  let fmt q = Book_display.format_money book p.measure q in
   let locus (c : D.Effect_coordinate.t) = A.lstr c.locus in
   let pool = List.stable_sort (fun (_, a) (_, b) -> Z.compare b a) p.pool_balances in
   let pool_loci = List.map (fun (c, _) -> locus c) p.pool_balances in

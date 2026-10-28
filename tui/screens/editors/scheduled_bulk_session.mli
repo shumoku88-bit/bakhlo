@@ -12,6 +12,6 @@ val handle :
   blocked:bool -> dimensions:int * int -> width_of:(string -> int) -> t -> Ui_input.input -> outcome
 
 val screen :
-  dimensions:int * int -> width_of:(string -> int) -> t -> (Daily_overlays.style * string) list
+  dimensions:int * int -> width_of:(string -> int) -> t -> (Ui_render.style * string) list
 
 val footer : t -> string list

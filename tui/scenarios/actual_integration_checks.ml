@@ -477,7 +477,7 @@ let actual_browsing_checks ~width_of ~directory home =
             (entry 16).day ^ if C.has_record_draft state then "   Draft retained" else ""
           in
           require
-            (snd (List.nth rows 1) = Daily_overlays.clip_text ~width_of width expected)
+            (snd (List.nth rows 1) = Ui_render.clip_text ~width_of width expected)
             "selected-day-context-uses-route-date";
           require (F.read day_path = before) "selected-day-context-does-not-write")
         [ (32, 9); (48, 14); (80, 24); (120, 36) ])
@@ -810,7 +810,7 @@ let reversal_checks ~width_of ~directory home =
           require
             (List.exists (fun (_, s) -> Base.String.is_substring s ~substring:piece) rows)
             "reversal-huge-exact-decimal-is-wrapped-not-clipped")
-        (Daily_overlays.wrap_text ~width_of 154 s))
+        (Ui_render.wrap_text ~width_of 154 s))
     [ ("wallet", Z.neg large); ("food", large); ("wallet", large); ("food", Z.neg large) ];
   (match Rev.handle ~blocked:false ~dimensions:(80, 24) ~width_of long (`Key (`Enter, [])) with
   | Rev.Updated _ -> ()

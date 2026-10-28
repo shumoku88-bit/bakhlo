@@ -3,7 +3,7 @@
    only through the Shell against the commitments this editor started from. *)
 module B = Bakhlo_household.Daily_book
 module Stl = Settlement_data
-module O = Daily_overlays
+module O = Ui_render
 module Form = Ui_form
 module Panel = Ui_panel
 

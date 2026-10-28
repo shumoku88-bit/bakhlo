@@ -1,6 +1,6 @@
 (* Balances screen owner checks through the Screen contract only (pure, no files). *)
 module B = Bakhlo_household.Daily_book
-module O = Daily_overlays
+module O = Ui_render
 module Balances = Balances_screen
 
 let require condition name = if not condition then failwith ("FAILED: balances_owner_check: " ^ name)
@@ -263,7 +263,7 @@ let unit_checks ~width_of () =
     (contains
        (String.concat ""
           (List.map (fun line -> String.sub line 1 (String.length line - 1)) huge_detail))
-       ("Amount: " ^ O.format_money huge_book "jpy" (Z.neg huge) ^ " jpy"))
+       ("Amount: " ^ Book_display.format_money huge_book "jpy" (Z.neg huge) ^ " jpy"))
     "detail-keeps-huge-negative-amount-exact";
   let huge_rows = Lazy.force (Balances.view huge_env stacked_geometry owner).rows in
   require

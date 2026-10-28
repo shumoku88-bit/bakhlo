@@ -2,7 +2,7 @@
 open Interaction_check_fixture
 
 let input_checks ~width_of () =
-  let module O = Daily_overlays in
+  let module O = Ui_render in
   let input ?(cursor = None) ?(caret = "|") width value =
     O.input_text ~width_of ~width ~cursor ~caret value
   in
@@ -123,9 +123,9 @@ let panel_checks ~width_of () =
   require
     (List.exists
        (fun (style, line) ->
-         style = Daily_overlays.Active && Base.String.is_substring line ~substring:"row-09")
+         style = Ui_render.Active && Base.String.is_substring line ~substring:"row-09")
        active
-    && (not (List.exists (fun (style, _) -> style = Daily_overlays.Active) inactive))
+    && (not (List.exists (fun (style, _) -> style = Ui_render.Active) inactive))
     && List.map snd active = List.map snd inactive)
     "panel-focus-not-selection";
   List.iter

@@ -1,6 +1,6 @@
 (* The window a report is compared with: the earlier windows of one kind, newest
    first, each with its EXPENSE total. *)
-module O = Daily_overlays
+module O = Ui_render
 module Panel = Ui_panel
 
 type row = { offset : int; label : string; note : string; total : string }

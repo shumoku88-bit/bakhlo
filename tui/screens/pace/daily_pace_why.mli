@@ -9,7 +9,7 @@ val lines :
   width:int ->
   book:B.t ->
   B.daily_pace ->
-  (Daily_overlays.style * string) list
+  (Ui_render.style * string) list
 (** Every explanation row before scrolling. *)
 
 type t

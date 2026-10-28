@@ -1,6 +1,6 @@
 module B = Bakhlo_household.Daily_book
 module D = Bakhlo_domain
-module O = Daily_overlays
+module O = Ui_render
 module Panel = Ui_panel
 
 type choice = Merchant | Nonmerchant

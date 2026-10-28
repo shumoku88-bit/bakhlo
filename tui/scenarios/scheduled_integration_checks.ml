@@ -507,8 +507,8 @@ let cancellation_checks ~width_of ~directory home =
     && List.find (fun (p : B.plan) -> p.id = plan.id) (B.plans cold.book)
        = { plan with cancelled_on = Some "2026-10-16" }
     && B.entries cold.book = B.entries book
-    && Daily_overlays.quantity ~book:cold.book ~measure:"jpy" "wallet"
-       = Daily_overlays.quantity ~book ~measure:"jpy" "wallet")
+    && Book_display.quantity ~book:cold.book ~measure:"jpy" "wallet"
+       = Book_display.quantity ~book ~measure:"jpy" "wallet")
     "cancel-cold-retains-target-due-exact-effects-and-actual-balance";
   let stale = key ~width_of selected `Enter in
   require
@@ -715,8 +715,7 @@ let months_checks ~width_of ~directory home =
   let selected = Some (List.nth crowded 11) in
   let cards =
     Months.screen ~book ~plans:crowded ~dimensions:(80, 19) ~width_of ~selected (plan_months months)
-    |> List.filter (fun (style, _) ->
-        match style with Daily_overlays.Columns _ -> true | _ -> false)
+    |> List.filter (fun (style, _) -> match style with Ui_render.Columns _ -> true | _ -> false)
   in
   require (contains cards "111 jpy") "months-card-follows-selection-beyond-first-page";
   let huge = Z.of_string (String.make 600 '9') in

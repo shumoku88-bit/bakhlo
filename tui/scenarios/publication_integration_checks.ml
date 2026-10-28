@@ -335,10 +335,10 @@ let run ~width_of ~directory ~path (home : C.state) =
     (List.length entries = 1 && (List.hd entries).memo = Some "English UI / 日本語のメモ")
     "english-record-cold-roundtrip";
   require
-    (Daily_overlays.quantity ~book:cold.book ~measure:"jpy" "wallet" = "963")
+    (Book_display.quantity ~book:cold.book ~measure:"jpy" "wallet" = "963")
     "english-record-exact-balance";
   require
-    (Daily_overlays.quantity ~book:cold.book ~measure:"jpy" "bank" = "Unknown")
+    (Book_display.quantity ~book:cold.book ~measure:"jpy" "bank" = "Unknown")
     "unknown-not-zero";
   let actual_screen = C.open_route published W.Actual in
   let actual_editing = key ~width_of actual_screen (`ASCII 'c') in

@@ -5,7 +5,7 @@
 module B = Bakhlo_household.Daily_book
 module D = Bakhlo_domain
 module A = Daily_draft
-module O = Daily_overlays
+module O = Ui_render
 module Panel = Ui_panel
 module Fm = Daily_form
 
@@ -118,7 +118,7 @@ let active_locus t =
       match List.nth_opt t.rows index with Some r -> Some r.locus | None -> None
 
 let candidates t =
-  match active_locus t with None -> [] | Some query -> O.locus_candidates t.book query
+  match active_locus t with None -> [] | Some query -> Book_display.locus_candidates t.book query
 
 let move_candidate t back =
   match active_locus t with

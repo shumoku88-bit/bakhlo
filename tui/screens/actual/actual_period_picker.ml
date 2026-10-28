@@ -3,7 +3,7 @@
 module B = Bakhlo_household.Daily_book
 module Act = Actual_workspace
 module Cal = Daily_calendar
-module O = Daily_overlays
+module O = Ui_render
 module Panel = Ui_panel
 
 type window = { start_day : string; end_exclusive : string }

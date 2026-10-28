@@ -2,7 +2,7 @@
    Unlike Daily Pace this keeps future conditional inflows and refuses overdue
    selected changes; it never claims a forecast path or a known low-water mark. *)
 module B = Bakhlo_household.Daily_book
-module O = Daily_overlays
+module O = Ui_render
 module A = Daily_draft
 
 type point = { date : string; scheduled_change : Z.t; balance : Z.t }
@@ -16,7 +16,9 @@ type snapshot = {
 }
 
 let display_point_rows = 12
-let signed book measure n = (if Z.sign n > 0 then "+" else "") ^ O.format_money book measure n
+
+let signed book measure n =
+  (if Z.sign n > 0 then "+" else "") ^ Book_display.format_money book measure n
 
 let compute ~book ~today ~coords ~assumed_complete_through =
   let horizon = assumed_complete_through in
@@ -39,9 +41,9 @@ let compute ~book ~today ~coords ~assumed_complete_through =
       let rec quantities total = function
         | [] -> Ok total
         | (locus, _) :: rest -> (
-            match O.quantity_value ~book ~measure locus with
-            | O.Exact n -> quantities (Z.add total n) rest
-            | O.Unsupported ->
+            match Book_display.quantity_value ~book ~measure locus with
+            | Book_display.Exact n -> quantities (Z.add total n) rest
+            | Book_display.Unsupported ->
                 Error
                   (Printf.sprintf
                      "Selected coordinate %s (%s) has no supported current quantity; Liquidity \
@@ -121,7 +123,7 @@ let render_lines ~book (snapshot : snapshot) =
           snapshot.assumed_complete_through );
       ( O.Plain,
         "Current selected balance: "
-        ^ O.format_money book measure snapshot.current_selected
+        ^ Book_display.format_money book measure snapshot.current_selected
         ^ " " ^ measure );
       (O.Chrome, "Selection is replaceable; this is not canonical liquidity.");
       ( O.Chrome,
@@ -141,7 +143,7 @@ let render_lines ~book (snapshot : snapshot) =
               ( O.Plain,
                 Printf.sprintf "%s  Scheduled %s  -> %s %s" point.date
                   (signed book measure point.scheduled_change)
-                  (O.format_money book measure point.balance)
+                  (Book_display.format_money book measure point.balance)
                   measure ))
             shown
         in
@@ -161,11 +163,11 @@ let render_lines ~book (snapshot : snapshot) =
       (O.Plain, "");
       ( O.Heading,
         "Conditional balance at horizon: "
-        ^ O.format_money book measure (final_at_horizon snapshot)
+        ^ Book_display.format_money book measure (final_at_horizon snapshot)
         ^ " " ^ measure );
       ( O.Heading,
         "Conditional day-boundary low-water: "
-        ^ O.format_money book measure (low_water snapshot)
+        ^ Book_display.format_money book measure (low_water snapshot)
         ^ " " ^ measure );
     ]
   in

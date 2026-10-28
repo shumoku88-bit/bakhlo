@@ -387,10 +387,10 @@ let self_check ~width_of () =
 
   (* 10. Cursor in painted rows and UTF-8 / overflow regressions *)
   let s_rows = Sch.screen ~book ~dimensions:dim ~width_of s in
-  let cur_pos = Daily_overlays.cursor_in_rows ~width_of ~width:80 s_rows in
+  let cur_pos = Ui_render.cursor_in_rows ~width_of ~width:80 s_rows in
   require (Option.is_some cur_pos) "cursor-position-computed";
   let s_prev_rows = Sch.screen ~book ~dimensions:dim ~width_of s_preview in
-  let cur_prev = Daily_overlays.cursor_in_rows ~width_of ~width:80 s_prev_rows in
+  let cur_prev = Ui_render.cursor_in_rows ~width_of ~width:80 s_prev_rows in
   require (Option.is_none cur_prev) "preview-no-cursor";
   let s_utf8 =
     match Sch.handle ~blocked:false ~dimensions:dim ~width_of s_amt (key (`Arrow `Left)) with

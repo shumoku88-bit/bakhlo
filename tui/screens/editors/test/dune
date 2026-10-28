@@ -6,6 +6,7 @@
  (libraries
   bakhlo_screen_editors
   bakhlo_tui_book
+  bakhlo_tui_kit
   bakhlo.household
   zarith
   base))

@@ -6,9 +6,13 @@ Per-screen progress: [UI gap ledger](LOAM_UI_GAP_LEDGER.ja.md). Daily-use summar
 [VERIFICATION](VERIFICATION.md). The previous long handoff (per-feature evidence up
 to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
 
-## Where things stand (2026-10-27)
+## Where things stand (2026-10-28)
 
-- Later the same day: Income & Expense keeps the comparison in the bar graph (each
+- 2026-10-28: `Daily_overlays` is `Book_display` (with a `.mli`; book values only, no
+  `include Ui_render`). The I&E comparison stays as two bars per Locus (moko).
+  [Evidence](VERIFICATION.md#book-values-have-one-display-module-2026-10-28).
+
+- 2026-10-27, later: Income & Expense keeps the comparison in the bar graph (each
   Locus has the compared window's `░` bar under its `█` bar; `c` chooses the window from
   a list, `t` is the old side-by-side table); the Record is in one `phase` at a time
   (Quick | Form | Original | Enabling | Review), which also stopped a paste during the

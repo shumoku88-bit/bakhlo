@@ -4,7 +4,7 @@ module B = Bakhlo_household.Daily_book
 module A = Daily_actions
 module S = Record_session
 module D = Bakhlo_domain
-module O = Daily_overlays
+module O = Ui_render
 
 let require condition cause = if not condition then failwith cause
 let get = function Ok x -> x | Error why -> failwith why
@@ -371,7 +371,8 @@ let self_check ~width_of () =
   | S.Publish (A.Entry_tx next, _, _) ->
       require (next.entry.memo = Some long_description) "ended-review-retains-whole-payload";
       let count =
-        List.length (List.concat_map (O.wrap_text ~width_of 68) (O.preview_lines book next))
+        List.length
+          (List.concat_map (O.wrap_text ~width_of 68) (Book_display.preview_lines book next))
       in
       require
         (List.exists
@@ -654,9 +655,9 @@ let self_check ~width_of () =
         "cancelled-plan-edit-refused"
   | _ -> failwith "plan-publish-failed");
   (* Prefix matching check for locus_candidates (LOAM specification parity: no substring matches) *)
-  let candidates_prefix_su = O.locus_candidates s_book "su" in
+  let candidates_prefix_su = Book_display.locus_candidates s_book "su" in
   require (candidates_prefix_su = [ "suspense" ]) "prefix-search-matches-prefix";
-  let candidates_prefix_o = O.locus_candidates s_book "o" in
+  let candidates_prefix_o = Book_display.locus_candidates s_book "o" in
   require (candidates_prefix_o = []) "prefix-search-excludes-middle-substring-match";
   (* Date field input protection check *)
   let date_editor = full (S.create ~book ~day:"2026-10-14" ~measure:"jpy" ()) in

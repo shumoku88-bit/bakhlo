@@ -2,7 +2,7 @@
    Euclidean division as in Lean's Int. Unlike LOAM (JPY only), any Measure
    works: inputs are whole units of the pace Measure, scaled to its quanta. *)
 module B = Bakhlo_household.Daily_book
-module O = Daily_overlays
+module O = Ui_render
 module A = Daily_draft
 module Cal = Daily_calendar
 module Panel = Ui_panel
@@ -404,7 +404,7 @@ let body_rows ~width_of ~width ~capacity ~book ~pace t =
   | Error why ->
       head @ info O.Plain " Current projection unavailable (not zero)." @ info O.Chrome why @ notice
   | Ok p -> (
-      let fmt q = O.format_money book p.measure q in
+      let fmt q = Book_display.format_money book p.measure q in
       let current = p.daily_pace_quanta in
       let now =
         info O.Chrome

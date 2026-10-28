@@ -32,9 +32,9 @@ val render_summary_lines :
   book:B.t ->
   report:report ->
   selected_row:int ->
-  (Daily_overlays.style * string) list
+  (Ui_render.style * string) list
 
 val render_detail_lines :
-  book:B.t -> report:report -> selected_row:int -> (Daily_overlays.style * string) list
+  book:B.t -> report:report -> selected_row:int -> (Ui_render.style * string) list
 
 val print_summary : book:B.t -> report:report -> string list

@@ -2,7 +2,7 @@
    synthetic book. Pure: nothing is written or published. *)
 module B = Bakhlo_household.Daily_book
 module D = Bakhlo_domain
-module O = Daily_overlays
+module O = Ui_render
 module Q = Quick_capture
 
 let require condition cause = if not condition then failwith cause

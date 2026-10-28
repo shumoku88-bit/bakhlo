@@ -70,6 +70,6 @@ val render_summary_lines :
   width_of:(string -> int) ->
   book:B.t ->
   report:report ->
-  (Daily_overlays.style * string) list
+  (Ui_render.style * string) list
 
 val print_summary : book:B.t -> report:report -> string list

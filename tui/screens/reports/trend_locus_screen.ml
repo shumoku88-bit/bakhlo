@@ -10,7 +10,7 @@
    derived from the current projection. *)
 module B = Bakhlo_household.Daily_book
 module R = Trend_locus_report
-module O = Daily_overlays
+module O = Ui_render
 
 let markers = [| "●"; "◆"; "▲"; "■"; "□" |]
 
@@ -782,7 +782,7 @@ let rack_rows ~width_of (snap : R.snapshot) =
 let amount_text (env : Screen.env) (snap : R.snapshot) (series : R.series) index =
   if index < 0 || index >= Array.length series.R.points then "(unavailable)"
   else
-    O.format_money env.book snap.R.measure series.R.points.(index).R.value
+    Book_display.format_money env.book snap.R.measure series.R.points.(index).R.value
     ^ " " ^ snap.R.measure
     ^ if snap.R.grain = R.Day then "" else "/day"
 
@@ -977,7 +977,7 @@ let axis_row ~plot_left ~plot_width (snap : R.snapshot) start visible selected =
 
 let chart_body (env : Screen.env) ~width_of ~width ~height t (snap : R.snapshot) start visible
     selected =
-  let fmt value = O.format_money env.book snap.R.measure value in
+  let fmt value = Book_display.format_money env.book snap.R.measure value in
   let values = series_values snap start visible in
   let scale = UChart.scale_for (Z.zero :: List.concat values) in
   (* LOAM keeps an eight-cell value axis; a wider tick label widens it rather

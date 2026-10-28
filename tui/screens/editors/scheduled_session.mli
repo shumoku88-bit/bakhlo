@@ -45,4 +45,4 @@ val screen :
   dimensions:int * int ->
   width_of:(string -> int) ->
   t ->
-  (Daily_overlays.style * string) list
+  (Ui_render.style * string) list

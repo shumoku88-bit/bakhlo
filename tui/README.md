@@ -456,7 +456,7 @@ Esc／qは変更前の配色と元のCommands選択へ戻す。選択日・一�
 - shell_input：paste guard、Record、modal owner、Shell overlay、Ctrl鍵、route owner、global鍵の順の入力dispatch。
 - shell_view：header/feedback/footerの合成、overlay配置とterminal caret。
   依存はstate → record_actions／files／publication → dispatch → input／view。画面ごとの状態・入力・描画は`tui/screens/<s>`が持つ（`docs/TUI_OWNERSHIP.md`）。
-- daily_overlays / ui_text：cell幅・枠・完全な数量詳細と将来の言語カタログ入口。
+- ui_render / book_display / ui_text：cell幅・枠（ui_render）、帳簿の値の表示（book_display：正確な数量・桁区切り金額・Locus候補・Actual／Scheduled／Previewの詳細行）、将来の言語カタログ入口。
 - ui_panel：一覧・詳細の共通枠、可視行数、選択追従viewport、整数overflowを避ける端移動。
   ActualとScheduledの描画・ページ送りが同じ規則を使う。対象の意味・キー割当・保存判断は持たない。
 - daily_actions / posting_draft / daily_file：既存の数量・検査・保存境界。
@@ -469,9 +469,9 @@ Esc／qは変更前の配色と元のCommands選択へ戻す。選択日・一�
 [TUI共有部品の責務設計と移行順序](https://github.com/shumoku88-bit/bakhlo/blob/90a5867/docs/TUI_LAYOUT_STABILITY_ROADMAP.ja.md)。
 現在は共有inputの純粋機構だけ実装・検査済み。以下の画面cutoverは未実行で、全画面対応済みではない。
 
-- **KEEP**：`daily_form`のUTF-8 scalar編集とbyte-offset、`daily_overlays`の幅／clip／tailとLocus prefix候補、
+- **KEEP**：`daily_form`のUTF-8 scalar編集とbyte-offset、`ui_render`の幅／clip／tail、`book_display`のLocus prefix候補、
   `ui_panel`の枠・capacity/window/move、Nottyの合成・実幅・fit・cursor。
-- **統合／切替**：`daily_overlays`に`input_text`／`input_cell`／`cursor_in_rows`を実装済み。
+- **統合／切替**：`ui_render`に`input_text`／`input_cell`／`cursor_in_rows`を実装済み。
   value窓と1cell caretを一緒に計算し、再帰Columnsの子座標を親へ変換する。現行画面の利用元はまだ切り替えていない。
   `ui_form`の寸法なしpaint＋独立cursorをbounded styled rowsへ切り替え、`ui_panel`の既存geometryへ接続する。
   Modal_form・Jump・Search・Reversal Dateの全利用元を同時移行し、次にRecordのColumns＋recursive caretと

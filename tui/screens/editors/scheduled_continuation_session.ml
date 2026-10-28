@@ -1,6 +1,6 @@
 (* Read-only awareness after completion; similar plans never assert recurrence. *)
 module B = Bakhlo_household.Daily_book
-module O = Daily_overlays
+module O = Ui_render
 module Panel = Ui_panel
 
 type t = {
@@ -55,7 +55,7 @@ let viewport ~dimensions:(width, height) ~width_of t =
     (match t.candidate with
       | None -> []
       | Some p ->
-          O.plan_lines t.book p
+          Book_display.plan_lines t.book p
           @ [
               "Match: same positive Locus set and a later explicit date.";
               "Not a same-series, same-contract or equal-amount claim.";

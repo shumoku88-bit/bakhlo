@@ -62,7 +62,7 @@ let continuation_input (env : Screen.env) prompt outcome =
             (match candidate with
             | None -> "Completion retained. No additional Scheduled created."
             | Some p ->
-                "Completion retained. Kept later Scheduled " ^ Daily_overlays.visible p.B.id
+                "Completion retained. Kept later Scheduled " ^ Ui_render.visible p.B.id
                 ^ "; no additional Scheduled created.") )
   | Cont.Add source -> (
       if env.blocked then stay (updated "Writes stopped; completion remains published.")

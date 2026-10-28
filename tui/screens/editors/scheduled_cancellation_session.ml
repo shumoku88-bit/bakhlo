@@ -1,7 +1,7 @@
 (* Cancellation captures its review evidence; the existing writer rechecks lifecycle and base. *)
 module B = Bakhlo_household.Daily_book
 module A = Daily_draft
-module O = Daily_overlays
+module O = Ui_render
 module Form = Ui_form
 module Panel = Ui_panel
 
@@ -53,7 +53,7 @@ let dimensions (width, height) =
 let viewport ~dimensions:(width, height) ~width_of t =
   let rows =
     [ "Cancel on: " ^ day t; "Retirement keeps history; no deletion."; "" ]
-    @ O.plan_lines t.book t.target
+    @ Book_display.plan_lines t.book t.target
     |> List.concat_map (O.wrap_text ~width_of (max 1 (width - 6)))
   in
   (rows, Panel.preview_window ~height ~count:(List.length rows) ~scroll:t.scroll ())

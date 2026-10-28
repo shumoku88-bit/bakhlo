@@ -4,7 +4,7 @@
 module B = Bakhlo_household.Daily_book
 module D = Bakhlo_domain
 module A = Daily_draft
-module O = Daily_overlays
+module O = Ui_render
 module Roles = Locus_roles
 module Form = Ui_form
 module Panel = Ui_panel
@@ -436,7 +436,8 @@ let paint (env : Screen.env) (geometry : Screen.geometry) t =
   let balances_of locus =
     List.map
       (fun (m, _) ->
-        Printf.sprintf "  %s: %s" (String.uppercase_ascii m) (O.quantity ~book ~measure:m locus))
+        Printf.sprintf "  %s: %s" (String.uppercase_ascii m)
+          (Book_display.quantity ~book ~measure:m locus))
       (B.measures book)
   in
   let suspense_detail =
