@@ -1,2 +1,2 @@
 (* Terminal entry point. *)
-let () = Daily_cli.main ~run:Notty_terminal.run
+let () = Command_line.main ~run:Notty_terminal.run

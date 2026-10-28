@@ -8,7 +8,7 @@ let main ~run =
     | [ _; "--book"; path ] -> run path
     | [ _; "--check"; path ] ->
         ignore (F.load path);
-        print_endline "PASS: daily book admitted (no payload output)."
+        print_endline "PASS: household book admitted (no payload output)."
     | [ _; "--copy-from"; source; "--book"; target ] ->
         F.create_copy ~source ~target;
         print_endline "PASS: fresh trial copy created; original unchanged."

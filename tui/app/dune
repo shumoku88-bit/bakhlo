@@ -3,7 +3,7 @@
 (library
  (name bakhlo_tui_cli)
  (wrapped false)
- (modules daily_cli)
+ (modules command_line)
  (libraries bakhlo.store unix))
 
 (library
