@@ -124,6 +124,9 @@ PTY入力/resize/非保存検査がすべて成功。後続の完了記録は文
   方向：(A) `Book`のAPIも型で揃える、(B) entryをbook.txtの形（文字列と整数）にして`lib/`を消す。
   → (B)を5段で実施：`Book`の二重受理をやめる、entryのeffectsを`Book.posting`（=`Book_txt.posting`）に、
   座標を`Book.coordinate`に、`lib/`と関連テストを削除（行ごとの下書きチェックは`Posting_draft.movement_fault`）。
+- [x] 今日の機械的な置換の後始末（2026-10-28）：14個の`book_of_text`は各ファイルの`get (B.read …)`に、30か所の
+  `x.Bakhlo_household.Book.amount`は`x.B.amount`に、`sidecar_integration_checks`は`save_safety_checks`に。存在しない
+  `docs/RECONSTRUCTION_TEST_MAP.ja.md`を指していた15個のシナリオの見出しを、そのファイルが確かめる内容に。
 - [ ] 候補：科目と通貨に「book.txtで受理済み」の抽象型を付ける（型は確かめ済みの印、という形で安全性を足す）。
 - [ ] TUIのコード量（2026-10-27計測：本体約28,000行、テスト・シナリオ約16,300行。コアは約3,500行）を
   減らせるか調べる。まず測る：画面ごとに似た処理（枠・行の描画、スクロール、一覧の選択、狭幅の処理など）が

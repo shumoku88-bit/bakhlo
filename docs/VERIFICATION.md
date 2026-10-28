@@ -6,6 +6,14 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Checks finished by hand after the rewrites (2026-10-28)
+
+- Test-only cleanup in `dcebd51` (34 files, +265 / −376): one way to build a fixture book
+  (`get (B.read text)`, the 14 `book_of_text` copies removed), short posting fields, the
+  `save_safety_checks` name, and headers for the 15 scenario files that pointed to a document
+  that never existed in Git. No check changed what it asserts. `./tools/check`, self-check (48),
+  format passed.
+
 ## The typed Effect layer is removed; entries are book.txt postings (2026-10-28)
 
 - Five commits: `Book` stops re-checking with `Event.create` / `Movement.validate` (`1e8276b`; a
