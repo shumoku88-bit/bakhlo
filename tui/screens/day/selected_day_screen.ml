@@ -11,6 +11,7 @@ type t = {
   day : string;
   browser : RB.t;
   pane : pane;
+  list_scroll : int;
   scroll : int;
   search : string option;
   parent : string option;
@@ -19,11 +20,20 @@ type t = {
 let config_files = []
 
 let create () =
-  { day = ""; browser = RB.empty; pane = List; scroll = 0; search = None; parent = None }
+  {
+    day = "";
+    browser = RB.empty;
+    pane = List;
+    list_scroll = 0;
+    scroll = 0;
+    search = None;
+    parent = None;
+  }
 
 let enter route ~focus_day:_ t =
   match route with
-  | Screen.Selected_day day -> { t with day; pane = List; scroll = 0; search = None; parent = None }
+  | Screen.Selected_day day ->
+      { t with day; pane = List; list_scroll = 0; scroll = 0; search = None; parent = None }
   | _ -> t
 
 let browser t = t.browser
@@ -75,6 +85,19 @@ let handle (env : Screen.env) (geometry : Screen.geometry) t input =
     in
     (t, Screen.Record_action { action; target })
   in
+  (* The list keeps its painted offset while the selection stays in view. *)
+  let follow (t, request) =
+    ( {
+        t with
+        list_scroll =
+          Panel.split_left_scroll ~height:(snd geometry.content)
+            ~count:(List.length (rows book t))
+            ~scroll:t.list_scroll t.browser.selected;
+      },
+      request )
+  in
+  follow
+  @@
   match t.search with
   | Some value -> (
       match input with
@@ -139,7 +162,7 @@ let paint (env : Screen.env) (geometry : Screen.geometry) t =
   let detail = t.pane = Detail in
   Panel.split ~width_of:geometry.width_of ~width ~height ~left_focused:(not detail)
     ~left_title:(Printf.sprintf "Day %s (%d)" t.day (List.length rows))
-    ~left_scroll:(if detail then 0 else t.scroll)
+    ~left_scroll:t.list_scroll
     ~left_selected:(if rows = [] then None else Some t.browser.selected)
     ~left_rows:
       (if rows = [] then [ tr "No records in this view." ]

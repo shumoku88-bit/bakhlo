@@ -61,6 +61,11 @@ val review_scroll : window -> Ui_input.input -> int
 (** The scroll start after a review key: j/k and Up/Down by line, PgUp/PgDn and
     Ctrl-U/D by page, Home/End to the ends. Any other key keeps [view.start]. *)
 
+val split_left_scroll : height:int -> count:int -> scroll:int -> int -> int
+(** The offset {!split} paints its left list from (no heading, [height] tall) once the
+    selection is at the given row: [scroll] kept while that row stays in view. A screen
+    keeps it and passes it back as [left_scroll]. *)
+
 val split_widths : int -> int * int
 (** Left and right pane widths of a two-pane browser; equal full widths below 80 cells. *)
 

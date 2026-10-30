@@ -13,10 +13,10 @@ type pane = List_pane | Detail_pane
 
 (* An open editor, and the confirmation shown once its save is read back. *)
 type editor = { form : Form.t; success : string }
-type t = { selected : int; pane : pane; scroll : int; editor : editor option }
+type t = { selected : int; list_scroll : int; pane : pane; scroll : int; editor : editor option }
 
 let config_files = []
-let create () = { selected = 0; pane = List_pane; scroll = 0; editor = None }
+let create () = { selected = 0; list_scroll = 0; pane = List_pane; scroll = 0; editor = None }
 let enter t = { t with pane = List_pane; scroll = 0; editor = None }
 let modal t = Option.is_some t.editor
 let with_form form t = { t with editor = Option.map (fun e -> { e with form }) t.editor }
@@ -292,6 +292,20 @@ let handle (env : Screen.env) (geometry : Screen.geometry) t input =
   | None -> (
       let key = Ui_input.key_ignoring_case input in
       let page = max 1 (snd geometry.screen - 8) in
+      (* The list keeps its painted offset while the selection stays in view; it paints
+         two heading rows first, which come back into view with the first item. *)
+      let follow (t, request) =
+        let count = List.length (row_list env) + 2 in
+        let list_scroll =
+          if t.selected = 0 then 0
+          else
+            Panel.split_left_scroll ~height:(snd geometry.content) ~count ~scroll:t.list_scroll
+              (t.selected + 2)
+        in
+        ({ t with list_scroll }, request)
+      in
+      follow
+      @@
       match key with
       | Some ((`Escape | `ASCII 'q'), []) ->
           if detail then stay { t with pane = List_pane; scroll = 0 } else (t, Screen.Home)
@@ -427,7 +441,8 @@ let rows (env : Screen.env) (geometry : Screen.geometry) t =
     | None -> [ tr "No selected attention item."; ""; tr "Press 'n' to add a household matter." ]
   in
   let is_detail = t.pane = Detail_pane in
-  Panel.split ~width_of ~width ~height ~left_focused:(not is_detail) ~left_title ~left_scroll:0
+  Panel.split ~width_of ~width ~height ~left_focused:(not is_detail) ~left_title
+    ~left_scroll:t.list_scroll
     ~left_selected:(if rows = [] then None else Some (t.selected + 2))
     ~left_rows ~right_focused:is_detail ~right_title:"Selected matter"
     ~right_scroll:(if is_detail then t.scroll else 0)

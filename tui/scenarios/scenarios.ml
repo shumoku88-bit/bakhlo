@@ -42,6 +42,7 @@ let run ~width_of () =
   balance_display_checks ~width_of ~directory ();
   balance_picker_checks ~width_of ~directory ();
   observe_multi_checks ~width_of ~directory ();
+  List_motion_checks.run ~width_of ~directory ();
   Publication_integration_checks.run ~width_of ~directory ~path home;
   let form_ja = Form_integration_checks.run ~width_of home in
   (* Attention is saved in the book, which the publication checks have changed. *)

@@ -148,6 +148,10 @@ let review_scroll view input =
   | `Key (`End, []) -> view.last
   | _ -> view.start
 
+let split_left_scroll ~height ~count ~scroll selected =
+  (window ~capacity:(capacity ~height ~heading:false) ~count ~scroll ~selected:(Some selected))
+    .start
+
 let split_widths width =
   if width < 80 then (width, width)
   else

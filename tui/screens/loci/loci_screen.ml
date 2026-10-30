@@ -28,10 +28,10 @@ type editor =
     }
 
 (* A role chosen while admitting is saved once the admission is read back. *)
-type t = { selected : int; pane : pane; scroll : int; editor : editor option }
+type t = { selected : int; list_scroll : int; pane : pane; scroll : int; editor : editor option }
 
 let config_files = []
-let create () = { selected = 0; pane = List_pane; scroll = 0; editor = None }
+let create () = { selected = 0; list_scroll = 0; pane = List_pane; scroll = 0; editor = None }
 let enter t = { t with pane = List_pane; scroll = 0; editor = None }
 let modal t = Option.is_some t.editor
 let selected t = t.selected
@@ -263,6 +263,19 @@ let handle (env : Screen.env) (geometry : Screen.geometry) t input =
   | None -> (
       let key = Ui_input.key_ignoring_case input in
       let page = max 1 (snd geometry.screen - 8) in
+      (* The list keeps its painted offset while the selection stays in view. *)
+      let follow (t, request) =
+        let count = List.length (admitted_loci env.book) in
+        ( {
+            t with
+            list_scroll =
+              Panel.split_left_scroll ~height:(snd geometry.content) ~count ~scroll:t.list_scroll
+                t.selected;
+          },
+          request )
+      in
+      follow
+      @@
       match key with
       | Some ((`Escape | `ASCII 'q'), []) -> (t, Screen.Home)
       | Some (`ASCII 'n', []) ->
@@ -437,7 +450,7 @@ let paint (env : Screen.env) (geometry : Screen.geometry) t =
        with
       | 0 -> Printf.sprintf "Manage Loci (%d admitted)" (List.length loci)
       | n -> Printf.sprintf "Manage Loci (%d, %d without role)" (List.length loci) n)
-    ~left_scroll:0
+    ~left_scroll:t.list_scroll
     ~left_selected:(if loci = [] then None else Some t.selected)
     ~left_rows ~right_focused:is_detail ~right_title:"Locus Detail" ~right_scroll:t.scroll
     ~right_selected:None

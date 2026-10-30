@@ -11,10 +11,28 @@ let tr = Ui_text.tr
 
 type pane = List_pane | Detail_pane
 type editor = { form : Form.t; success : string }
-type t = { selected : int; scope : Stl.scope; pane : pane; scroll : int; editor : editor option }
+
+type t = {
+  selected : int;
+  list_scroll : int;
+  scope : Stl.scope;
+  pane : pane;
+  scroll : int;
+  editor : editor option;
+}
 
 let config_files = []
-let create () = { selected = 0; scope = Stl.Open_only; pane = List_pane; scroll = 0; editor = None }
+
+let create () =
+  {
+    selected = 0;
+    list_scroll = 0;
+    scope = Stl.Open_only;
+    pane = List_pane;
+    scroll = 0;
+    editor = None;
+  }
+
 let enter t = { t with pane = List_pane; scroll = 0; editor = None }
 let modal t = Option.is_some t.editor
 let form t = Option.map (fun e -> e.form) t.editor
@@ -187,6 +205,19 @@ let handle (env : Screen.env) (geometry : Screen.geometry) t input =
   | None -> (
       let key = Ui_input.key_ignoring_case input in
       let page = max 1 (snd geometry.screen - 8) in
+      (* The list keeps its painted offset while the selection stays in view. *)
+      let follow (t, request) =
+        let count = List.length (rows env t) in
+        ( {
+            t with
+            list_scroll =
+              Panel.split_left_scroll ~height:(snd geometry.content) ~count ~scroll:t.list_scroll
+                t.selected;
+          },
+          request )
+      in
+      follow
+      @@
       match key with
       | Some ((`Escape | `ASCII 'q'), []) -> (t, Screen.Home)
       | Some (`ASCII 'n', []) -> stay { t with editor = Some { form = add_form env; success = "" } }
@@ -303,7 +334,8 @@ let paint (env : Screen.env) (geometry : Screen.geometry) t =
   in
   let right_width = if width >= 80 then width - max 36 (min 58 (width * 52 / 100)) - 1 else width in
   let is_detail = t.pane = Detail_pane in
-  Panel.split ~width_of ~width ~height ~left_focused:(not is_detail) ~left_title ~left_scroll:0
+  Panel.split ~width_of ~width ~height ~left_focused:(not is_detail) ~left_title
+    ~left_scroll:t.list_scroll
     ~left_selected:(if visible = [] then None else Some t.selected)
     ~left_rows ~right_focused:is_detail ~right_title:"Commitment Details" ~right_scroll:t.scroll
     ~right_selected:None

@@ -6,6 +6,25 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Loci, Attention, Settlements and Selected Day lists stay put too (2026-10-30)
+
+- At moko's request, the same pinned-cursor motion fixed for Balances (below) is fixed in the
+  other two-pane lists. `Ui_panel.split_left_scroll` owns the rule for `Panel.split`'s left list
+  (no heading, full height); each screen keeps `list_scroll` and passes it back as `left_scroll`.
+  Attention paints two heading rows before its items, so its offset returns to 0 at the first
+  item and the heading comes back. Selected Day's `scroll` stays the detail pane's. Settlements'
+  Page/Home/End still go to the first row (LOAM), only the offset is new.
+- New check `List_motion_checks` (synthetic book of 14 loci, 14 transactions on one day, 14
+  attention items, 14 commitments added through the Settlements form; 60×12): from the end, `k`
+  keeps every list's painted rows, marker aside, and Attention's heading returns at Home. With
+  each screen's previous code its case fails (four separate runs); `./tools/check` and
+  self-check pass.
+- Latest data (`capture-IsgTNG`, read-only keys, HEAD build and this build, tmux 120×36 and
+  80×24): opening frames byte-identical for Loci, Attention and Settlements; after End and `k`×3
+  the Loci list shifted with the HEAD build and stays with this one. Attention and Settlements
+  fit one page there, so both builds keep them. Selected Day was not compared on latest data
+  (synthetic only). Household files and Git HEAD unchanged; `clean-copies` kept that generation.
+
 ## Balances list stays put when the cursor moves back from the end (2026-10-30)
 
 - moko reported that the Balances list (Accounting view, `b` then `v`) moved oddly after
@@ -23,8 +42,8 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
   after `k`×3 from the end at 120×36 and 80×24. LOAM's `v` does not open an Accounting list and
   its Current list fits one page there, so LOAM has no equivalent motion to compare. Household
   files and Git HEAD unchanged; `./tools/compare clean-copies` kept only that generation.
-- Not covered: moko's own terminal, the same pinned-cursor motion in other lists (Loci,
-  Settlements, Attention, Selected Day pass 0 and keep it).
+- Not covered then: the same pinned-cursor motion in Loci, Settlements, Attention and Selected
+  Day (fixed the same day, above).
 - moko then reported (WezTerm, `bk`) that only the mouse wheel misbehaved at the end of the list,
   and after a first attempt that the selection highlight disappeared. Cause, seen in WezTerm
   itself (a demo tab driven by `wezterm cli`, screen read back with `get-text --escapes`): with the
