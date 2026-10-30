@@ -24,7 +24,9 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
   tmux at 174×43: every screen identical with colours (73/73) on the demo book and on the
   latest data, with 55 % fewer bytes (352,628 → 159,619 demo; 417,476 → 188,296 latest data).
   In WezTerm, two demo tabs given the same 51 keys: 51/51 identical (`get-text --escapes`).
-  `./tools/check` and self-check passed. Whether it feels like nvim is moko's check.
+  `./tools/check` and self-check passed; matching CI passed for `3e9f632`
+  ([run 41055641633](https://github.com/shumoku88-bit/bakhlo/actions/runs/41055641633)). moko
+  tried it and closed the slice for now; smoother motion stays open in `tasks/todo.md`.
 
 ## Frames are sent as synchronized output (2026-10-30)
 
