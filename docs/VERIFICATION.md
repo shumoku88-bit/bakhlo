@@ -6,6 +6,23 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Frames are sent as synchronized output (2026-10-30)
+
+- moko found j/k motion slightly jerky everywhere: a short hitch and a flash on each press.
+  Measured first, on the latest-data copy (`capture-3ptY2a`) through the Shell and Notty, 120 j/k
+  keys per screen (a temporary probe, not kept). At 174×43 (moko's WezTerm pane) a key costs
+  0.0–0.3 ms to handle and 1.6–4.0 ms on average to view and render (maximum 7.6 ms, Actual);
+  at 80×24 0.5–2.2 ms. Each frame is 8.0–9.2 KB at 174×43. The app is well inside the 16 ms
+  key target, so the visible part is the terminal showing a frame part-way: Notty sends every
+  frame whole and clears each line's last span before rewriting it.
+- Each frame is now wrapped in synchronized output (DEC mode 2026: begin, Notty's image and
+  cursor, end, the end even on an exception); WezTerm 20240203 holds a pane's output from begin to
+  end (its mux source), and a terminal without the mode ignores it. Not sent when `TERM` is
+  unset, empty or `dumb` (Notty's own rule). Recorded through tmux: 5 j keys gave 5 frames, each
+  between one begin and one end. In a WezTerm demo tab the screen came out whole and the marker
+  moved with j, including 100 j past the end. `./tools/check` and self-check passed. Whether
+  the motion now feels smooth is moko's check (not executed by the AI).
+
 ## Loci, Attention, Settlements and Selected Day lists stay put too (2026-10-30)
 
 - At moko's request, the same pinned-cursor motion fixed for Balances (below) is fixed in the

@@ -8,9 +8,23 @@ module F = Book_file
 module P = Ui_preferences
 module N = Notty_render
 
+(* A frame is sent whole, and Notty clears each line's last span before rewriting
+   it. Synchronized output (DEC mode 2026) asks the terminal to show the frame only
+   once it is complete, so a key does not flash half-drawn lines; a terminal that
+   does not know the mode ignores it. Notty's own capability rule decides whether
+   escapes are written at all. *)
+let synchronized =
+  match Sys.getenv_opt "TERM" with None | Some ("" | "dumb") -> false | Some _ -> true
+
+let write_escape text = ignore (Unix.write_substring Unix.stdout text 0 (String.length text))
+
 let show term image cursor =
-  Term.image term image;
-  Term.cursor term cursor
+  if synchronized then write_escape "\027[?2026h";
+  Fun.protect
+    ~finally:(fun () -> if synchronized then write_escape "\027[?2026l")
+    (fun () ->
+      Term.image term image;
+      Term.cursor term cursor)
 
 (* stty on the terminal, its output, or [None] when it cannot run or refuses. *)
 let stty args =
