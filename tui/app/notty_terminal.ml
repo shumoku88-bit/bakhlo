@@ -8,23 +8,53 @@ module F = Book_file
 module P = Ui_preferences
 module N = Notty_render
 
-(* A frame is sent whole, and Notty clears each line's last span before rewriting
-   it. Synchronized output (DEC mode 2026) asks the terminal to show the frame only
-   once it is complete, so a key does not flash half-drawn lines; a terminal that
-   does not know the mode ignores it. Notty's own capability rule decides whether
-   escapes are written at all. *)
-let synchronized =
-  match Sys.getenv_opt "TERM" with None | Some ("" | "dumb") -> false | Some _ -> true
+(* What the terminal shows: its size, each row as the bytes that drew it, the cursor. *)
+type shown = { size : int * int; rows : string array; cursor : (int * int) option }
 
-let write_escape text = ignore (Unix.write_substring Unix.stdout text 0 (String.length text))
+(* Only the rows that differ from the screen are sent, as a full-screen editor does:
+   Notty would redraw every row for each key (8-9 KB at 174x43), and the terminal
+   then redraws every line. A frame is wrapped in synchronized output (DEC mode
+   2026), which a terminal shows only once complete and one without the mode
+   ignores. With Notty's dumb capability (TERM unset, empty or dumb) the frame goes
+   through Notty whole, as before. *)
+let ansi = match Sys.getenv_opt "TERM" with None | Some ("" | "dumb") -> false | Some _ -> true
+let write text = ignore (Unix.write_substring Unix.stdout text 0 (String.length text))
 
-let show term image cursor =
-  if synchronized then write_escape "\027[?2026h";
-  Fun.protect
-    ~finally:(fun () -> if synchronized then write_escape "\027[?2026l")
-    (fun () ->
-      Term.image term image;
-      Term.cursor term cursor)
+let rows_of (width, height) image =
+  Array.init height (fun y ->
+      let row = Buffer.create 256 in
+      Notty.Render.to_buffer row Notty.Cap.ansi (0, y) (width, 1) image;
+      Buffer.contents row)
+
+(* The bytes that bring the screen [before] to [rows] at [size]: each changed row,
+   placed at its start. All rows after a resize or before the first frame. *)
+let changed_rows ~before size rows =
+  let frame = Buffer.create 16384 in
+  Array.iteri
+    (fun y row ->
+      match before with
+      | Some before when before.size = size && before.rows.(y) = row -> ()
+      | _ -> Printf.bprintf frame "\027[%d;1H%s" (y + 1) row)
+    rows;
+  Buffer.contents frame
+
+let show term ~before (size, image, cursor) =
+  if not ansi then (
+    Term.image term image;
+    Term.cursor term cursor;
+    None)
+  else
+    let rows = rows_of size image in
+    let frame = changed_rows ~before size rows in
+    let moved = match before with Some before -> before.cursor <> cursor | None -> true in
+    if frame <> "" || moved then (
+      write "\027[?2026h\027[?25l";
+      Fun.protect
+        ~finally:(fun () -> write "\027[?2026l")
+        (fun () ->
+          write frame;
+          Term.cursor term cursor));
+    Some { size; rows; cursor }
 
 (* stty on the terminal, its output, or [None] when it cannot run or refuses. *)
 let stty args =
@@ -65,9 +95,7 @@ let with_ctrl_o f =
 
 (* One terminal session: paint, wait for an event, let [step] decide. Every event
    reads the current terminal size, so a resize and a key never use stale geometry.
-   A frame equal to the one on screen is not sent again: Notty clears each line's
-   last span before rewriting it, so a burst of keys that change nothing (wheel
-   arrows at the end of a list) would flicker. *)
+   A key that changes nothing sends nothing; a resize redraws every row. *)
 let terminal_loop ~paint ~step initial =
   with_ctrl_o @@ fun () ->
   let term = Term.create ~dispose:true ~mouse:false ~bpaste:true () in
@@ -75,15 +103,7 @@ let terminal_loop ~paint ~step initial =
   let rec loop state =
     let dimensions = Term.size term in
     let image, cursor = paint dimensions state in
-    let same =
-      match !shown with
-      | Some (d, i, c) -> d = dimensions && c = cursor && Notty.I.equal i image
-      | None -> false
-    in
-    if not same then begin
-      show term image cursor;
-      shown := Some (dimensions, image, cursor)
-    end;
+    shown := show term ~before:!shown (dimensions, image, cursor);
     match Term.event term with
     | `End -> state
     | `Resize _ ->

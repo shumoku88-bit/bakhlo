@@ -6,6 +6,26 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Only changed rows are sent to the terminal (2026-10-30)
+
+- With synchronized output moko still felt no change, and compared the motion with nvim and
+  qemacs, which send only what changed. Measured on the latest-data copy (`capture-r5ILq7`) at
+  174×43, one j/k changes on average 4.8 of 43 rows in Loci, 5.0 in Scheduled, 19.3 in Actual and
+  21–23 in Balances (the detail pane follows the selection), while every key sent all 43 rows.
+  Rendering the frame row by row costs no more than before (the view itself is 1.6–3.8 ms; the
+  whole frame's bytes 0.06 ms).
+- The terminal loop now keeps the rows on screen and sends each changed row at its position,
+  inside synchronized output, then the cursor; nothing when nothing changed (this replaces the
+  skip of an equal frame, `c727ec6`); every row after a resize or before the first frame. A
+  dumb `TERM` keeps Notty's whole frame. Check `Notty-frame-sends-only-changed-rows` (and after
+  a resize, every row).
+- Same 73 keys across Balances (both views), Actual, Scheduled, Daily Pace, Attention, Loci,
+  Settlements, Commands and a resize, sent to the previous full-redraw build and this one in
+  tmux at 174×43: every screen identical with colours (73/73) on the demo book and on the
+  latest data, with 55 % fewer bytes (352,628 → 159,619 demo; 417,476 → 188,296 latest data).
+  In WezTerm, two demo tabs given the same 51 keys: 51/51 identical (`get-text --escapes`).
+  `./tools/check` and self-check passed. Whether it feels like nvim is moko's check.
+
 ## Frames are sent as synchronized output (2026-10-30)
 
 - moko found j/k motion slightly jerky everywhere: a short hitch and a flash on each press.

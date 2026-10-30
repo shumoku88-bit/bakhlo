@@ -386,6 +386,35 @@ let run () =
         && List.exists (fun (_, text) -> Base.String.is_substring text ~substring:"Coffee") rows
     | None -> false)
     "Shell-quick-capture-returns-to-the-framed-modal";
+  (* Only changed rows go to the terminal: none for a key that changes nothing, the
+     moved rows for j in the Balances Accounting list, every row after a resize. *)
+  let size = (120, 36) in
+  let key state k =
+    match H.handle ~dimensions:size ~width_of state (`Key (k, [])) with
+    | Some state -> state
+    | None -> state
+  in
+  let frame state = Notty_terminal.rows_of size (render size state) in
+  let listed = key (C.open_route state Ui_workspace.Balances) (`ASCII 'v') in
+  let before = frame listed and after = frame (key listed (`ASCII 'j')) in
+  let shown = Some { Notty_terminal.size; rows = before; cursor = None } in
+  let sent rows = Notty_terminal.changed_rows ~before:shown size rows in
+  let placed y row = Printf.sprintf "\027[%d;1H%s" (y + 1) row in
+  let changed =
+    List.filter (fun y -> before.(y) <> after.(y)) (List.init (Array.length after) Fun.id)
+  in
+  F.require
+    (sent before = ""
+    && changed <> []
+    && List.length changed < Array.length after
+    && sent after = String.concat "" (List.map (fun y -> placed y after.(y)) changed))
+    "Notty-frame-sends-only-changed-rows";
+  F.require
+    (Notty_terminal.changed_rows ~before:shown (119, 36)
+       (Notty_terminal.rows_of (119, 36) (render (119, 36) listed))
+    |> String.length
+    > String.length (sent after))
+    "Notty-frame-after-resize-sends-every-row";
   print_endline
     "PASS: Notty cell-width geometry, cyan/default and indexed colors/no truecolor, front \
-     overlays, visible warnings, English Record and event adapters."
+     overlays, visible warnings, English Record and event adapters, changed rows only."
