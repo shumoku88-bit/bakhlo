@@ -18,7 +18,8 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
   attention items, 14 commitments added through the Settlements form; 60×12): from the end, `k`
   keeps every list's painted rows, marker aside, and Attention's heading returns at Home. With
   each screen's previous code its case fails (four separate runs); `./tools/check` and
-  self-check pass.
+  self-check pass. Matching CI passed for `eeff5b2`
+  ([run 41051364484](https://github.com/shumoku88-bit/bakhlo/actions/runs/41051364484)).
 - Latest data (`capture-IsgTNG`, read-only keys, HEAD build and this build, tmux 120×36 and
   80×24): opening frames byte-identical for Loci, Attention and Settlements; after End and `k`×3
   the Loci list shifted with the HEAD build and stays with this one. Attention and Settlements
