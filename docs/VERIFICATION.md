@@ -35,7 +35,7 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
   highlighted marker on the last row in every sample (150 while scrolling, 5 at the end).
 - Fix, moko's choice: `~/.config/wezterm/wezterm.lua` maps WheelLeft/WheelRight to `Nop` while
   the alternate screen is on (backup kept beside it; `wezterm show-keys` loads it). Bakhlo is
-  unchanged. Whether the wheel now behaves is moko's check (not executed by the AI).
+  unchanged. moko confirmed it fixed.
 - The first attempt (`d2228f6`, skip a repaint equal to the screen) rested on a guessed cause
   (Notty's erase-then-write tearing) and is reverted (`176eb75`, matching CI passed:
   [run 41047169064](https://github.com/shumoku88-bit/bakhlo/actions/runs/41047169064)). Also tried and not kept: holding a key cut
