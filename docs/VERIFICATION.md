@@ -17,7 +17,8 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
   pass 0, or the end, with a selection) are unchanged. Balances keeps its list offset (both
   views). New checks `panel-selection-keeps-scroll-while-in-view` and
   `balance-list-stays-put-when-cursor-moves-back-from-end` (four geometries) each fail on the
-  previous code and pass now; `./tools/check` and self-check passed.
+  previous code and pass now; `./tools/check` and self-check passed. Matching CI passed for
+  `16c2905` ([run 41039727849](https://github.com/shumoku88-bit/bakhlo/actions/runs/41039727849)).
 - Latest data (`capture-lgJjVr`, read-only keys): the Accounting list stays on its last window
   after `k`×3 from the end at 120×36 and 80×24. LOAM's `v` does not open an Accounting list and
   its Current list fits one page there, so LOAM has no equivalent motion to compare. Household
