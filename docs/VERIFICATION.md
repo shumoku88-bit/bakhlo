@@ -20,7 +20,9 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
   end (its mux source), and a terminal without the mode ignores it. Not sent when `TERM` is
   unset, empty or `dumb` (Notty's own rule). Recorded through tmux: 5 j keys gave 5 frames, each
   between one begin and one end. In a WezTerm demo tab the screen came out whole and the marker
-  moved with j, including 100 j past the end. `./tools/check` and self-check passed. Whether
+  moved with j, including 100 j past the end. `./tools/check` and self-check passed; matching CI
+  passed for `6c3cedb`
+  ([run 41053926992](https://github.com/shumoku88-bit/bakhlo/actions/runs/41053926992)). Whether
   the motion now feels smooth is moko's check (not executed by the AI).
 
 ## Loci, Attention, Settlements and Selected Day lists stay put too (2026-10-30)
