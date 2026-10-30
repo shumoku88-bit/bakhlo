@@ -37,7 +37,8 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
   the alternate screen is on (backup kept beside it; `wezterm show-keys` loads it). Bakhlo is
   unchanged. Whether the wheel now behaves is moko's check (not executed by the AI).
 - The first attempt (`d2228f6`, skip a repaint equal to the screen) rested on a guessed cause
-  (Notty's erase-then-write tearing) and is reverted. Also tried and not kept: holding a key cut
+  (Notty's erase-then-write tearing) and is reverted (`176eb75`, matching CI passed:
+  [run 41047169064](https://github.com/shumoku88-bit/bakhlo/actions/runs/41047169064)). Also tried and not kept: holding a key cut
   by Notty's 1024-byte read (Notty decodes each read alone, so a cut arrow becomes Escape, '[',
   'B'); 4,500 wheel-like arrows written fast to the PTY of both builds on the latest-data copy gave
   no cut key.
