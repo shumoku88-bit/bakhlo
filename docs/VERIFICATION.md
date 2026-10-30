@@ -42,6 +42,12 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
   by Notty's 1024-byte read (Notty decodes each read alone, so a cut arrow becomes Escape, '[',
   'B'); 4,500 wheel-like arrows written fast to the PTY of both builds on the latest-data copy gave
   no cut key.
+- moko confirmed the WezTerm setting fixed it, and that wheeling on past the end still flickered a
+  little. That is the repaint the reverted skip removed, so it is back (the `d2228f6` loop:
+  a frame equal to the one on screen is not sent, a resize always repaints; tmux record: 30 full
+  frames for 30 arrows at the end before, 0 bytes after). In a WezTerm demo tab, after 240 Down
+  arrows the highlighted marker stays on the last row and three Up arrows move it in place.
+  `./tools/check` and self-check passed. moko's check of the flicker is not executed by the AI.
 
 ## Latest-data before and after comparison (2026-10-28)
 
