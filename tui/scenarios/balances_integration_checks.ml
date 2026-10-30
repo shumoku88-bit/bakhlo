@@ -194,7 +194,30 @@ let balance_display_checks ~width_of ~directory () =
           require
             (Balances.selected next.C.screens.balances
             = min capacity (List.length (balance_items head) - 1))
-            "balance-page-matches-actual-painted-list-capacity")
+            "balance-page-matches-actual-painted-list-capacity";
+          (* From the end, k moves the cursor inside the painted list; the list stays put. *)
+          if capacity >= 2 && List.length (balance_items head) >= capacity + 2 then begin
+            let list_bottom state =
+              let row =
+                List.find
+                  (fun (_, row) -> String.starts_with ~prefix:"╰" row)
+                  (R.screen ~width_of dimensions state)
+                |> snd
+              in
+              match Base.String.substr_index row ~pattern:"╯" with
+              | Some stop -> String.sub row 0 stop
+              | None -> row
+            in
+            let ended = key ~dimensions ~width_of head `End in
+            let up = key ~dimensions ~width_of ended (`ASCII 'k') in
+            require
+              (Balances.selected up.C.screens.balances
+               = Balances.selected ended.C.screens.balances - 1
+              &&
+              if heading then not (has (list_bottom up) "↓") else list_bottom up = list_bottom ended
+              )
+              "balance-list-stays-put-when-cursor-moves-back-from-end"
+          end)
         [ (120, 36); (80, 24); (48, 14); (32, 9) ])
     [ accounting; current ];
   let medium_rows = R.screen ~width_of (80, 24) view in

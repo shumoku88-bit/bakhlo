@@ -46,6 +46,7 @@ type t = {
   mode : mode;
   selected : int;
   pane : pane;
+  list_scroll : int;
   detail_scroll : int;
   overlay : overlay;
   notice : string;
@@ -56,6 +57,7 @@ let create () =
     mode = `Current;
     selected = 0;
     pane = `List;
+    list_scroll = 0;
     detail_scroll = 0;
     overlay = No_overlay;
     notice = "";
@@ -417,6 +419,7 @@ let notify_saved t =
     t with
     overlay = No_overlay;
     selected = 0;
+    list_scroll = 0;
     notice = "Visible Balance accounts saved. Unknown values remain '?'.";
   }
 
@@ -605,6 +608,16 @@ let handle ~blocked ~book ~measure ~roles ~balance_view_text ~dimensions ~conten
   | No_overlay -> (
       let toggle_pane = ({ t with pane = (if t.pane = `List then `Detail else `List) }, Stay) in
       let count () = List.length (items ~book ~measure ~roles ~balance_view_text t) in
+      let page = list_capacity ~heading:(t.mode = `Current) ~layout in
+      (* The list keeps its painted offset while the selection stays in view. *)
+      let select index =
+        let count = count () in
+        let t = set_selected (Panel.clamp_index ~count index) t in
+        let view =
+          Panel.window ~capacity:page ~count ~scroll:t.list_scroll ~selected:(Some t.selected)
+        in
+        ({ t with list_scroll = view.start }, Stay)
+      in
       (* One motion key: [detail] scrolls the detail by the painted window, [list] moves
          the selection, clamped to the items. *)
       let move ~detail ~list =
@@ -614,9 +627,8 @@ let handle ~blocked ~book ~measure ~roles ~balance_view_text ~dimensions ~conten
           in
           ( { t with detail_scroll = Panel.move ~last:view.last ~position:view.start (detail view) },
             Stay )
-        else (set_selected (max 0 (min (max 0 (count () - 1)) (t.selected + list))) t, Stay)
+        else select (t.selected + list)
       in
-      let page = list_capacity ~heading:(t.mode = `Current) ~layout in
       match input with
       | `Key ((`Escape | `ASCII ('q' | 'Q')), []) ->
           if t.pane = `Detail then ({ t with pane = `List }, Stay) else (t, Back_to_home)
@@ -644,7 +656,7 @@ let handle ~blocked ~book ~measure ~roles ~balance_view_text ~dimensions ~conten
                 | Some idx -> idx
                 | None -> 0)
           in
-          ({ t_next with selected = sel; detail_scroll = 0 }, Stay)
+          ({ t_next with selected = sel; list_scroll = 0; detail_scroll = 0 }, Stay)
       | `Key (`ASCII 'c', []) -> (open_config ~book ~measure ~balance_view_text t, Stay)
       | `Key (`ASCII 'p', []) ->
           let form = balance_print_preview ~book ~measure ~roles ~balance_view_text t in
@@ -654,14 +666,14 @@ let handle ~blocked ~book ~measure ~roles ~balance_view_text ~dimensions ~conten
           | Some (locus, measure, amount) -> (t, Observe { locus; measure; amount })
           | None -> (t, Stay))
       | `Key (`Home, []) ->
-          if t.pane = `Detail then ({ t with detail_scroll = 0 }, Stay) else (set_selected 0 t, Stay)
+          if t.pane = `Detail then ({ t with detail_scroll = 0 }, Stay) else select 0
       | `Key (`End, []) ->
           if t.pane = `Detail then
             let _, view =
               detail_viewport ~layout ~width_of ~book ~measure ~roles ~balance_view_text t
             in
             ({ t with detail_scroll = view.last }, Stay)
-          else (set_selected (count () - 1) t, Stay)
+          else select (count () - 1)
       | `Key ((`Arrow `Up | `ASCII ('k' | 'K')), []) -> move ~detail:(fun _ -> -1) ~list:(-1)
       | `Key ((`Arrow `Down | `ASCII ('j' | 'J')), []) -> move ~detail:(fun _ -> 1) ~list:1
       | `Key ((`Page `Up | `ASCII 'u'), _) ->
@@ -698,7 +710,7 @@ let screen ~book ~measure ~roles ~balance_view_text ~dimensions:(width, height) 
     match t.mode with
     | `Accounting ->
         Panel.frame ?heading ~width_of ~width:layout.list_width ~height ~focused:(not is_detail)
-          ~title:list_title ~scroll:0
+          ~title:list_title ~scroll:t.list_scroll
           ~selected:(if lines = [] then None else Some t.selected)
           lines
     | `Current ->
@@ -706,7 +718,7 @@ let screen ~book ~measure ~roles ~balance_view_text ~dimensions:(width, height) 
         let window =
           Panel.window
             ~capacity:(Panel.capacity ~height ~heading:true)
-            ~count ~scroll:0 ~selected:(Some t.selected)
+            ~count ~scroll:t.list_scroll ~selected:(Some t.selected)
         in
         let rows =
           if count = 0 then

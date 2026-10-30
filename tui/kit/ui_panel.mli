@@ -12,7 +12,7 @@ val clamp_index : count:int -> int -> int
 (** The nearest index of a [count]-row list; 0 when it is empty. *)
 
 val window : capacity:int -> count:int -> scroll:int -> selected:int option -> window
-(** A selected row follows the viewport; otherwise use the clamped scroll offset. *)
+(** The clamped scroll offset, moved only as far as needed to show a selected row. *)
 
 val frame :
   ?heading:string ->

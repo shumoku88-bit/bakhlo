@@ -94,8 +94,14 @@ let panel_checks ~width_of () =
     && Panel.move ~last:max_int ~position:max_int min_int = 0
     && Panel.move ~last:10 ~position:max_int (-1) = 9)
     "panel-motion-clamps-before-stepping";
-  let view = Panel.window ~capacity:3 ~count:10 ~scroll:max_int ~selected:(Some 8) in
+  let view = Panel.window ~capacity:3 ~count:10 ~scroll:0 ~selected:(Some 8) in
   require (view.capacity = 3 && view.start = 6 && view.last = 7) "panel-selection-follows-window";
+  let start scroll selected =
+    (Panel.window ~capacity:3 ~count:10 ~scroll ~selected:(Some selected)).start
+  in
+  require
+    (start max_int 8 = 7 && start 7 6 = 6 && start 4 5 = 4 && start min_int 2 = 0)
+    "panel-selection-keeps-scroll-while-in-view";
   let ended = Panel.window ~capacity:3 ~count:10 ~scroll:max_int ~selected:None in
   require
     (ended.start = 7 && Panel.move ~last:ended.last ~position:ended.start (-1) = 6)

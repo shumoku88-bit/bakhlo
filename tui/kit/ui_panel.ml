@@ -20,8 +20,13 @@ let window ~capacity ~count ~scroll ~selected =
     match selected with
     | None -> move ~last ~position:scroll 0
     | Some index ->
+        (* The view stays put while the selection is in it, and moves only as far
+           as the selection needs. *)
         let index = move ~last:(max 0 (count - 1)) ~position:index 0 in
-        min last (max 0 (index - max 0 (capacity - 1)))
+        let scroll = move ~last ~position:scroll 0 and below = max 0 (capacity - 1) in
+        if index < scroll then index
+        else if index > scroll + below then min last (index - below)
+        else scroll
   in
   { capacity; start; last }
 

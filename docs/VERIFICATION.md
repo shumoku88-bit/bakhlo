@@ -6,6 +6,25 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Balances list stays put when the cursor moves back from the end (2026-10-30)
+
+- moko reported that the Balances list (Accounting view, `b` then `v`) moved oddly after
+  scrolling to the end. Reproduced in `./ui --demo`: `Panel.window` ignored the scroll offset
+  whenever a row was selected and always put the selection on the bottom row, so `k` from the
+  end slid the whole list down one row per key instead of moving the cursor.
+- `Panel.window` now keeps the offset while the selected row is in view and moves it only as far
+  as the selection needs; offset 0 gives exactly the previous result, so the other callers (all
+  pass 0, or the end, with a selection) are unchanged. Balances keeps its list offset (both
+  views). New checks `panel-selection-keeps-scroll-while-in-view` and
+  `balance-list-stays-put-when-cursor-moves-back-from-end` (four geometries) each fail on the
+  previous code and pass now; `./tools/check` and self-check passed.
+- Latest data (`capture-lgJjVr`, read-only keys): the Accounting list stays on its last window
+  after `k`×3 from the end at 120×36 and 80×24. LOAM's `v` does not open an Accounting list and
+  its Current list fits one page there, so LOAM has no equivalent motion to compare. Household
+  files and Git HEAD unchanged; `./tools/compare clean-copies` kept only that generation.
+- Not covered: moko's own terminal, the same pinned-cursor motion in other lists (Loci,
+  Settlements, Attention, Selected Day pass 0 and keep it).
+
 ## Latest-data before and after comparison (2026-10-28)
 
 - Copies: `./tools/compare refresh` (`capture-JVENCf`, latest household book.txt and config).
