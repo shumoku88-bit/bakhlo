@@ -25,6 +25,15 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
   files and Git HEAD unchanged; `./tools/compare clean-copies` kept only that generation.
 - Not covered: moko's own terminal, the same pinned-cursor motion in other lists (Loci,
   Settlements, Attention, Selected Day pass 0 and keep it).
+- moko then reported (WezTerm, `bk`) that the mouse wheel still flickered at the end of the list.
+  WezTerm turns each wheel step into three arrow keys when the alternate screen is on and mouse
+  reporting is off (Bakhlo's setting), and every key repainted the whole frame; Notty clears each
+  line's last span before rewriting it. The terminal loop now skips a frame equal to the one on
+  screen (`Notty.I.equal`, same size and cursor) and always repaints after a resize. Raw output
+  recorded through tmux for 30 arrow keys at the end of the demo Accounting list: 30 full frames
+  before, 0 bytes after; three Up keys still paint three frames, and a resize repaints.
+  `./tools/check` and self-check passed. Whether the flicker is gone in WezTerm is moko's check
+  (not executed by the AI).
 
 ## Latest-data before and after comparison (2026-10-28)
 
