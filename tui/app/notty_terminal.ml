@@ -50,31 +50,17 @@ let with_ctrl_o f =
       Fun.protect ~finally:(fun () -> ignore (stty [ saved ])) f
 
 (* One terminal session: paint, wait for an event, let [step] decide. Every event
-   reads the current terminal size, so a resize and a key never use stale geometry.
-   A frame equal to the one on screen is not sent again: Notty clears each line's
-   last span before rewriting it, so a burst of keys that change nothing (wheel
-   arrows at the end of a list) would flicker. *)
+   reads the current terminal size, so a resize and a key never use stale geometry. *)
 let terminal_loop ~paint ~step initial =
   with_ctrl_o @@ fun () ->
   let term = Term.create ~dispose:true ~mouse:false ~bpaste:true () in
-  let shown = ref None in
   let rec loop state =
     let dimensions = Term.size term in
     let image, cursor = paint dimensions state in
-    let same =
-      match !shown with
-      | Some (d, i, c) -> d = dimensions && c = cursor && Notty.I.equal i image
-      | None -> false
-    in
-    if not same then begin
-      show term image cursor;
-      shown := Some (dimensions, image, cursor)
-    end;
+    show term image cursor;
     match Term.event term with
     | `End -> state
-    | `Resize _ ->
-        shown := None;
-        loop state
+    | `Resize _ -> loop state
     | #Notty.Unescape.event as event -> (
         match step (Term.size term) state (N.input_of_event event) with
         | Some next -> loop next

@@ -25,16 +25,22 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
   files and Git HEAD unchanged; `./tools/compare clean-copies` kept only that generation.
 - Not covered: moko's own terminal, the same pinned-cursor motion in other lists (Loci,
   Settlements, Attention, Selected Day pass 0 and keep it).
-- moko then reported (WezTerm, `bk`) that the mouse wheel still flickered at the end of the list.
-  WezTerm turns each wheel step into three arrow keys when the alternate screen is on and mouse
-  reporting is off (Bakhlo's setting), and every key repainted the whole frame; Notty clears each
-  line's last span before rewriting it. The terminal loop now skips a frame equal to the one on
-  screen (`Notty.I.equal`, same size and cursor) and always repaints after a resize. Raw output
-  recorded through tmux for 30 arrow keys at the end of the demo Accounting list: 30 full frames
-  before, 0 bytes after; three Up keys still paint three frames, and a resize repaints.
-  `./tools/check` and self-check passed. Whether the flicker is gone in WezTerm is moko's check
-  (not executed by the AI). Matching CI passed for `d2228f6`
-  ([run 41041204166](https://github.com/shumoku88-bit/bakhlo/actions/runs/41041204166)).
+- moko then reported (WezTerm, `bk`) that only the mouse wheel misbehaved at the end of the list,
+  and after a first attempt that the selection highlight disappeared. Cause, seen in WezTerm
+  itself (a demo tab driven by `wezterm cli`, screen read back with `get-text --escapes`): with the
+  alternate screen on and mouse reporting off (Bakhlo's setting), WezTerm 20240203 (its source)
+  sends each wheel step as three arrow keys, and a sideways trackpad step as Left/Right. One Right
+  arrow moves Balances' focus to the detail pane: the list's selected row loses its highlight and
+  Down then scrolls the detail; Left brings both back. Bursts of Down arrows alone kept the
+  highlighted marker on the last row in every sample (150 while scrolling, 5 at the end).
+- Fix, moko's choice: `~/.config/wezterm/wezterm.lua` maps WheelLeft/WheelRight to `Nop` while
+  the alternate screen is on (backup kept beside it; `wezterm show-keys` loads it). Bakhlo is
+  unchanged. Whether the wheel now behaves is moko's check (not executed by the AI).
+- The first attempt (`d2228f6`, skip a repaint equal to the screen) rested on a guessed cause
+  (Notty's erase-then-write tearing) and is reverted. Also tried and not kept: holding a key cut
+  by Notty's 1024-byte read (Notty decodes each read alone, so a cut arrow becomes Escape, '[',
+  'B'); 4,500 wheel-like arrows written fast to the PTY of both builds on the latest-data copy gave
+  no cut key.
 
 ## Latest-data before and after comparison (2026-10-28)
 
