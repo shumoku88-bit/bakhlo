@@ -48,8 +48,8 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
   frames for 30 arrows at the end before, 0 bytes after). In a WezTerm demo tab, after 240 Down
   arrows the highlighted marker stays on the last row and three Up arrows move it in place.
   `./tools/check` and self-check passed. Matching CI passed for `c727ec6`
-  ([run 41048073825](https://github.com/shumoku88-bit/bakhlo/actions/runs/41048073825)). moko's
-  check of the flicker is not executed by the AI.
+  ([run 41048073825](https://github.com/shumoku88-bit/bakhlo/actions/runs/41048073825)). moko
+  confirmed in WezTerm (`bk`) that the list and the wheel now behave (2026-10-30).
 
 ## Latest-data before and after comparison (2026-10-28)
 
