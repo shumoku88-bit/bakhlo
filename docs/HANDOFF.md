@@ -6,7 +6,13 @@ Per-screen progress: [UI gap ledger](LOAM_UI_GAP_LEDGER.ja.md). Daily-use summar
 [VERIFICATION](VERIFICATION.md). The previous long handoff (per-feature evidence up
 to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
 
-## Where things stand (2026-10-28)
+## Where things stand (2026-10-31)
+
+- 2026-10-31: queued terminal input is discarded before the first TUI paint, so
+  Enter typed during launch no longer skips Home. Synthetic failing-before/passing-after
+  PTY regression, full checks and visible Home smoke passed; real household untouched.
+  Daily `bk` picks up this fix on its next successful `origin/main` update/build.
+  [Evidence](VERIFICATION.md#queued-launch-input-does-not-skip-home-2026-10-31).
 
 - 2026-10-28, latest: the typed Effect layer (`lib/`) is removed. An entry holds book.txt
   postings, book.txt admission is the one owner of movement rules, and loading is faster

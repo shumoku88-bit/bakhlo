@@ -29,13 +29,23 @@ proc entries {dir} {
   return [lsort $names]
 }
 
-# One TUI process on its own PTY, sized before exec like a real terminal.
-proc start {binary book width height} {
+# One TUI process on its own PTY, sized before exec like a real terminal. An
+# optional FIFO gates exec: the shell announces GATE on the PTY before blocking,
+# so a test can queue input while the TUI has provably not started.
+proc start {binary book width height {gate ""}} {
   global spawn_id buffer eof
   set ::env(TERM) xterm-256color
   set ::env(LANG) C.UTF-8
-  spawn -noecho sh -c {stty rows "$1" cols "$2" && exec "$3" --book "$4"} \
-    sh $height $width $binary $book
+  spawn -noecho sh -c {stty rows "$1" cols "$2" || exit 1
+    if [ -n "$5" ]; then
+      printf '\rGATE\r\n'
+      exec 3<"$5"
+      read -r line <&3 || exit 1
+      [ "$line" = go ] || exit 1
+      exec 3<&-
+    fi
+    exec "$3" --book "$4"} \
+    sh $height $width $binary $book $gate
   set ::slave $spawn_out(slave,name)
   set buffer ""
   set eof 0
@@ -60,6 +70,13 @@ proc press {data {ms 350}} {
   global spawn_id
   send -- $data
   return [pump $ms]
+}
+
+# Release a start gate; exec follows the shell's read of this single line.
+proc release_gate {gate} {
+  set writer [open $gate w]
+  puts $writer go
+  close $writer
 }
 
 proc resize {width height} {
@@ -101,8 +118,8 @@ proc stop {} {
   }
 }
 
-proc session {binary book width height body} {
-  start $binary $book $width $height
+proc session {binary book width height body {gate ""}} {
+  start $binary $book $width $height $gate
   set failed [catch { uplevel 1 $body } message options]
   if {$failed} { stop; return -options $options $message }
 }
@@ -192,6 +209,51 @@ proc smoke_record_preview_refusal {binary fixture root} {
     resume, exact unchanged authority"
 }
 
+# Type-ahead belongs to the launching shell: Enter queued before exec must be
+# discarded, while keys after Home keep working. The FIFO gate makes "before"
+# exact instead of a sleep, and a Home-only key proves the queue was consumed.
+proc smoke_startup_queue {binary fixture root} {
+  global buffer csi
+  set owned [file join $root startup-queue]
+  file mkdir $owned
+  set book [file join $owned book.txt]
+  file copy $fixture $book
+  set before [slurp $book]
+  set gate [file join $owned startup-gate]
+  exec mkfifo -m 600 $gate
+  session $binary $book 80 24 {
+    wait_for "GATE"
+    # The shell is blocked before exec, so this Enter reaches the tty queue first.
+    send -- "\r"
+    set buffer ""
+    release_gate $gate
+    wait_for "bakhlo"
+    # Only Home answers 'b'; it runs after the queued Enter was flushed at startup.
+    press "b"
+    wait_for "Balances \[active\]"
+    wait_for "1,000"
+    regsub -all $csi $buffer {} visible
+    if {[string first "bakhlo" $visible] < 0} { fail "Home left before any post-startup key" }
+    if {[string first "Actuals" $visible] >= 0} { fail "pre-startup Enter opened Actual" }
+    # Post-startup keys must still work: Enter opens Actual, Escape returns Home.
+    set buffer ""
+    press "\x1b"
+    wait_for "bakhlo"
+    set buffer ""
+    press "\r"
+    wait_for "Actuals"
+    set buffer ""
+    press "\x1b"
+    wait_for "bakhlo"
+    finish
+  } $gate
+  file delete -force $gate
+  if {[slurp $book] ne $before} { fail "startup type-ahead modified the synthetic book" }
+  if {[entries $owned] ne {book.txt}} { fail "startup type-ahead created extra files" }
+  puts "PASS: pre-startup Enter discarded, later Enter opens Actual, Escape returns Home,\
+    Ctrl-Q exits 0, synthetic book unchanged"
+}
+
 if {$argc != 2} {
   puts stderr "usage: tools/ci-tui-pty NATIVE_BINARY SYNTHETIC_FIXTURE"
   exit 2
@@ -210,6 +272,7 @@ set root [exec mktemp -d scratch/ci-pty-XXXXXX]
 file attributes $root -permissions 0700
 set failed [catch {
   foreach size $dimensions { smoke $binary $fixture {*}$size $root }
+  smoke_startup_queue $binary $fixture $root
   smoke_record_preview_refusal $binary $fixture $root
 } message]
 file delete -force $root
@@ -217,4 +280,5 @@ if {$failed} {
   puts stderr "FAIL: $message"
   exit 1
 }
-puts "PASS: four PTY dimensions and narrow Record Preview non-publication (synthetic, no LOAM/IME claim)"
+puts "PASS: four PTY dimensions, startup type-ahead discard and narrow Record Preview\
+  non-publication (synthetic, no LOAM/IME claim)"

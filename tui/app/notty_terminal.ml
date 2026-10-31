@@ -114,7 +114,10 @@ let terminal_loop ~paint ~step initial =
         | Some next -> loop next
         | None -> state)
   in
-  Fun.protect ~finally:(fun () -> Term.release term) (fun () -> loop initial)
+  Fun.protect ~finally:(fun () -> Term.release term) (fun () ->
+      (* Keys queued during launch must not reach Home and navigate away from it. *)
+      if Unix.isatty Unix.stdin then Unix.tcflush Unix.stdin Unix.TCIFLUSH;
+      loop initial)
 
 let run_shell session =
   ignore

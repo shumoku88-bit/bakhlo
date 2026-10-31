@@ -6,6 +6,23 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Queued launch input does not skip Home (2026-10-31)
+
+- Report: `bk` sometimes appeared to start in Actual or another workspace. The
+  initial route is always Home; no screen is restored. A synthetic tmux reproduction
+  queued Enter before the binary started and immediately reached Actual.
+- The shared Notty terminal loop now discards pending stdin input once, after
+  entering raw mode and inside the existing terminal-release protection, before
+  the first paint. Non-TTY stdin is unchanged; keys after Home appears still work.
+- The PTY regression queues Enter behind an acknowledged FIFO gate before exec.
+  It failed against the unchanged daily-use binary and passed against the fixed
+  build: Home-only navigation works, later Enter opens Actual, Escape returns Home,
+  Ctrl-Q exits 0, and synthetic book bytes remain unchanged.
+- `./tools/check`, `./tools/tui --self-check`, and `tools/ci-tui-pty` passed.
+  A separate 120×36 tmux launch with queued Enter visibly stayed on Home. No real
+  household data was accessed. `bk` uses the `origin/main` build, so this source
+  fix reaches daily use only after it is committed and pushed.
+
 ## Only changed rows are sent to the terminal (2026-10-30)
 
 - With synchronized output moko still felt no change, and compared the motion with nvim and
