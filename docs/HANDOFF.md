@@ -8,6 +8,12 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
 
 ## Where things stand (2026-10-31)
 
+- 2026-10-31: Record's one-line quick capture now supports Left/Right, Home/End,
+  Backspace and typing/paste at the caret without switching to the full form.
+  Synthetic checks and visible Japanese correction/narrow scrolling passed.
+  No household access or IME acceptance claim.
+  [Evidence](VERIFICATION.md#quick-capture-edits-at-the-caret-2026-10-31).
+
 - 2026-10-31: queued terminal input is discarded before the first TUI paint, so
   Enter typed during launch no longer skips Home. Synthetic failing-before/passing-after
   PTY regression, full checks and visible Home smoke passed; real household untouched.

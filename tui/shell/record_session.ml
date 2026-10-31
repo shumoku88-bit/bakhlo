@@ -579,7 +579,7 @@ let rec handle ~new_id ~book ~base_revision ~blocked ~dimensions ~width_of t
         update (with_notice t (tr "Paste refused: use one printable line; no control keys."))
       else
         match t.phase with
-        | Quick q -> update { t with phase = Quick (Quick_capture.append q text) }
+        | Quick q -> update { t with phase = Quick (Quick_capture.insert q text) }
         | Original ed ->
             update
               (edit_original t ed

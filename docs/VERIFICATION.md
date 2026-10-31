@@ -6,6 +6,37 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Quick capture edits at the caret (2026-10-31)
+
+- Report/reproduction: the initial Record line ignored Left/Right; Backspace
+  removed only the final character, so correcting a typo meant retyping the tail.
+  The full form already had caret editing.
+- Quick capture now reuses `Line_edit` for Left/Right, Home/End, Backspace and
+  insertion. Paste is inserted at the caret too. Candidate selection is separate:
+  caret movement preserves it, text edits reset it, Enter completion puts the caret
+  at the end. Preview, full-form handoff and publication guards are unchanged.
+- Permanent synthetic checks cover Japanese/ASCII insertion and erasure, boundaries,
+  interior paste, suggestion/template selection across moves and edits, completion,
+  and visible caret neighbours on long mixed input at 32×9 and 80×24.
+- Actual tmux TUI: at 120×36, changed `朝のパソと牛乳` to `朝のパンと牛乳`
+  using Left/Backspace/typing without leaving the line; bracketed paste inserted
+  `屋` at the interior caret. At 32×9, Home, middle and End kept the relevant text
+  and caret visible. At 80×24 a dated line reached Preview with the correct date,
+  description and signed postings; Escape exited without changing synthetic book
+  bytes (`cmp` passed). The isolated trial was removed.
+- `./tools/check` and `./tools/tui --self-check` passed. Changed OCaml files pass
+  the pinned formatter. Whole-tree `./tools/format --check` also found a pre-existing
+  formatting difference in `tui/app/notty_terminal.ml`; that unrelated file was left
+  unchanged.
+- `tools/ci-tui-pty` passed all four dimensions, resize/cold reopen, startup
+  type-ahead and narrow Preview refusal/non-publication. `./tools/privacy-scan --all`
+  passed. Independent review found no concrete blocker; the implementation and
+  regression agents both completed their scoped edits (no detection-power claim).
+- No household data was accessed. Latest-data paired comparison, physical-terminal
+  IME/composition and human acceptance were not executed. No storage format or
+  dependency change. Daily `bk` receives the change on its next successful
+  `origin/main` update/build after push.
+
 ## Queued launch input does not skip Home (2026-10-31)
 
 - Report: `bk` sometimes appeared to start in Actual or another workspace. The

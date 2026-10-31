@@ -64,7 +64,7 @@ let self_check ~width_of () =
     ]
   in
   let start = Q.initial ~book ~day:"2026-10-19" ~measure:"jpy" ~roles in
-  let typed text = Q.append start text in
+  let typed text = Q.insert start text in
   let press t input = Q.update ~book t input in
   let enter t = press t (`Key (`Enter, [])) in
   let screen ?(dimensions = (80, 24)) t =
@@ -128,7 +128,7 @@ let self_check ~width_of () =
   require
     ((preview (typed "ラーメン 900 本 synthpay")).rows = [ ("books", "900"); ("synthpay", "-900") ])
     "quick-new-description-takes-loci-from-line";
-  let unroled = Q.append (Q.with_roles [] start) "新規 10 synthnet synthbank" in
+  let unroled = Q.insert (Q.with_roles [] start) "新規 10 synthnet synthbank" in
   require
     ((preview unroled).rows = [ ("synthnet", "10"); ("synthbank", "-10") ])
     "quick-roleless-loci-fill-receiving-then-paying";
@@ -170,6 +170,67 @@ let self_check ~width_of () =
             "quick-view-bounded-with-one-caret")
         [ start; typed "パ"; completed; typed "パン屋 700 nosuch"; typed "2025-12-31 パン屋 " ])
     [ (32, 9); (48, 14); (80, 24) ];
+  (* The line edits at its caret: Japanese, ASCII, paste and the edges. *)
+  let stay = function Q.Stay t -> t | _ -> failwith "quick-stays" in
+  let key k t = stay (press t (`Key (k, []))) in
+  let rec times n f t = if n = 0 then t else times (n - 1) f (f t) in
+  let jp = key (`Uchar (Uchar.of_int 0x30DF)) (key (`Arrow `Left) (typed "朝のパソと牛乳")) in
+  require (Q.text jp = "朝のパソと牛ミ乳") "quick-japanese-insert-keeps-suffix";
+  let ascii = key (`ASCII 'x') (key `Backspace jp) in
+  require (Q.text ascii = "朝のパソと牛x乳") "quick-ascii-insert-at-caret";
+  let at_start = key (`ASCII 'Z') (key (`Arrow `Left) (key `Home ascii)) in
+  let at_end = key (`ASCII 'q') (key (`Arrow `Right) (key `End at_start)) in
+  require
+    (Q.text at_start = "Z朝のパソと牛x乳" && Q.text at_end = "Z朝のパソと牛x乳q")
+    "quick-home-end-and-caret-edges";
+  let in_line = times 2 (key (`Arrow `Right)) (key `Home (typed "ab牛乳")) in
+  require
+    (Q.text (key (`ASCII 'c') (Q.insert in_line "パン")) = "abパンc牛乳")
+    "quick-paste-inserts-at-caret";
+  let choice = key (`Arrow `Down) (typed "屋") in
+  let landed =
+    key `Enter (key `End (key `Home (key (`Arrow `Right) (key (`Arrow `Left) choice))))
+  in
+  require
+    (Q.text landed = "本屋 " && Q.text (key (`ASCII 'x') landed) = "本屋 x")
+    "quick-choice-survives-caret-moves-and-completion-lands-at-end";
+  let retyped = key (`Uchar (Uchar.of_int 0x5C4B)) (key `Backspace choice) in
+  require (Q.text (key `Enter retyped) = "パン屋 ") "quick-edit-resets-suggestion";
+  let second = key (`Arrow `Down) (typed "パン屋 ") in
+  let moved = key `End (key `Home (key (`Arrow `Right) (key (`Arrow `Left) second))) in
+  require
+    ((preview moved).rows = [ ("drinks", "120"); ("wallet", "-120") ])
+    "quick-template-choice-survives-caret-moves";
+  require
+    ((preview (key (`ASCII ' ') second)).rows
+    = [ ("drinks", "120"); ("food", "300"); ("wallet", "-420") ])
+    "quick-edit-resets-choice";
+  (* A long mixed line keeps the caret and its neighbours visible at any width. *)
+  let caret_at dimensions t =
+    match
+      List.find_opt
+        (fun (s, _) -> match s with O.Input _ -> true | _ -> false)
+        (screen ~dimensions t)
+    with
+    | Some (O.Input column, row) -> (column, row)
+    | _ -> failwith "quick-no-caret"
+  in
+  let mixed = typed "朝のパソと牛乳abcdefghijklmnopqrstuvwxyz牛乳とパン" in
+  let middle = times 7 (key (`Arrow `Right)) (key `Home mixed) in
+  let near ((width, _) as dimensions) t needle =
+    let column, row = caret_at dimensions t in
+    require
+      (column >= 0 && column < width
+      && width_of row <= width
+      && Base.String.is_substring row ~substring:needle)
+      ("quick-caret-view " ^ needle)
+  in
+  List.iter
+    (fun dimensions ->
+      near dimensions (key `Home middle) "|朝のパソ";
+      near dimensions middle "牛乳|abc";
+      near dimensions (key `End middle) "牛乳とパン|")
+    [ (32, 9); (80, 24) ];
   (* LOAM quick capture geometry: a bounded framed modal, or the whole area. *)
   let surface = Q.surface in
   let framed = surface (80, 24) in

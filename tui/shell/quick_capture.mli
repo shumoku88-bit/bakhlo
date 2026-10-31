@@ -39,8 +39,8 @@ type step = Stay of t | Cancel | Preview of prefill | Edit of prefill
 
 val update : book:B.t -> t -> Ui_input.input -> step
 
-val append : t -> string -> t
-(** A single-line paste. *)
+val insert : t -> string -> t
+(** A single-line paste, inserted at the caret; the caret lands after it. *)
 
 val view :
   book:B.t ->

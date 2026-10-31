@@ -370,6 +370,7 @@ type t = {
   today : string;
   measure : string;
   text : string;
+  caret : int option;
   cursor : int;
   past : past list;
   catalog : (string * string) list;
@@ -381,6 +382,7 @@ let initial ~book ~day ~measure ~roles =
     today = day;
     measure;
     text = "";
+    caret = None;
     cursor = 0;
     past = history book measure;
     roles;
@@ -479,15 +481,12 @@ let prefill ~book t plan =
 
 type step = Stay of t | Cancel | Preview of prefill | Edit of prefill
 
-let edited t text = Stay { t with text; cursor = 0 }
+let edited t (text, caret) = Stay { t with text; caret = Some caret; cursor = 0 }
+let replaced t text = edited t (text, String.length text)
 
-let backspace text =
-  let rec start i =
-    if i <= 0 then 0 else if Char.code text.[i] land 0xC0 = 0x80 then start (i - 1) else i
-  in
-  if text = "" then "" else String.sub text 0 (start (String.length text - 1))
-
-let append t text = { t with text = t.text ^ text; cursor = 0 }
+let insert t text =
+  let text, caret = Line_edit.insert ~value:t.text ~cursor:t.caret text in
+  { t with text; caret = Some caret; cursor = 0 }
 
 let update ~book t (input : Ui_input.input) =
   let count () =
@@ -496,9 +495,20 @@ let update ~book t (input : Ui_input.input) =
   in
   match input with
   | `Key (`Escape, []) -> Cancel
-  | `Key (`Backspace, []) -> edited t (backspace t.text)
-  | `Key (`ASCII c, []) when c >= ' ' && c <= '~' -> edited t (t.text ^ String.make 1 c)
-  | `Key (`Uchar u, []) -> edited t (t.text ^ O.utf8 u)
+  | `Key (`Backspace, []) ->
+      if Line_edit.position ~value:t.text t.caret = 0 then Stay t
+      else edited t (Line_edit.erase ~value:t.text ~cursor:t.caret)
+  | `Key (`Arrow ((`Left | `Right) as d), []) ->
+      Stay
+        {
+          t with
+          caret = Some (Line_edit.move ~value:t.text ~cursor:t.caret (if d = `Left then -1 else 1));
+        }
+  | `Key (`Home, []) -> Stay { t with caret = Some 0 }
+  | `Key (`End, []) -> Stay { t with caret = Some (String.length t.text) }
+  | `Key (`ASCII c, []) when c >= ' ' && c <= '~' ->
+      edited t (Line_edit.insert ~value:t.text ~cursor:t.caret (String.make 1 c))
+  | `Key (`Uchar u, []) -> edited t (Line_edit.insert ~value:t.text ~cursor:t.caret (O.utf8 u))
   | `Key (`Arrow ((`Up | `Down) as d), []) ->
       let n = count () in
       if n = 0 then Stay t
@@ -508,11 +518,11 @@ let update ~book t (input : Ui_input.input) =
       let p = parsed t in
       if p.describing then
         match suggestions t with
-        | [] -> if p.description = "" then Stay t else edited t (t.text ^ " ")
+        | [] -> if p.description = "" then Stay t else replaced t (t.text ^ " ")
         | options ->
             let (k : known) = List.nth options (t.cursor mod List.length options) in
             let lead = match dated ~today:t.today t.text with Some d -> d.lead | None -> "" in
-            edited t (lead ^ k.description ^ " ")
+            replaced t (lead ^ k.description ^ " ")
       else
         let plan = current ~book t in
         if complete plan then Preview (prefill ~book t plan) else Edit (prefill ~book t plan)
@@ -593,10 +603,12 @@ let view ~book ~width_of ~width ~height t =
   let head = " " ^ shown ^ "  " in
   let input =
     let room = max 1 (width - width_of head) in
-    let text, caret = O.input_text ~width_of ~width:room ~cursor:None ~caret:"|" t.text in
+    let text, caret = O.input_text ~width_of ~width:room ~cursor:t.caret ~caret:"|" t.text in
     ((match caret with Some c -> O.Input (width_of head + c) | None -> O.Plain), head ^ text)
   in
-  let footer = [ muted "[Enter] next [↑↓] choose [Tab] full form [Esc] cancel"; (O.Plain, "") ] in
+  let footer =
+    [ muted "[Enter] next [←→] edit [↑↓] choose [Tab] full form [Esc] cancel"; (O.Plain, "") ]
+  in
   let list_rows = max 1 (height - List.length footer - 3) in
   let body =
     if p.describing then
