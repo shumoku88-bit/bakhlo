@@ -305,12 +305,25 @@ let run ~width_of ~directory (back_home : C.state) =
   (* 5: All Time *)
   let flow_all = key ~width_of flow_ctl (`ASCII '5') in
   require (contains (R.screen ~width_of (120, 36) flow_all) "All Time") "flow-preset-all-time";
-  (* Shift period with [ and ] *)
+  (* Shell reports use the real clock, not the dates in the synthetic book.
+     Check relative navigation without assuming the test runs in October 2026. *)
+  let today = Clock.today () in
+  let year = int_of_string (String.sub today 0 4) in
+  let month = int_of_string (String.sub today 5 2) in
+  let previous_year, previous_month = if month = 1 then (year - 1, 12) else (year, month - 1) in
+  let month_heading year month = Printf.sprintf "Month of %04d-%02d" year month in
+  require
+    (contains (R.screen ~width_of (120, 36) flow_m) (month_heading year month))
+    "flow-month-is-current";
   let flow_shift = key ~width_of flow_m (`ASCII '[') in
-  require (contains (R.screen ~width_of (120, 36) flow_shift) "Month of 2026-09") "flow-shift-back";
+  require
+    (contains
+       (R.screen ~width_of (120, 36) flow_shift)
+       (month_heading previous_year previous_month))
+    "flow-shift-back";
   let flow_shift_fwd = key ~width_of flow_shift (`ASCII ']') in
   require
-    (contains (R.screen ~width_of (120, 36) flow_shift_fwd) "Month of 2026-10")
+    (contains (R.screen ~width_of (120, 36) flow_shift_fwd) (month_heading year month))
     "flow-shift-fwd";
   (* Selection navigation with j/k *)
   let flow_j = key ~width_of flow_all (`ASCII 'j') in
@@ -345,7 +358,12 @@ let run ~width_of ~directory (back_home : C.state) =
   Unix.mkdir sf_dir 0o700;
   let sf_path = sf_dir ^ "/book.txt" in
   F.create_copy ~source:Interaction_check_fixture.example_book ~target:sf_path;
-  F.write_new (sf_dir ^ "/boundary-presets.tsv") "household\t2026-10-01\t2026-11-01\n";
+  (* Cycle resolution requires a configured window containing the real today. *)
+  let cycle_start = String.sub today 0 8 ^ "01" in
+  let cycle_end = get (Day.shift_months cycle_start 1) in
+  F.write_new
+    (sf_dir ^ "/boundary-presets.tsv")
+    (Printf.sprintf "household\t%s\t%s\n" cycle_start cycle_end);
   let sf_ctl = C.open_route (C.initial ~config_home:sf_dir (F.load sf_path)) W.Stock_flow in
   let bv_path = sf_dir ^ "/balance-view.tsv" in
   let configure bytes =
