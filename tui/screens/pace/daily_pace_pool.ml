@@ -38,18 +38,19 @@ let rows_from measure text =
   in
   loop [] lines
 
-(* The support route of an exact current balance: 0 zero-origin, 1 opening,
-   2 current observation; [None] when the balance is not exact. *)
-let route book ~measure locus =
+(* Declaration order is the picker's display order, not a ranking of reliability:
+   all three groups have exact current balances. *)
+type balance_group = From_zero | From_opening | From_observation
+
+let balance_group book ~measure locus =
   match B.quantity book ~locus ~measure with
-  | Some { support = Zero_origin; _ } -> Some 0
-  | Some { support = Opening _; _ } -> Some 1
-  | Some { support = Counted _; _ } -> Some 2
+  | Some { support = Zero_origin; _ } -> Some From_zero
+  | Some { support = Opening _; _ } -> Some From_opening
+  | Some { support = Counted _; _ } -> Some From_observation
   | None -> None
 
-(* LOAM lists exact current balances grouped by support (zero-origin, opening,
-   current observation), each group in first-appearance order over the
-   retained entries (any Locus, as balances do), then admitted Loci without one. *)
+(* Keep first appearance rather than alphabetical order to match the balance list
+   the household already sees. Loci without entries follow in admitted order. *)
 let appearance_order book ~measure =
   let add acc l = if List.mem l acc then acc else l :: acc in
   let seen =
@@ -64,12 +65,15 @@ let appearance_order book ~measure =
   List.rev (List.fold_left add seen (Option.value ~default:[] (B.approved_loci book)))
 
 let prepare ~book ~measure ~config =
-  let routed =
+  let grouped_loci =
     List.filter_map
-      (fun l -> Option.map (fun r -> (r, l)) (route book ~measure l))
+      (fun locus -> Option.map (fun group -> (group, locus)) (balance_group book ~measure locus))
       (appearance_order book ~measure)
   in
-  let candidates = List.map snd (List.stable_sort (fun (a, _) (b, _) -> compare a b) routed) in
+  (* Group as LOAM does, without disturbing first appearance within each group. *)
+  let candidates =
+    List.stable_sort (fun (left, _) (right, _) -> compare left right) grouped_loci |> List.map snd
+  in
   let previous =
     match config with
     | Error why -> Error ("Pool configuration was unreadable: " ^ why)

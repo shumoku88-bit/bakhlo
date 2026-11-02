@@ -152,8 +152,6 @@ let compute_report ~book ~roles ~period =
 
 (* A Measure is active when the window has any role-classified income or expense.
    Inactive Measures are named once instead of painted as empty blocks. *)
-(* A Measure is active when the window has any role-classified income or expense.
-   Inactive Measures are named once instead of painted as empty blocks. *)
 let measure_active (ms : measure_summary) = ms.income_items <> [] || ms.expense_items <> []
 let split_measures summaries = List.partition measure_active summaries
 

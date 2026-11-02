@@ -6,6 +6,44 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Readability: named balance groups and comments (2026-11-02)
+
+- Daily Pace Pool's internal `0`/`1`/`2` support groups are named variants.
+  Local names describe groups and Loci rather than routes; comments explain why
+  grouping preserves first appearance and why group order is not reliability.
+  No public API, storage format, dependency or intended UI behavior change.
+- Removed a duplicated I&E comment and corrected the terminal loop's layout.
+- Added synthetic painted-row assertions at widths 120, 80 and 32: zero-origin,
+  opening and observed groups retain their order; first appearance wins over
+  alphabetical/admitted order within a group, unused supported Loci follow,
+  and unknown balances are excluded. These assertions and the existing Pool
+  review/save checks passed during both suite runs.
+- `./tools/format --check`: exit 0 after running sequentially (the first attempt
+  overlapped the TUI checks and exited 1 because another Dune instance was running).
+  `git diff --check`: exit 0.
+- `./tools/tui --self-check` and `./tools/check`: both exit 1 at the unchanged
+  `reports_integration_checks.ml:310`, `flow-shift-back`. That test expects
+  September/October 2026 for relative month navigation; the report uses the
+  real current day. At that point the suites were not green; the final privacy-scan step
+  of `tools/check` was not reached. A separate `./tools/privacy-scan` over the six
+  changed files passed (exit 0, no match). No test expectation was weakened.
+- Initial pass: latest-data paired comparison, physical-terminal/IME acceptance
+  and power-loss testing **not executed**. Household data was not accessed; no
+  commit or push during that pass.
+- Follow-up at the user's request to commit in small slices: terminal layout is
+  isolated in `15920f8`; report scenario date assumptions in `b8c1a9f`. The latter
+  checks the actual current month and its previous month, and gives Stock–Flow
+  a configured cycle containing today. January's year transition is handled in
+  the expectation calculation but was not separately executed.
+  Before the second fix, the suite reached Stock–Flow and refused because its
+  October-only boundary did not contain today. No production date logic changed.
+- Follow-up `./tools/format --check`, `./tools/check` and
+  `./tools/tui --self-check`: exit 0, including Pool assertions, report scenarios
+  and privacy scan. Independent read-only review
+  found no blocker in the code/test diff; it did not execute tests.
+- These are local commits only: no push or matching remote CI verification.
+  Latest-data paired comparison, human/IME and power-loss checks remain **not executed**.
+
 ## Quick capture edits at the caret (2026-10-31)
 
 - Report/reproduction: the initial Record line ignored Left/Right; Backspace

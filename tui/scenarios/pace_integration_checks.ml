@@ -1429,6 +1429,53 @@ let daily_pace_graph_render_checks ~width_of () =
      scale)."
 
 let pool_review_checks ~width_of ~directory () =
+  (* Interleave support groups in the entry and reverse the alphabetical order of
+     the zero-origin pair: grouping must not reorder familiar balances within it. *)
+  let ordered_book =
+    get
+    @@ B.read
+         "BOOK\t1\n\
+          MEASURE\tjpy\t0\n\
+          LOCUS\ta-second\ta-second\t\n\
+          LOCUS\tz-first\tz-first\t\n\
+          LOCUS\tunused\tunused\t\n\
+          LOCUS\topening\topening\t\n\
+          LOCUS\tobserved\tobserved\t\n\
+          LOCUS\tunknown\tunknown\t\n\
+          TX\tseed\t2026-10-01\n\
+          EFFECT\tobserved\tjpy\t-3\n\
+          EFFECT\tz-first\tjpy\t1\n\
+          EFFECT\topening\tjpy\t1\n\
+          EFFECT\ta-second\tjpy\t1\n\
+          ENDTX\n\
+          ZERO-ORIGIN\tz-first\tjpy\n\
+          ZERO-ORIGIN\ta-second\tjpy\n\
+          ZERO-ORIGIN\tunused\tjpy\n\
+          OPENING\topening\tjpy\tseed\n\
+          ANCHOR\t-\n\
+          ASSERT\tobserved\tjpy\t20\n\
+          ENDANCHOR\n\
+          END\n"
+  in
+  let picker = Daily_pace_pool.prepare ~book:ordered_book ~measure:"jpy" ~config:(Ok None) in
+  List.iter
+    (fun width ->
+      let candidates =
+        Daily_pace_pool.rows ~width_of ~width ~height:24 picker
+        |> List.map snd
+        |> List.filter (fun row -> Base.String.is_substring row ~substring:" / jpy")
+      in
+      require
+        (candidates
+        = [
+            "> [ ] z-first / jpy";
+            "  [ ] a-second / jpy";
+            "  [ ] unused / jpy";
+            "  [ ] opening / jpy";
+            "  [ ] observed / jpy";
+          ])
+        "pool-groups-preserve-appearance-and-exclude-unknown")
+    [ 120; 80; 32 ];
   let directory = directory ^ "/pool-review" in
   Unix.mkdir directory 0o700;
   let path = directory ^ "/book.txt" in

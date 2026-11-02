@@ -6,7 +6,14 @@ Per-screen progress: [UI gap ledger](LOAM_UI_GAP_LEDGER.ja.md). Daily-use summar
 [VERIFICATION](VERIFICATION.md). The previous long handoff (per-feature evidence up
 to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
 
-## Where things stand (2026-10-31)
+## Where things stand (2026-11-02)
+
+- 2026-11-02: bounded readability edits name Daily Pace Pool's support groups,
+  explain order preservation, remove a duplicate comment and fix terminal layout.
+  Report scenarios now follow the real current month rather than assuming October;
+  full checks and formatting pass. Changes are split into local commits only;
+  no push or household access.
+  [Evidence](VERIFICATION.md#readability-named-balance-groups-and-comments-2026-11-02).
 
 - 2026-10-31: Record's one-line quick capture now supports Left/Right, Home/End,
   Backspace and typing/paste at the caret without switching to the full form.
