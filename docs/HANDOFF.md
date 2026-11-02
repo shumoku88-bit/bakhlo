@@ -11,8 +11,8 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
 - 2026-11-02: bounded readability edits name Daily Pace Pool's support groups,
   explain order preservation, remove a duplicate comment and fix terminal layout.
   Report scenarios now follow the real current month rather than assuming October;
-  full checks and formatting pass. Changes are split into local commits only;
-  no push or household access.
+  full checks and formatting pass; pushed with matching CI green. No household
+  access.
   [Evidence](VERIFICATION.md#readability-named-balance-groups-and-comments-2026-11-02).
 
 - 2026-10-31: Record's one-line quick capture now supports Left/Right, Home/End,

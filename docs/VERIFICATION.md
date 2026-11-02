@@ -41,7 +41,9 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
   `./tools/tui --self-check`: exit 0, including Pool assertions, report scenarios
   and privacy scan. Independent read-only review
   found no blocker in the code/test diff; it did not execute tests.
-- These are local commits only: no push or matching remote CI verification.
+- Pushed 2026-11-02 after `./tools/privacy-scan --all` (no match), `./tools/check`
+  and `./tools/tui --self-check` (exit 0) on `bc80bd1`; matching CI passed
+  ([run 41419809527](https://github.com/shumoku88-bit/bakhlo/actions/runs/41419809527)).
   Latest-data paired comparison, human/IME and power-loss checks remain **not executed**.
 
 ## Quick capture edits at the caret (2026-10-31)
