@@ -173,6 +173,13 @@ PTY入力/resize/非保存検査がすべて成功。後続の完了記録は文
   残る差：左右分割の画面は選択に合わせて詳細ペインが変わり、1キーで約20行を送る。一覧がずれるときは見えている行を
   全部書き直す（nvimは端末のスクロール領域で1行だけ送る）。WezTermが1キーを表示するまでの時間は未計測。
   次は測ってから選ぶ：WezTermでの表示までの時間、スクロール領域、行の中の変わった部分だけを送ること。
+- [ ] Bakhlo Light／Darkが24bit対応の端末で明暗が逆に見える（moko、2026-11-02、急ぎなし）。両テーマは
+  xterm 256色の16〜255番で色を指定する（`Ui_preferences.palette`、24bitのないmacOS Terminal.appのため）。
+  Ghostty系の端末（Rexなど）は`palette-generate`／`palette-harmonious`で16〜255番を端末のテーマから作り直し、
+  ライトテーマでは背景→文字色の順に並べる。そのため255番が暗く、234番が明るくなる（Rexで255番の背景が暗いのを
+  mokoが確認）。Terminalテーマ（既定の色と0〜15番だけ）と、24bitで色を出す他のエディタは影響を受けない。
+  案：`COLORTERM=truecolor`の端末ではテーマのRGBを`A.rgb_888`で出し、それ以外は今の番号指定のまま。
+  確認はRex（Harmoniousオン）とTerminal.appの両方で行う。
 - [ ] Trend / Locus comparisonのマウスでの選択（LOAMのclick/drag/wheel scrub。描画とキー操作は2026-10-24にLOAMへ揃えた）。
 - [ ] Accountingの一覧欄で長い説明行が`…`省略される（詳細欄と並ぶため）。80×24で照合。
 - [ ] Daily Pace：同じ端末寸法でcontext／Trend／History／Selected day／feedback／操作案内、
