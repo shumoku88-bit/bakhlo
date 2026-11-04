@@ -8,6 +8,27 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
 
 ## Where things stand (2026-11-04)
 
+- 2026-11-04: the user approved publishing the remaining typography series and
+  closing this pass: Balances pilot `a0b7e6e`, full-row selection `9521d44`, and
+  Scheduled List `3f47bec`, with the policy/evidence slice following. Fresh focused,
+  full and TUI checks pass; static review found no publication blocker. `bk` keeps
+  its pushed-only `origin/main` policy and ordinary backup behavior. Matching-SHA
+  CI and the synthetic launcher check are separate post-publication evidence,
+  never inferred from local green. Physical/font/IME acceptance remains separate.
+  [Evidence](VERIFICATION.md#typography-series-publication-qualification-2026-11-04).
+
+- 2026-11-04: Balances pilot initially committed locally as `a0b7e6e` at the user's request.
+  The user then preferred whole-row selection over marker-only. Current follow-up
+  restores focused full-row highlighting in Actual and Balances Current, including
+  padding but not borders; inactive markers and field hierarchy remain. Scheduled
+  List keeps full-row selection and gains strong dates/quantities, ordinary Shape
+  and quiet headers. Other Scheduled views/details, keys, geometry and saves stay.
+  Focused/full/TUI checks pass. Four synthetic sizes and latest-copy comparisons
+  at two sizes retain complete text; original/copy book/config match after closing
+  owned processes. Full-row reference is confirmed in LOAM, not full parity or
+  physical/IME acceptance. These follow-ups are included in the closing publication
+  above. [Evidence](VERIFICATION.md#full-row-selection-and-scheduled-list-typography-2026-11-04).
+
 - 2026-11-04: Balances Current typography trial: exact list amounts lead, names
   stay ordinary, units/exact-state metadata stay quiet, selection uses only its
   marker, and Current titles omit `[active]`. Detail Amount includes its unit;
@@ -16,8 +37,8 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   Focused/full/TUI checks pass; four synthetic sizes and latest-copy before/after
   at two sizes keep body text unchanged. Corrected same-generation LOAM Current
   captures retain intentional styling differences, not a full parity claim.
-  The user responded favorably and requested committing this trial, then continuing
-  with Scheduled. No push or daily `bk` adoption in this pass; `bk` still uses `2b03863`.
+  Committed as `a0b7e6e` after favorable feedback; included in the closing publication.
+  The later whole-row selection request above supersedes the marker-only treatment.
   [Evidence](VERIFICATION.md#balances-current-typography-trial-2026-11-04).
 
 - 2026-11-04: the user-approved reading/Actual series was published as five scoped

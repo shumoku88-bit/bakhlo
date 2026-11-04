@@ -6,6 +6,81 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Typography series publication qualification (2026-11-04)
+
+- User explicitly requested committing/pushing the remaining work and closing this
+  pass. Starting remote HEAD was `2b03863`; local HEAD was the accepted Balances
+  pilot `a0b7e6e`. No unrelated staged or untracked work was included.
+- Fresh `rtk test ./tools/opam exec -- dune runtest tui/screens/balances/test tui/app/test --force`,
+  `rtk test ./tools/check` and `rtk test ./tools/tui --self-check`: exit 0.
+  Independent static review of the complete 11-file follow-up diff found no
+  publication blocker, no apparent private material and no unintended quantity,
+  action-target, save, key or geometry changes. That reviewer did not execute tests
+  or independently repeat prior private comparisons.
+- Scoped source/test commits: `9521d44` restores focused whole-row selection in
+  Actual/Balances; `3f47bec` refines Scheduled List typography. They follow the
+  earlier `a0b7e6e` pilot; current policy/evidence are committed separately. No
+  format, dependency, launcher or backup-policy change and no history rewrite.
+- This is local pre-publication qualification, not a remote CI or installed-binary
+  claim. Matching published-SHA CI and an end-to-end `bk` check with an isolated
+  synthetic Git household/local backup remote are separate post-push evidence.
+  Operational-household writes are not authorized by this rollout. Physical
+  font/terminal/IME and full human acceptance remain unqualified.
+
+## Full-row selection and Scheduled List typography (2026-11-04)
+
+- User requested committing the accepted Balances pilot and continuing. Seven
+  reviewed files became local commit `a0b7e6e`; focused Balances checks, formatting,
+  full privacy scan and diff checks passed before commit. No push or history edit.
+  During the Scheduled work the user explicitly preferred highlighted whole rows
+  over marker-only selection. That newer preference supersedes the prior pilots.
+- Current follow-up: Actual and Balances Current focused selections use one Active
+  span across the interior row, including padding, with separate borders. Inactive
+  markers, unselected field hierarchy and exact quantity text remain. Non-account
+  Balances configuration errors keep Status; selected unknown accounts retain their
+  literal unknown value/state and strong detail reasons, never an inferred zero.
+- Scheduled changes are limited to List painting: full-row focused occurrence/Locus
+  selection, strong unselected dates/quantity text, ordinary Shape and Chrome column
+  headers. `split` and `too wide` remain explicit; inactive overflow is Status.
+  Series Calendar, Months, Plan, pace, full detail, keys, action targets, geometry,
+  calculations, admission, dependencies and publication behavior are unchanged.
+- Static review found two Scheduled display regressions in an intermediate draft:
+  fitting Locus labels missed visible escaping, and an exact span boundary could
+  lose the old ellipsis. The corrected local helper preserves authoritative whole-
+  line `clip_text`, sanitizes spans with `visible` and falls back to plain canonical
+  text only when tiny clipping boundaries differ. Owner checks at widths 14/15/16/24
+  compare the previous strings; an admitted control-bearing identity remains visibly
+  escaped. Follow-up static review found both issues resolved and no blocker.
+- Native owner/app checks cover full-row focus and inactive restoration, four normal
+  geometries, zero/negative/scaled/unknown/huge amounts, long identities/Measures,
+  retained selection, action targets and non-writing paths. Initial focused checks
+  exited 1 for old Actual fallback-style expectations, an unabridged 48-column Shape
+  assumption and a fixture that left monitoring config undeclared. These expectations
+  and the fixture were corrected without changing their old display/safety rules.
+- `rtk test ./tools/opam exec -- dune runtest tui/screens/balances/test tui/app/test --force`,
+  `rtk test ./tools/check` and `rtk test ./tools/tui --self-check` pass. The build also
+  passes. One combined command later exited 1 copying over a read-only Dune-derived
+  preview artifact; `install -m 755` fixed only that ignored working copy.
+- Public synthetic tmux before/after captures cover Actual, Balances and Scheduled
+  List/detail at 120x36, 80x24, 48x14 and 32x9, with Loci focus additionally exercised
+  for Actual/Scheduled. Complete plaintext and geometry match; list ANSI differs.
+  Book and config checksums remain unchanged. Failed readiness attempts assumed a
+  shared Actual header or full period tabs at every width; those were rejected.
+  Final captures require the Actuals frame and explicit focus/detail transitions.
+- One freshly copied household generation supplies before/after and the existing
+  LOAM binary. All three screens at 120x36/80x24 retain complete list/detail text;
+  LOAM captures positively show Actual Workspace, Current Balances and Scheduled
+  List, not Home. Bounded private review confirms full-interior selection and no
+  stale inactive band, consistent with the reference. Private focused-Loci captures
+  were not taken; synthetic checks/captures cover them. No accounting/operation-
+  parity or physical contrast/IME acceptance is inferred.
+- After closing only AI-owned capture processes, original book/config and both
+  copies compare identical; `./tools/compare clean-copies`: exit 0. Private material
+  remains in ignored scratch. No operational-household writes or TUI session.
+  At that trial checkpoint the follow-ups were uncommitted/unpushed and daily `bk`
+  remained `2b03863`; they are included in the closing publication qualified above.
+  Physical font/terminal/IME and full human acceptance **not executed**.
+
 ## Balances Current typography trial (2026-11-04)
 
 - User asked to extend the Actual typography work to another area. Baseline main
