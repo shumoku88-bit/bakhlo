@@ -450,10 +450,16 @@ let detail_raw_lines ~book ~width_of ~width (entry_opt : B.entry option) : (O.st
         let label = display_locus ~book p.B.locus in
         let amount_width = width_of amount in
         if amount_width + 4 <= width then
-          [ (O.Plain, " " ^ O.pad ~width_of (width - amount_width - 3) label ^ "  " ^ amount) ]
+          let spans =
+            [
+              (O.Plain, " " ^ O.pad ~width_of (width - amount_width - 3) label ^ "  ");
+              (O.Heading, amount);
+            ]
+          in
+          [ (O.Spans spans, O.spans_text spans) ]
         else
           (* The complete value remains scrollable, never a silently clipped number. *)
-          wrapped O.Plain label @ wrapped O.Chrome "Amount (wrapped):" @ wrapped O.Plain amount
+          wrapped O.Plain label @ wrapped O.Chrome "Amount (wrapped):" @ wrapped O.Heading amount
       in
       (* The retained facts Book_display.entry_lines lists after the ID line. *)
       let rec after_id = function
@@ -778,36 +784,49 @@ let day_header ~width_of ~width (group : group) =
     match List.length group.entries with 1 -> "1 entry" | n -> Printf.sprintf "%d entries" n
   in
   let head = left ^ "  " ^ count in
+  let dated = [ (O.Heading, left) ] in
+  let counted = dated @ [ (O.Chrome, "  " ^ count) ] in
+  let with_total spans total =
+    spans
+    @ [
+        (O.Plain, String.make (max 0 (width - O.spans_width ~width_of spans - width_of total)) ' ');
+        (O.Heading, total);
+      ]
+  in
   match Lazy.force group.total with
-  | None -> if width_of head <= width then head else left
+  | None -> if width_of head <= width then counted else dated
   | Some total ->
-      if width_of head + 2 + width_of total <= width then
-        O.pad ~width_of (width - width_of total) head ^ total
-      else if width_of left + 2 + width_of total <= width then
-        O.pad ~width_of (width - width_of total) left ^ total
-      else if width_of head <= width then head
-      else left
+      if width_of head + 2 + width_of total <= width then with_total counted total
+      else if width_of left + 2 + width_of total <= width then with_total dated total
+      else if width_of head <= width then counted
+      else dated
 
-(* Date and amount columns stay fixed while Description receives the rest. *)
+(* Keep the same columns and row density, but give the eye an anchor at the
+   amount. The date is context; bold belongs to the exact value, not the whole
+   description. A value that does not fit still sends the reader to Details. *)
 let table_row ~width_of width amount_width date desc amount =
-  O.pad ~width_of 10 date ^ "  "
-  ^ O.pad ~width_of (max 0 (width - 10 - amount_width - 4)) desc
-  ^ "  "
-  ^ O.pad_left ~width_of amount_width
-      (if width_of amount <= amount_width then amount else "see details")
+  [
+    (O.Chrome, O.pad ~width_of 10 date ^ "  ");
+    (O.Plain, O.pad ~width_of (max 0 (width - 10 - amount_width - 4)) desc ^ "  ");
+    ( O.Heading,
+      O.pad_left ~width_of amount_width
+        (if width_of amount <= amount_width then amount else "see details") );
+  ]
 
 (* Under a day group the date is in the header, so only the description and the
    amount are listed, indented under it. *)
 let grouped_row ~width_of width amount_width desc amount =
-  "  "
-  ^ O.pad ~width_of (max 0 (width - amount_width - 4)) desc
-  ^ "  "
-  ^ O.pad_left ~width_of amount_width
-      (if width_of amount <= amount_width then amount else "see details")
+  [
+    (O.Plain, "  " ^ O.pad ~width_of (max 0 (width - amount_width - 4)) desc ^ "  ");
+    ( O.Heading,
+      O.pad_left ~width_of amount_width
+        (if width_of amount <= amount_width then amount else "see details") );
+  ]
 
 (* The list rows: a header per day (under a date order) and one row per entry.
-   The selection marks entries only, so a day header is never chosen. *)
-type display_row = { style : O.style; text : string Lazy.t; entry : int option }
+   The selection marks entries only, so a day header is never chosen. Spans
+   remain lazy: off-screen entries do not pay for formatting their text. *)
+type display_row = { spans : (O.style * string) list Lazy.t; entry : int option }
 
 let display_rows ~book ~width_of ~row_width ~amount_width ~show_days ~groups ~records ~loci ~pane =
   let rows = ref [] in
@@ -816,13 +835,13 @@ let display_rows ~book ~width_of ~row_width ~amount_width ~show_days ~groups ~re
   let row_count = ref 0 in
   let entry_count = ref 0 in
   let current_header = ref (-1) in
-  let add_header style text =
-    rows := { style; text; entry = None } :: !rows;
+  let add_header spans =
+    rows := { spans; entry = None } :: !rows;
     incr row_count;
     current_header := !row_count - 1
   in
-  let add_entry style text =
-    rows := { style; text; entry = Some !entry_count } :: !rows;
+  let add_entry spans =
+    rows := { spans; entry = Some !entry_count } :: !rows;
     entry_rows := !row_count :: !entry_rows;
     header_rows := !current_header :: !header_rows;
     incr entry_count;
@@ -836,19 +855,20 @@ let display_rows ~book ~width_of ~row_width ~amount_width ~show_days ~groups ~re
     else table_row ~width_of row_width amount_width e.day desc amount_text
   in
   if pane = Loci then begin
-    add_entry O.Plain (lazy "[All loci]");
+    add_entry (lazy [ (O.Plain, "[All loci]") ]);
     List.iter
       (fun token ->
-        add_entry O.Plain (lazy (O.pad ~width_of (max 0 row_width) (display_locus ~book token))))
+        add_entry
+          (lazy [ (O.Plain, O.pad ~width_of (max 0 row_width) (display_locus ~book token)) ]))
       loci
   end
   else if show_days then
     List.iter
       (fun (group : group) ->
-        add_header O.Heading (lazy (day_header ~width_of ~width:row_width group));
-        List.iter (fun (e : B.entry) -> add_entry O.Plain (lazy (entry_text e))) group.entries)
+        add_header (lazy (day_header ~width_of ~width:row_width group));
+        List.iter (fun (e : B.entry) -> add_entry (lazy (entry_text e))) group.entries)
       groups
-  else List.iter (fun (e : B.entry) -> add_entry O.Plain (lazy (entry_text e))) records;
+  else List.iter (fun (e : B.entry) -> add_entry (lazy (entry_text e))) records;
   (List.rev !rows, Array.of_list (List.rev !entry_rows), Array.of_list (List.rev !header_rows))
 
 (* Where the selection sits among the list's rows (a day header precedes its
@@ -905,14 +925,13 @@ let list_panel ~book ~width_of t ~records ~groups ~loci pane (width, height) tit
   let header =
     if pane = Loci || height < 4 then []
     else
-      [
-        ( O.Chrome,
-          "   "
-          ^
-          if not tabular then "Description"
-          else if show_days then grouped_row ~width_of row_width amount_width "Description" "Amount"
-          else table_row ~width_of row_width amount_width "Date" "Description" "Amount" );
-      ]
+      let columns =
+        if not tabular then "Description"
+        else if show_days then
+          O.spans_text (grouped_row ~width_of row_width amount_width "Description" "Amount")
+        else O.spans_text (table_row ~width_of row_width amount_width "Date" "Description" "Amount")
+      in
+      [ (O.Chrome, "   " ^ columns) ]
   in
   let rows = list_capacity pane height in
   let display, entry_rows, header_rows =
@@ -933,9 +952,15 @@ let list_panel ~book ~width_of t ~records ~groups ~loci pane (width, height) tit
             let chosen =
               match display_row.entry with Some index -> index = selected | None -> false
             in
-            ( (if chosen && active then O.Active else display_row.style),
-              (if chosen then if active then " > " else " * " else "   ")
-              ^ Lazy.force display_row.text )
+            (* The marker, not a band of bold reversed text, locates the
+               selection. Keeping the description plain preserves the amount's
+               emphasis, including while focus is in another pane. *)
+            let marker = if chosen then if active then " > " else " * " else "   " in
+            let spans =
+              ((if chosen && active then O.Active else O.Plain), marker)
+              :: Lazy.force display_row.spans
+            in
+            (O.Spans spans, O.spans_text spans)
         | None ->
             (O.Plain, if row = 0 && pane = Transactions then " (no matching Actual records)" else ""))
   in
@@ -987,9 +1012,7 @@ let detail_panel ~book ~width_of (width, height) t ~entry =
     else if has_more then Some "▼ [i] more"
     else None
   in
-  frame ~width_of ~width ~height ~focused
-    ~title:("Details" ^ if focused then " [active]" else "")
-    ~bottom visible
+  frame ~width_of ~width ~height ~focused ~title:"Details" ~bottom visible
 
 let search_line ~width ~width_of t =
   let width = max 0 width in
@@ -1020,7 +1043,7 @@ let period_bar ~width_of ~width ~total t (window : window) =
          [ Today; Cycle; Month; Year; All ])
   in
   let part spans = (O.Plain, "  ") :: spans in
-  let window_part label = if t.period = All then [] else part [ (O.Plain, label) ] in
+  let window_part label = if t.period = All then [] else part [ (O.Chrome, label) ] in
   (* A cycle within one year names its last day without the year. *)
   let short =
     match (t.period, Day.shift_days window.end_exclusive (-1)) with
@@ -1029,9 +1052,11 @@ let period_bar ~width_of ~width ~total t (window : window) =
     | _ -> window.label
   in
   let total_part =
-    match total with Some amount -> part [ (O.Plain, "Expense " ^ amount) ] | None -> []
+    match total with
+    | Some amount -> part [ (O.Chrome, "Expense "); (O.Heading, amount) ]
+    | None -> []
   in
-  let head = (O.Plain, " Actual") in
+  let head = (O.Heading, " Actual") in
   let fits spans = width_of (Ui_render.spans_text spans) <= width in
   let spans =
     List.find_opt fits
@@ -1050,39 +1075,33 @@ let period_bar ~width_of ~width ~total t (window : window) =
 let screen ~ctx ~total ~draft_retained ~dimensions ~width_of t =
   let g = panel_geometry dimensions in
   let loci, locus, records, groups, t = resolve ~ctx t in
-  let order_tag, order_text =
+  (* The frame and selection marker already carry focus. Keep titles for the
+     pane's subject, count and one human-readable ordering, not a second legend. *)
+  let order_text =
     match t.order with
-    | Newest -> ("desc", "newest first")
-    | Oldest -> ("asc", "oldest first")
-    | Largest -> ("amount", "largest first")
+    | Newest -> "newest first"
+    | Oldest -> "oldest first"
+    | Largest -> "largest first"
   in
-  let left_header =
-    "Loci" ^ (if t.pane = Loci then " [active]" else "") ^ Printf.sprintf " (%d)" (List.length loci)
-  in
-  let right_header =
-    "Actuals"
-    ^ (if t.pane = Transactions then " [active]" else "")
-    ^ Printf.sprintf " (%d, %s, %s)" (List.length records) order_tag order_text
-  in
+  let left_header = Printf.sprintf "Loci (%d)" (List.length loci) in
+  let right_header = Printf.sprintf "Actuals (%d, %s)" (List.length records) order_text in
   let searching = t.search_query <> "" || t.search_editing in
   let context_line =
     if searching then search_line ~width:g.writable ~width_of t
     else
-      let warnings =
-        List.filter_map
-          (fun warning -> warning)
-          [ (match ctx.warning with Some why -> Some why | None -> None) ]
-      in
-      let text =
-        match warnings with
-        | [] -> current_locus_name ~book:ctx.book locus
-        | warnings -> String.concat " " warnings
-      in
-      ( O.Chrome,
-        O.clip_text ~width_of g.writable
-          (" known through " ^ ctx.scope.today
-          ^ (if draft_retained then "   Draft retained" else "")
-          ^ "  |  " ^ text) )
+      let retained = if draft_retained then "   Draft retained" else "" in
+      (* A narrow context row must spend its first cells on the reason, not
+         on the date before it. Ordinary context keeps its quieter vocabulary. *)
+      match ctx.warning with
+      | Some why ->
+          let retained = O.clip_text ~width_of g.writable retained in
+          let reason_width = max 0 (g.writable - width_of retained) in
+          (O.Status, O.clip_text ~width_of reason_width (" " ^ why) ^ retained)
+      | None ->
+          ( O.Chrome,
+            O.clip_text ~width_of g.writable
+              (" known through " ^ ctx.scope.today ^ retained ^ "  |  "
+              ^ current_locus_name ~book:ctx.book locus) )
   in
   let title = period_bar ~width_of ~width:g.writable ~total t ctx.scope.window in
   let context =
@@ -1114,29 +1133,52 @@ let screen ~ctx ~total ~draft_retained ~dimensions ~width_of t =
   context @ panels
 
 let footer ~dimensions ~width_of t =
-  let width, _ = dimensions in
-  if t.search_editing then
-    [
-      "Search input: type text   Backspace delete   Enter keep   Esc clear";
-      "Matches update live in the current window and all Loci.";
-    ]
-  else if t.pane = Details then
-    [
-      "[j/k] scroll details  [h/l] pane  [Esc/i] return to Actuals";
-      "[Enter] open selected  [d] date  [m] merchant  [n] new  [q] back";
-    ]
-  else
-    let detailed =
-      "[j/k] select  [h/l] pane  [Tab] cycle  [i] details  [f] period  [s] sort  [/] search  [ ] \
-       window"
-    in
-    if width_of detailed <= width then
-      [ detailed; "[Enter] open selected  [d] date  [m] merchant  [n] new  [q] back  [{ }] year" ]
+  let width = max 0 (fst dimensions) in
+  (* Two rows are part of the screen's geometry. Choose whole instruction
+     groups for that width instead of asking the Shell to cut a long legend.
+     Short versions prioritize navigation, opening and getting back; they do
+     not remove any of the editor's actual key bindings. *)
+  let alternatives =
+    if t.search_editing then
+      [
+        [
+          "Search  type text  [Backspace] delete  [Enter] keep  [Esc] clear";
+          "Matches update live in the current window and all Loci.";
+        ];
+        [ "Search  type text  [Backspace] delete"; "[Enter] keep  [Esc] clear" ];
+        [ "Search  type / Backspace delete"; "[Enter] keep  [Esc] clear" ];
+        [ "Search"; "[Esc] clear" ];
+      ]
+    else if t.pane = Details then
+      [
+        [
+          "[j/k] scroll details  [h/l] pane  [Esc/i] return to Actuals";
+          "[Enter] open selected  [d] date  [m] merchant  [n] new  [q] back";
+        ];
+        [ "[j/k] scroll [h/l] pane [Esc/i] back"; "[Enter] open [n] new [q] back" ];
+        [ "[j/k] scroll [Esc/i] back"; "[Enter] open [h/l] pane" ];
+        [ "[j/k] scroll"; "[Esc/i] back" ];
+      ]
     else
       [
-        "[j/k] sel [h/l] pane [i] info [f] period [s] sort [/] search [ ] window";
-        "[Enter] open [d] date [m] merchant [n] new [q] back [{ }] year";
+        [
+          "[j/k] select  [h/l/Tab] pane  [i] details  [f] period  [s] sort  [/] search  [ ] window";
+          "[Enter] open  [d] date  [m] merchant  [n] new  [{ }] year  [q] back";
+        ];
+        [
+          "[j/k] select  [h/l] pane  [i] details  [f] period  [/] search";
+          "[Enter] open  [d] date  [m] merchant  [n] new  [s] sort  [q] back";
+        ];
+        [ "[j/k] select [h/l] pane [f] period"; "[Enter] open [i] details [/] search [q] back" ];
+        [ "[j/k] move [h/l] pane [i] info"; "[Enter] open [/] search [q] back" ];
+        [ "[j/k] move [i] info"; "[Enter] open [q] back" ];
       ]
+  in
+  match List.find_opt (List.for_all (fun line -> width_of line <= width)) alternatives with
+  | Some rows -> rows
+  | None ->
+      (* Below even the minimal legend's width, mark the truncation explicitly. *)
+      List.map (O.clip_text ~width_of width) (List.hd (List.rev alternatives))
 
 (* The search caret sits on the context row that paints the search line. *)
 let cursor_position ~dimensions ~width_of t =

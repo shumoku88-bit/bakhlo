@@ -85,6 +85,53 @@ let rows_of ctx t =
 let contains rows needle =
   List.exists (fun (_, line) -> Base.String.is_substring line ~substring:needle) rows
 
+(* Compare meaning at the leaves, including framed spans inside wide Columns.
+   Column widths are terminal cells, not UTF-8 byte offsets. *)
+let rec typography_spans ~width_of (style, text) =
+  match style with
+  | O.Spans spans ->
+      require (O.spans_text spans = text) "typography-spans-text";
+      List.concat_map (typography_spans ~width_of) spans
+  | O.Columns (width, left_style, right_style) ->
+      let split cells text =
+        let rec boundary offset =
+          let prefix = String.sub text 0 offset in
+          if width_of prefix >= cells then offset
+          else begin
+            require (offset < String.length text) "typography-column-present";
+            let decoded = String.get_utf_8_uchar text offset in
+            require (Uchar.utf_decode_is_valid decoded) "typography-utf8";
+            boundary (offset + Uchar.utf_decode_length decoded)
+          end
+        in
+        let offset = boundary 0 in
+        let left = String.sub text 0 offset in
+        require (width_of left = cells) "typography-column-cell-boundary";
+        (left, String.sub text offset (String.length text - offset))
+      in
+      let left, rest = split width text in
+      let gap, right = split 1 rest in
+      require (gap = " ") "typography-column-gap";
+      typography_spans ~width_of (left_style, left)
+      @ [ (O.Plain, gap) ]
+      @ typography_spans ~width_of (right_style, right)
+  | _ -> [ (style, text) ]
+
+(* A token may cross adjacent spans, but every byte of it must have its role. *)
+let styled_token spans expected token =
+  match Base.String.substr_index (O.spans_text spans) ~pattern:token with
+  | None -> false
+  | Some start ->
+      let stop = start + String.length token in
+      let _, correct =
+        List.fold_left
+          (fun (offset, correct) (style, text) ->
+            let next = offset + String.length text in
+            (next, correct && (next <= start || offset >= stop || style = expected)))
+          (0, true) spans
+      in
+      correct
+
 let presets = "Pension\t2026-09-01\t2026-10-01\t2026-11-01\n"
 
 let env ?(today = "2026-10-15") ?(roles = roles) ?(presets = Some presets) book =
@@ -179,8 +226,8 @@ let self_check ~width_of () =
   let header_has_in rows day text =
     match List.find_opt (fun (_, line) -> Base.String.is_substring line ~substring:day) rows with
     | Some (style, line) ->
-        (* The wide layout carries the Actuals style as its right column. *)
-        (match style with O.Columns (_, _, right) -> right | style -> style) = O.Heading
+        let style = match style with O.Columns (_, _, right) -> right | style -> style in
+        (match style with O.Spans spans -> styled_token spans O.Heading day | _ -> false)
         && Base.String.is_substring line ~substring:text
     | None -> false
   in
@@ -210,6 +257,147 @@ let self_check ~width_of () =
   require (not (contains rows_80 "Details")) "compact-details-collapsed";
   require (List.length rows_80 = snd dim_compact) "compact-list-fills-the-height";
   require (contains (screen_rows (step ws 'i')) "Details") "compact-details-on-i";
+
+  (* Typography changes roles only: keep the same cell-safe text and selection
+     through the public screen/handle boundary at each qualification size. *)
+  let typography_dimensions = [ (120, 36); (80, 24); (48, 14); (32, 9) ] in
+  let typography_rows ~ctx ~dimensions state =
+    let rows =
+      Act.screen ~ctx ~total:(Act.window_total ~ctx) ~draft_retained:false ~dimensions ~width_of
+        state
+    in
+    require (List.length rows = snd dimensions) "typography-height-unchanged";
+    List.map
+      (fun ((_, text) as row) ->
+        let spans = typography_spans ~width_of row in
+        require (O.spans_text spans = text) "typography-flattened-text";
+        require
+          (width_of text <= fst dimensions && O.spans_width ~width_of spans = width_of text)
+          "typography-text-and-span-cell-widths";
+        List.iter
+          (fun (style, text) ->
+            if style = O.Active then
+              require (text = " > " && width_of text = 3) "typography-active-is-only-the-marker")
+          spans;
+        spans)
+      rows
+  in
+  let typography_row rows token =
+    match
+      List.find_opt
+        (fun spans -> Base.String.is_substring (O.spans_text spans) ~substring:token)
+        rows
+    with
+    | Some spans -> spans
+    | None -> failwith ("FAILED: actual_workspace_check: typography-row: " ^ token)
+  in
+  let japanese_book =
+    add_entry
+      (get (B.read fixture))
+      ~day:"2026-10-15"
+      ~memo:(String.concat " " (List.init 12 (fun _ -> "日本語の長い説明")))
+      ~locus1:"assets:cash" ~amt1:(-1234) ~locus2:"expenses:groceries" ~amt2:1234
+  in
+  List.iter
+    (fun dimensions ->
+      let fresh = Act.create ~focus_day:"2026-10-15" () in
+      let press state input = fst (Act.handle ~ctx ~dimensions ~width_of state input) in
+      let listed = typography_rows ~ctx ~dimensions fresh in
+      let bar = List.hd listed in
+      require (styled_token bar O.Heading " Actual") "typography-period-head";
+      require (styled_token bar O.Chrome "Expense ") "typography-period-expense-label";
+      require (styled_token bar O.Heading "51,500 jpy") "typography-period-total";
+      if fst dimensions >= 80 then
+        require (styled_token bar O.Chrome ctx.scope.window.label) "typography-window-label";
+      require
+        (styled_token (List.nth listed 1) O.Chrome "known through")
+        "typography-normal-context-is-chrome";
+      let warning_ctx = { ctx with warning = Some "Cycle unavailable." } in
+      let warned = typography_rows ~ctx:warning_ctx ~dimensions fresh in
+      require
+        (styled_token (List.nth warned 1) O.Status "Cycle unavailable.")
+        "typography-warning-cause-visible-before-metadata";
+      require
+        (String.starts_with ~prefix:" Cycle unavailable." (O.spans_text (List.nth warned 1)))
+        "typography-warning-cause-first";
+      let long_warning = { ctx with warning = Some (String.make 120 'x') } in
+      let retained =
+        Act.screen ~ctx:long_warning ~total:None ~draft_retained:true ~dimensions ~width_of fresh
+      in
+      let retained_context = List.nth retained 1 in
+      require
+        (fst retained_context = O.Status
+        && String.starts_with ~prefix:" xxx" (snd retained_context)
+        && Base.String.is_substring (snd retained_context) ~substring:"Draft retained"
+        && Base.String.is_substring (snd retained_context) ~substring:"…")
+        "warning-first-keeps-retained-draft-with-explicit-truncation";
+      let day = typography_row listed "2026-10-15 Thu" in
+      require (styled_token day O.Heading "2026-10-15 Thu") "typography-day-date";
+      require (styled_token day O.Heading "1,500 jpy") "typography-day-total";
+      if fst dimensions >= 48 then
+        require (styled_token day O.Chrome "2 entries") "typography-day-count";
+      let coffee = typography_row listed "Coffee shop" in
+      require (styled_token coffee O.Plain "Coffee shop") "typography-entry-description";
+      require (styled_token coffee O.Active " > ") "typography-selected-entry-marker";
+      if fst dimensions >= 48 then begin
+        require (styled_token coffee O.Heading "500 jpy") "typography-entry-amount";
+        let supermarket = typography_row listed "Supermarket" in
+        require
+          (styled_token supermarket O.Plain "Supermarket"
+          && styled_token supermarket O.Heading "1,000 jpy")
+          "typography-unselected-entry-description-and-amount";
+        let rent_day = typography_row listed "2026-10-14 Wed" in
+        require
+          (styled_token rent_day O.Chrome "1 entry" && styled_token rent_day O.Heading "50,000 jpy")
+          "typography-singular-count-and-day-total"
+      end
+      else require (styled_token coffee O.Heading "…") "typography-narrow-amount-cell-is-heading";
+      let loci = press fresh (char_key 'h') in
+      let loci_rows = typography_rows ~ctx ~dimensions loci in
+      require
+        (styled_token (typography_row loci_rows "[All loci]") O.Active " > ")
+        "typography-selected-locus-marker";
+      if fst dimensions >= 98 then begin
+        let inactive = typography_row loci_rows "Coffee shop" in
+        require
+          (styled_token inactive O.Plain " * " && styled_token inactive O.Plain "Coffee shop")
+          "typography-unfocused-entry-marker-retained";
+        require
+          (styled_token (typography_row listed "[All loci]") O.Plain " * ")
+          "typography-unfocused-locus-marker-retained"
+      end;
+      let details = press fresh (char_key 'i') in
+      let detail_rows = typography_rows ~ctx ~dimensions details in
+      let cash = typography_row detail_rows "-500 jpy" in
+      require
+        (styled_token cash O.Plain "現金" && styled_token cash O.Heading "-500 jpy")
+        "typography-detail-label-and-amount";
+      require
+        (Act.selected_entry ~ctx fresh = Act.selected_entry ~ctx details
+        && Act.selected_entry ~ctx fresh = Act.selected_entry ~ctx (press details (char_key 'i')))
+        "typography-focus-roundtrip-retains-selection";
+      if fst dimensions >= 98 then
+        require
+          (styled_token (typography_row detail_rows "Coffee shop") O.Plain " * ")
+          "typography-details-retains-inactive-entry-marker";
+      let japanese_ctx = make_ctx japanese_book in
+      let japanese_rows = typography_rows ~ctx:japanese_ctx ~dimensions fresh in
+      let japanese = typography_row japanese_rows "日本" in
+      require (styled_token japanese O.Plain "日本") "typography-japanese-description";
+      require
+        (styled_token japanese O.Active " > "
+        && Base.String.is_substring (O.spans_text japanese) ~substring:"…")
+        "typography-japanese-clipping-keeps-marker";
+      if fst dimensions >= 48 then
+        require (styled_token japanese O.Heading "1,234 jpy") "typography-japanese-full-amount";
+      let largest = press (press fresh (char_key 's')) (char_key 's') in
+      let amount_rows = typography_rows ~ctx ~dimensions largest in
+      let rent = typography_row amount_rows "Apartment" in
+      require (styled_token rent O.Plain "Apartment") "typography-amount-order-description";
+      require (styled_token rent O.Chrome "2026-10-14") "typography-amount-order-date-is-context";
+      if fst dimensions >= 48 then
+        require (styled_token rent O.Heading "50,000 jpy") "typography-amount-order-amount")
+    typography_dimensions;
 
   (* 6. Pane cycling *)
   let ws, _ = Act.handle ~ctx ~dimensions:dim_wide ~width_of ws (key `Tab) in
@@ -377,6 +565,61 @@ let self_check ~width_of () =
   require (List.length ft = 2) "footer-has-2-lines";
   require (Base.String.is_substring (List.hd ft) ~substring:"select") "footer-keys";
   require (Base.String.is_substring (List.hd ft) ~substring:"period") "footer-names-the-period";
+
+  (* Read the controls as complete groups, not as the left edge of a long line.
+     Search, detail and browse keep the same two physical footer rows. *)
+  List.iter
+    (fun ((width, _) as dimensions) ->
+      let fresh = Act.create ~focus_day:"2026-10-15" () in
+      let press input = fst (Act.handle ~ctx ~dimensions ~width_of fresh input) in
+      if width >= 48 then
+        require
+          (Base.String.is_substring
+             (String.concat " " (Act.footer ~dimensions ~width_of fresh))
+             ~substring:"[f] period")
+          "compact-footer-keeps-period-discovery";
+      let modes =
+        [ (fresh, "[q]"); (press (char_key 'i'), "[Esc/i]"); (press (char_key '/'), "[Esc]") ]
+      in
+      List.iter
+        (fun (state, exit_key) ->
+          let footer = Act.footer ~dimensions ~width_of state in
+          require (List.length footer = 2) "footer-fixed-two-rows";
+          require
+            (List.for_all (fun line -> width_of line <= max 0 width) footer)
+            "footer-groups-fit-before-shell-clipping";
+          if width >= 32 then begin
+            let text = String.concat " " footer in
+            require (Base.String.is_substring text ~substring:exit_key) "footer-keeps-exit-key";
+            require
+              (Base.String.is_substring text ~substring:"[Enter]")
+              "footer-keeps-confirm-or-open-key";
+            let depth = ref 0 in
+            String.iter
+              (function
+                | '[' ->
+                    require (!depth = 0) "footer-no-nested-key-group";
+                    incr depth
+                | ']' ->
+                    require (!depth = 1) "footer-no-orphan-key-close";
+                    decr depth
+                | _ -> ())
+              text;
+            require
+              (!depth = 0 && not (Base.String.is_substring text ~substring:"…"))
+              "footer-never-cuts-key-groups-at-supported-widths"
+          end)
+        modes;
+      if width >= 32 then begin
+        let body = Act.screen ~ctx ~total:None ~draft_retained:false ~dimensions ~width_of fresh in
+        require (not (contains body "[active]")) "pane-title-does-not-repeat-focus-marker";
+        require (not (contains body "desc,")) "pane-title-does-not-repeat-order-code";
+        let details = press (char_key 'i') in
+        require
+          (Act.selected_entry ~ctx fresh = Act.selected_entry ~ctx details)
+          "short-headings-preserve-selection"
+      end)
+    [ (120, 36); (80, 24); (48, 14); (32, 9); (24, 9); (1, 5); (0, 5) ];
 
   (* 14. Capacity & page size bounds *)
   let ws_pg, _ = Act.handle ~ctx ~dimensions:dim_wide ~width_of ws (key (`Page `Down)) in
@@ -780,7 +1023,114 @@ let self_check ~width_of () =
   require (capped <> wide) "amount-column-capped";
   require (contains at_end "see details") "amount-beyond-the-cap";
 
+  (* Reuse the same synthetic postings for the existing unbounded-amount and
+     mixed-Measure fallbacks. Typography must not turn either into a cut number
+     or an invented combined total. *)
+  let source = List.hd (Act.visible_entries ~ctx (Act.create ())) in
+  let huge = String.make 70 '9' in
+  let huge_entry =
+    {
+      source with
+      id = "typography-huge";
+      memo = Some "Huge amount";
+      effects =
+        List.map
+          (fun (p : B.posting) ->
+            let negative = String.starts_with ~prefix:"-" (B.format ctx.book p.measure p.amount) in
+            let amount =
+              get
+                (B.parse_signed_amount ctx.book ~measure:p.measure
+                   ((if negative then "-" else "") ^ huge))
+            in
+            { p with amount })
+          source.effects;
+    }
+  in
+  let huge_book = get (B.put_entry (get (B.read fixture)) ~replace:false huge_entry ~plan:None) in
+  let mixed_book =
+    get
+      (B.read
+         (Base.String.substr_replace_first fixture ~pattern:"MEASURE\tjpy\t0\n"
+            ~with_:"MEASURE\tjpy\t0\nMEASURE\teur\t2\n"))
+  in
+  let mixed_entry =
+    {
+      source with
+      id = "typography-mixed";
+      memo = Some "Mixed measures";
+      effects =
+        source.effects @ List.map (fun (p : B.posting) -> { p with measure = "eur" }) source.effects;
+    }
+  in
+  let mixed_book = get (B.put_entry mixed_book ~replace:false mixed_entry ~plan:None) in
+  List.iter
+    (fun dimensions ->
+      List.iter
+        (fun (book, description, summary) ->
+          let ctx = make_ctx book in
+          let listed = typography_rows ~ctx ~dimensions (Act.create ()) in
+          let row = typography_row listed description in
+          require (styled_token row O.Plain description) "typography-fallback-description";
+          if fst dimensions >= 48 then
+            require (styled_token row O.Heading summary) "typography-fallback-amount-column"
+          else require (styled_token row O.Heading "…") "typography-narrow-fallback-amount-cell")
+        [ (huge_book, "Huge amount", "see details"); (mixed_book, "Mixed measures", "multi (2)") ];
+      let ctx = make_ctx huge_book in
+      let detail = fst (Act.handle ~ctx ~dimensions ~width_of (Act.create ()) (char_key 'i')) in
+      let last = (Act.detail_window ~ctx ~dimensions ~width_of detail).Ui_panel.last in
+      let lines = Hashtbl.create 32 in
+      let rec scroll remaining state =
+        let rows = typography_rows ~ctx ~dimensions state in
+        let view = Act.detail_window ~ctx ~dimensions ~width_of state in
+        let rec after_title = function
+          | [] -> failwith "FAILED: actual_workspace_check: typography-details-title"
+          | row :: rest ->
+              if Base.String.is_substring (O.spans_text row) ~substring:"Details" then rest
+              else after_title rest
+        in
+        after_title rows
+        |> List.iteri (fun i row ->
+            if i < view.capacity then Hashtbl.replace lines (view.start + i) row);
+        if remaining > 0 then
+          scroll (remaining - 1) (fst (Act.handle ~ctx ~dimensions ~width_of state (char_key 'j')))
+      in
+      scroll last detail;
+      let rows =
+        Hashtbl.to_seq lines |> List.of_seq
+        |> List.sort (fun (a, _) (b, _) -> Int.compare a b)
+        |> List.map snd
+      in
+      (* At 120 columns Details occupies the existing 36-cell left pane;
+         elsewhere it fills the width. Borders and the wrapped indent use 3 cells. *)
+      let room = (if fst dimensions = 120 then 36 else fst dimensions) - 3 in
+      let rec after_amount_label = function
+        | [] -> failwith "FAILED: actual_workspace_check: typography-wrapped-amount-label"
+        | row :: rest ->
+            if styled_token row O.Chrome "Amount (wrapped):" then rest else after_amount_label rest
+      in
+      ignore
+        (List.fold_left
+           (fun rows (p : B.posting) ->
+             let amount =
+               Book_display.format_money huge_book p.measure p.amount ^ " " ^ p.measure
+             in
+             let pieces = O.wrap_text ~width_of room amount in
+             require (String.concat "" pieces = amount) "typography-wrapped-value-is-complete";
+             List.fold_left
+               (fun rows piece ->
+                 match rows with
+                 | row :: rest ->
+                     require
+                       (styled_token row O.Heading piece)
+                       "typography-wrapped-full-amount-is-heading";
+                     rest
+                 | [] -> failwith "FAILED: actual_workspace_check: typography-missing-amount-line")
+               (after_amount_label rows) pieces)
+           rows huge_entry.effects))
+    typography_dimensions;
+
   Printf.printf
     "PASS: Actual workspace synthetic checks (day groups, totals, partial marker, unreadable \
-     roles, period windows, orders, 3-pane navigation, live search, details, selection).\n\
+     roles, period windows, orders, 3-pane navigation, live search, details, selection, \
+     typography).\n\
      %!"
