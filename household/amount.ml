@@ -1,5 +1,14 @@
-(* Exact amount text: decimal quanta, positive arithmetic expressions and display.
-   No household, Measure lookup, clock or I/O; callers supply the retained scale. *)
+(* From receipt text to exact money.
+
+   The book stores integer quanta: 123 means 123 yen at scale 0, but 1.23 at
+   scale 2. Input need not be an integer at every step. Splitting a receipt as
+   (500+300)/2 should give 400; (100/3)*3 should give 100, without rounding the
+   intermediate third. For an expression, only the final amount must fit the
+   currency's scale.
+
+   This module knows the scale, not the currency or the household. Book looks
+   up the admitted Measure scale; here we only read, calculate and print text.
+   The examples in test/amount_boundary_tests.ml exercise that public path. *)
 module R = Q
 
 exception Refused of string
@@ -17,6 +26,11 @@ let integer s =
   require (integer_syntax s) "invalid-integer";
   Z.of_string s
 
+(* 1. Show the stored unit without losing it.
+
+   At scale 2, one quantum must print as 0.01, not 1 or 0.1. Splitting the
+   absolute integer keeps the fractional padding the same for either sign;
+   the sign is restored even when the whole part is zero, as in -0.01. *)
 let format ~decimals n =
   if decimals = 0 then Z.to_string n
   else
@@ -28,6 +42,12 @@ let format ~decimals n =
     ^ String.make (decimals - String.length digits) '0'
     ^ digits
 
+(* 2. Accept familiar notation, but do not guess the intended number.
+
+   Full-width digits and punctuation, and the multiplication and division
+   signs, are conveniences for typing or pasting a receipt. Translate just
+   those spellings. Leave other bytes intact so unsupported text reaches the
+   parser and is refused rather than silently disappearing. *)
 let normalize_amount_text text =
   let len = String.length text in
   let b = Buffer.create len in
@@ -68,6 +88,8 @@ let normalize_amount_text text =
   in
   loop 0
 
+(* A comma is evidence of grouping, not a character to discard blindly:
+   1,234 means 1234, but accepting 12,34 would hide a possible input mistake. *)
 let parse_whole whole =
   let is_digit c = c >= '0' && c <= '9' in
   if whole = "" then raise (Refused "invalid-amount");
@@ -88,8 +110,16 @@ let parse_whole whole =
           rest;
         String.concat "" groups
 
+(* 3. Calculate first; ask whether it is money at the end.
+
+   R is Zarith's exact rational arithmetic. A decimal such as 0.25 becomes
+   25/100, not a floating-point approximation. The parser follows precedence:
+   an atom is a decimal or parenthesized expression, a product combines atoms,
+   and an expression combines products. Each [more] consumes left to right,
+   so 20/2/2 means (20/2)/2, not 20/(2/2). *)
 let calculate_amount decimals text =
-  (* shortcut: cap expression input to bound recursive nesting, raise it if real receipts need more. *)
+  (* Parentheses recurse into the parser. The byte limit bounds that nesting;
+     it is an input-size limit, not a bound on the amount's integer range. *)
   require (String.length text <= 4096) "invalid-amount";
   let length = String.length text and pos = ref 0 in
   let rec spaces () =
@@ -152,10 +182,18 @@ let calculate_amount decimals text =
   spaces ();
   require (!pos = length) "invalid-amount";
   require (R.sign value > 0) "non-positive-amount";
+  (* Scaling is exact too. A remaining denominator means the result needs a
+     fraction of the smallest unit: refuse 100/3 yen rather than round it. *)
   let quanta = R.mul value (R.of_bigint (Z.pow (Z.of_int 10) decimals)) in
   require (Z.equal (R.den quanta) Z.one) "indivisible-amount";
   R.num quanta
 
+(* 4. Keep literal precision and signed input as distinct promises.
+
+   A literal states its own precision: at scale 2, 1.000 is refused even
+   though its value fits. An expression such as 1.000+0 instead asks for a
+   calculation; only its final value must fit. Keeping the literal path
+   separate preserves that distinction for both public parsers. *)
 let decimal_quanta ~decimals text =
   let is_digit c = c >= '0' && c <= '9' in
   match String.split_on_char '.' text with
@@ -181,6 +219,9 @@ let parse_positive ~decimals text =
         require (Z.sign n > 0) "non-positive-amount";
         n)
 
+(* Signed decimal input also admits zero; it is not the expression language
+   with an extra sign. Read the optional ASCII sign before normalization:
+   full-width digits are accepted, but a full-width leading sign is not. *)
 let parse_signed ~decimals text =
   protect (fun () ->
       let text = String.trim text in
