@@ -1,11 +1,19 @@
-(* One book file: the common book.txt (docs/COMMON_FORMAT.ja.md), which also holds the
-   accounting roles and Attention. Every publication rewrites the whole file: write a
-   temporary file and flush it to stable storage (F_FULLFSYNC on macOS), keep the
-   current file as [.prev], rename, flush the directory, and check the bytes read back.
-   The session keeps the book, whose admitted book.txt equals the file, so a save checks
-   and prints only what its operations change. Cooperative writers and stable parent namespaces are assumed;
-   not a security sandbox. Power loss was not physically tested. No background retry or
-   automatic repair. *)
+(* From an admitted book to a confirmed save.
+
+   Suppose a new entry reaches book.txt, then an I/O error prevents [Written]
+   from reaching the caller. Reporting an ordinary refusal would invite the
+   caller to record it again. Instead, keep the candidate's revision and
+   report [Uncertain]: reload to find out what is there, do not repeat the write.
+   test/book_file_tests.ml makes this interruption concrete on synthetic files.
+
+   The file is the common book.txt, including roles and Attention. Book owns
+   what may be recorded; this module owns reading and replacing the file.
+   We prepare the whole new file before replacing the old one, keeping the old
+   file as .prev. The session ties an admitted book to the file it last saw.
+
+   These checks assume cooperative writers and stable parent namespaces, not
+   a security sandbox. Flushes request durability; physical power loss remains
+   untested. There is no background retry or automatic repair. *)
 module B = Bakhlo_household.Book
 module T = Bakhlo_book_txt.Book_txt
 
@@ -14,7 +22,8 @@ exception Refused of string
 let require p why = if not p then raise (Refused why)
 let get why = function Ok x -> x | Error _ -> raise (Refused why)
 
-(* fsync(2), plus the drive-cache flush macOS needs for durability (full_sync_stubs.c). *)
+(* Request the platform's durable flush: F_FULLFSYNC where available on macOS,
+   fsync elsewhere. The implementation is in full_sync_stubs.c. *)
 external full_sync : Unix.file_descr -> unit = "bakhlo_full_sync"
 
 type stamp = { dev : int; ino : int; size : int; mtime : float }
@@ -37,6 +46,12 @@ type outcome =
 let stamp_of (s : Unix.stats) =
   { dev = s.st_dev; ino = s.st_ino; size = s.st_size; mtime = s.st_mtime }
 
+(* 1. Read one file, not pieces of two versions.
+
+   The pathname can change between inspecting it and opening it. Check the
+   opened descriptor against the initial file, read exactly its size, then
+   check both the descriptor and pathname again. The returned stamp belongs
+   to the bytes we accepted; it will help detect a stale session at save time. *)
 let read_stamped path =
   let initial = Unix.lstat path in
   require (initial.st_kind = Unix.S_REG) "regular-file-required";
@@ -63,6 +78,10 @@ let read_stamped path =
 let read path = fst (read_stamped path)
 let writer_locks : (string, int) Hashtbl.t = Hashtbl.create 8
 
+(* The lock has its own stable name because publishing replaces the book's
+   inode. It serializes cooperative writers, but does not prove that a session
+   is current: [publish] must check that separately while holding the lock.
+   Nested calls in this process reuse the lock via [writer_locks]. *)
 let with_writer path f =
   let lockpath = path ^ ".lock" in
   match Hashtbl.find_opt writer_locks lockpath with
@@ -87,6 +106,8 @@ let with_writer path f =
           Unix.lockf fd Unix.F_TLOCK 0;
           f ())
 
+(* A revision is a length-and-digest token for comparing observed contents.
+   It is not a backup, an audit history or a security boundary. *)
 let revision_of_bytes bytes =
   Printf.sprintf "%d:%s" (String.length bytes) (Digest.to_hex (Digest.string bytes))
 
@@ -138,6 +159,11 @@ let write_all fd bytes =
   in
   loop 0
 
+(* 2. Finish the candidate before giving it the book's name.
+
+   Exclusive creation prevents overwriting an existing file. A successful
+   write only fills the OS buffers: flush the file and check its bytes too.
+   This prepares contents, not the durability of a later rename. *)
 let write_new path bytes =
   let fd = Unix.openfile path [ Unix.O_WRONLY; Unix.O_CREAT; Unix.O_EXCL; Unix.O_CLOEXEC ] 0o600 in
   Fun.protect
@@ -147,6 +173,8 @@ let write_new path bytes =
       full_sync fd);
   require (read path = bytes) "readback-changed"
 
+(* File contents and directory names are different things to flush. After
+   creating or replacing a name, request a flush of its containing directory. *)
 let sync_parent path =
   let fd = Unix.openfile (Filename.dirname path) [ Unix.O_RDONLY; Unix.O_CLOEXEC ] 0 in
   Fun.protect ~finally:(fun () -> Unix.close fd) (fun () -> full_sync fd)
@@ -174,8 +202,11 @@ let create_empty ~path ~measure ~scale =
   require (session.revision = revision_of_bytes bytes) "first-run-cold-readback-changed";
   session
 
-(* The file is still exactly what this session last saw: same inode, size and
-   modification time, and the same bytes. *)
+(* 3. Do not overwrite a book somebody else has saved.
+
+   A matching stamp is a first check, not enough on its own: compare the
+   contents' revision too. A changed stamp is refused even if the contents
+   happen to match, because this is no longer the file the session observed. *)
 let unchanged session =
   match Unix.lstat session.path with
   | s when stamp_of s = session.stamp && s.st_kind = Unix.S_REG ->
@@ -188,9 +219,14 @@ let temp_prefix path = Filename.basename path ^ ".publish-"
 
 type publication_step = Temp_written | Previous_kept | Replaced
 
-(* Replace the whole file with [bytes]. The book file exists at every instant (old or
-   new); the replaced file becomes [.prev]. Stale temporaries of an interrupted
-   publication are redundant and removed first. *)
+(* Keep the old book reachable throughout replacement. Moving it to .prev
+   first would leave a moment with no book.txt. Instead, hard-link it under a
+   temporary name, replace .prev with that link, then rename the completed
+   candidate onto book.txt. The names stay in the same directory/filesystem.
+
+   Discard leftovers from interrupted publications; do not try to infer that
+   a temporary file should become the book. The current book remains the
+   authority. [checkpoint] exposes the three steps to interruption tests. *)
 let replace ~checkpoint path bytes =
   let dir = Filename.dirname path in
   Sys.readdir dir
@@ -212,7 +248,10 @@ let replace ~checkpoint path bytes =
   sync_parent path;
   checkpoint Replaced
 
-(* The book after [changes]. *)
+(* 4. Admit first, then publish, then report what we know.
+
+   Applying changes is pure: an invalid batch never begins replacement. This
+   also lets [revision_after] predict the candidate's revision without writing. *)
 let saved session changes =
   match B.apply session.book changes with Ok book -> book | Error why -> raise (Refused why)
 
@@ -230,6 +269,9 @@ let publish ?(checkpoint = fun _ -> ()) session changes =
         if not (unchanged session) then Conflict
         else
           let expected = revision_of_bytes bytes in
+          (* From here an I/O failure cannot tell the caller whether the new
+             book landed. Mark the attempt before any replacement work, even
+             though a failure at its first step may still leave the old book. *)
           attempted := Some expected;
           replace ~checkpoint session.path bytes;
           (* The in-memory book equals its book.txt reload (test/book_cold_reload_tests.ml),
@@ -245,11 +287,16 @@ let publish ?(checkpoint = fun _ -> ()) session changes =
       | Some expected -> Uncertain { expected }
       | None -> Refused_input "file-or-writer-unavailable")
 
-(* Whether a reloaded session shows the revision an uncertain publication promised. *)
+(* A fresh load can establish that the candidate is now present, not how far
+   the interrupted call got or whether its success was shown to the user. A
+   non-match leaves it unconfirmed; it is not authorization to repeat it. *)
 let confirms ~expected session = session.revision = expected
 
-(* Restore only to an explicitly fresh target, preserving original bytes. A
-   checked copy is not automatic adoption, reconciliation or a format upgrade. *)
+(* 5. Recovery makes a separate copy; it does not choose a new authority.
+
+   A .prev file is evidence, not an instruction to roll back. Copy only to an
+   explicitly fresh target, preserving original bytes. Checking that copy is
+   neither automatic adoption, reconciliation nor a format upgrade. *)
 let restore_copy ~source ~target =
   let bytes, _ = read_stamped source in
   let original = of_bytes source bytes (stamp_of (Unix.lstat source)) in

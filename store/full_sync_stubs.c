@@ -1,6 +1,6 @@
-/* Durable sync for the household writer (user decision 2026-10-21).
-   On macOS fsync(2) leaves data in the drive cache; F_FULLFSYNC flushes it, so a
-   save shown as done survives power loss. Elsewhere fsync(2) is the durable call. */
+/* Request durable sync for the household writer (user decision 2026-10-21).
+   On macOS use F_FULLFSYNC to request a drive-cache flush, not just fsync(2).
+   Elsewhere use fsync(2). These requests are not a physical power-loss test. */
 #include <fcntl.h>
 #include <unistd.h>
 #include <caml/mlvalues.h>

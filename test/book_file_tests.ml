@@ -169,6 +169,42 @@ let%expect_test
     uncertain; new book on disk: true; old book otherwise: true; next save leaves 0 temporaries
     |}]
 
+(* The opening example in Book_file: replacement has completed, but an
+   injected exception stops the call from returning Written. Reloading answers
+   whether the candidate is present; repeating the old request is not recovery. *)
+let%expect_test "an exception after replacement is resolved by reload, not by repeating the change"
+    =
+  let s = start () in
+  let expected = F.revision_after s [ put 1 ] in
+  Stdio.printf "prediction leaves file unchanged: %b\n"
+    (String.equal (F.read_revision s.path) s.revision);
+  let outcome =
+    F.publish
+      ~checkpoint:(function F.Replaced -> raise (Sys_error "simulated-interruption") | _ -> ())
+      s
+      [ put 1 ]
+  in
+  Stdio.printf "outcome after replacement: %s\n" (describe outcome);
+  let reported =
+    match outcome with F.Uncertain { expected } -> expected | _ -> failwith "expected Uncertain"
+  in
+  Stdio.printf "candidate revision retained: %b\n" (String.equal reported expected);
+  let cold = F.reload s in
+  Stdio.printf "reload confirms candidate: %b; entries added: %d\n"
+    (F.confirms ~expected:reported cold)
+    (List.length (B.entries cold.book) - List.length (B.entries s.book));
+  let repeated = F.publish s [ put 1 ] in
+  Stdio.printf "repeat from stale session: %s; reloaded revision kept: %b\n" (describe repeated)
+    (String.equal (F.read_revision s.path) cold.revision);
+  [%expect
+    {|
+    prediction leaves file unchanged: true
+    outcome after replacement: uncertain
+    candidate revision retained: true
+    reload confirms candidate: true; entries added: 1
+    repeat from stale session: conflict; reloaded revision kept: true
+    |}]
+
 (* A writer killed while holding the lock: the file still loads to the old or the
    new book, never a partial one, and the lock is released. *)
 let%expect_test "a killed writer leaves the old or the new book" =
