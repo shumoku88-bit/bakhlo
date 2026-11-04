@@ -173,8 +173,8 @@ let quantity_cell ~width_of ~width quantity =
   if width_of quantity <= width then quantity else if width >= 11 then "see details" else "…"
 
 let current_table ~width_of ~width ~book items_list =
-  (* The amount leads the eye, not the whole selected row. Unsupported values and
-     overflow placeholders stay warnings; typography must not suggest exactness. *)
+  (* The amount leads on unselected rows; focus highlights the whole account row.
+     Unsupported values and overflow placeholders never become exact digits. *)
   let styled spans = (O.Spans spans, O.spans_text spans) in
   let quantity_span ~width ~supported quantity =
     let text = quantity_cell ~width_of ~width quantity in
@@ -772,7 +772,13 @@ let screen ~book ~measure ~roles ~balance_view_text ~dimensions:(width, height) 
                 let spans =
                   marker :: (match style with O.Spans spans -> spans | _ -> [ (style, text) ])
                 in
-                (O.Spans spans, O.spans_text spans))
+                let text = O.spans_text spans in
+                let spans =
+                  match style with
+                  | O.Spans _ when chosen && not is_detail -> [ (O.Active, text) ]
+                  | _ -> spans
+                in
+                (O.Spans spans, text))
         in
         let rows =
           (if height >= 4 then

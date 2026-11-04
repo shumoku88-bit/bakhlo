@@ -509,23 +509,45 @@ let unit_checks ~width_of () =
               let marker = if detail then " * " else " > " in
               let row = List.find (fun spans -> contains (O.spans_text spans) marker) panes in
               let active = List.concat panes |> List.filter (fun (s, _) -> s = O.Active) in
-              require
-                (active = if detail then [] else [ (O.Active, " > ") ])
-                "typography-active-only-on-marker";
-              require
-                (styled (if detail then O.Chrome else O.Active) marker row
-                && styled O.Plain locus row && styled O.Chrome measure row)
-                "typography-marker-name-measure-styles";
               let compact = fst dimensions < 60 in
               let value = if amount = None && compact then "unsupported" else money in
-              require (styled money_style value row) "typography-current-amount-style";
+              let row_text = O.spans_text row in
+              require
+                (contains row_text marker && contains row_text locus && contains row_text measure
+               && contains row_text value)
+                "typography-current-row-keeps-marker-name-measure-amount";
               if not compact then
                 require
-                  (styled
-                     (if amount = None then O.Status else O.Chrome)
-                     (if amount = None then "unsupported" else "exact")
-                     row)
-                  "typography-current-state-style";
+                  (contains row_text (if amount = None then "unsupported" else "exact"))
+                  "typography-current-row-keeps-state";
+              if detail then (
+                require (active = []) "typography-inactive-list-has-no-active-span";
+                let focused_row =
+                  paint environment dimensions owner
+                  |> List.find (fun spans -> contains (O.spans_text spans) " > ")
+                in
+                require
+                  (snd (split_cells 4 (O.spans_text focused_row)) = snd (split_cells 4 row_text))
+                  "typography-focus-changes-only-marker-not-row-text";
+                require
+                  (styled O.Chrome marker row && styled O.Plain locus row
+                 && styled O.Chrome measure row)
+                  "typography-inactive-marker-name-measure-styles";
+                require (styled money_style value row) "typography-inactive-amount-style";
+                if not compact then
+                  require
+                    (styled
+                       (if amount = None then O.Status else O.Chrome)
+                       (if amount = None then "unsupported" else "exact")
+                       row)
+                    "typography-inactive-state-style")
+              else
+                require
+                  (match row with
+                  | [ (O.Plain, "│"); (O.Active, text); (O.Plain, "│") ] ->
+                      active = [ (O.Active, text) ]
+                  | _ -> false)
+                  "typography-focused-account-single-active-full-row";
               require
                 (List.exists (styled money_style ("Amount: " ^ money ^ " " ^ measure)) panes)
                 "typography-detail-amount-style";
@@ -559,10 +581,65 @@ let unit_checks ~width_of () =
             [ false; true ])
         cases;
       List.iter
+        (fun (environment, selected, locus, measure, money, money_style) ->
+          List.iter
+            (fun detail ->
+              let state = Balances.set_selected selected owner in
+              let state =
+                if detail then fst (Balances.handle environment g state (char_key 'i')) else state
+              in
+              let row =
+                paint environment dimensions state
+                |> List.find (function
+                  | (O.Plain, "│") :: (O.Plain, "   ") :: rest ->
+                      styled O.Plain locus rest && styled O.Chrome measure rest
+                  | _ -> false)
+              in
+              let unknown = money_style = O.Status in
+              let compact = fst dimensions < 60 in
+              let value = if unknown && compact then "unsupported" else money in
+              require
+                ((not (List.exists (fun (s, _) -> s = O.Active) row))
+                && styled O.Plain locus row && styled O.Chrome measure row
+                && styled money_style value row)
+                "typography-unselected-account-keeps-field-roles-in-either-focus";
+              if not compact then
+                require
+                  (styled
+                     (if unknown then O.Status else O.Chrome)
+                     (if unknown then "unsupported" else "exact")
+                     row)
+                  "typography-unselected-state-keeps-field-role")
+            [ false; true ])
+        [
+          (bv, 1, "bank", "jpy", "200,000", O.Heading);
+          (edge_env, 2, "wallet", "eur", "0.01", O.Heading);
+          (edge_env, 2, "bank", "eur", "-0.01", O.Heading);
+          (edge_env, 0, "food", "eur", "0.00", O.Heading);
+          (unknown_env, 1, "bank", "eur", "?", O.Status);
+          (unknown_env, 0, "food", "jpy", "0", O.Heading);
+        ];
+      List.iter
         (fun (environment, token, style) ->
-          let panes = paint environment dimensions owner in
-          let row = List.find (fun spans -> contains (O.spans_text spans) " > ") panes in
+          let state = fst (Balances.handle environment g owner (char_key 'i')) in
+          let panes = paint environment dimensions state in
+          let row = List.find (fun spans -> contains (O.spans_text spans) " * ") panes in
+          require
+            (not (List.exists (fun (s, _) -> s = O.Active) (List.concat panes)))
+            "typography-overflow-inactive-list-has-no-active-span";
           require (styled style token row) "typography-long-measure-and-overflow-style";
+          let focused_panes = paint environment dimensions owner in
+          let focused_row =
+            List.find (fun spans -> contains (O.spans_text spans) " > ") focused_panes
+          in
+          require
+            (match focused_row with
+            | [ (O.Plain, "│"); (O.Active, text); (O.Plain, "│") ] -> contains text token
+            | _ -> false)
+            "typography-focused-overflow-single-active-full-row";
+          require
+            (snd (split_cells 4 (O.spans_text focused_row)) = snd (split_cells 4 (O.spans_text row)))
+            "typography-focus-keeps-overflow-text-and-clipping";
           if style = O.Status then
             require
               (not (List.exists (fun (s, _) -> s = O.Heading) row))
@@ -577,10 +654,23 @@ let unit_checks ~width_of () =
             if fst dimensions = 32 then O.Status else O.Heading );
         ];
       let warned_env = env ~book (Ok (Some "malformed\n")) in
-      let warning = paint warned_env dimensions owner |> List.concat in
-      require
-        (List.exists (fun (s, text) -> s = O.Status && contains text "Balance view") warning)
-        "typography-malformed-config-warning-stays-strong")
+      List.iter
+        (fun detail ->
+          let state =
+            if detail then fst (Balances.handle warned_env g owner (char_key 'i')) else owner
+          in
+          let panes = paint warned_env dimensions state in
+          let marker = if detail then " * " else " > " in
+          let row = List.find (fun spans -> contains (O.spans_text spans) marker) panes in
+          require
+            (styled O.Status "Balance view" row
+            && styled (if detail then O.Chrome else O.Active) marker row)
+            "typography-selected-non-account-error-stays-status";
+          require
+            (List.filter (fun (s, _) -> s = O.Active) (List.concat panes)
+            = if detail then [] else [ (O.Active, marker) ])
+            "typography-non-account-error-never-whole-row-active")
+        [ false; true ])
     [ (80, 36); (48, 36); (32, 36); (120, 36) ];
   let huge_panes = paint huge_env (80, 48) owner in
   O.wrap_text ~width_of:cell_width 77

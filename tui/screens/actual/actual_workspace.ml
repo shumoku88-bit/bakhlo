@@ -952,15 +952,16 @@ let list_panel ~book ~width_of t ~records ~groups ~loci pane (width, height) tit
             let chosen =
               match display_row.entry with Some index -> index = selected | None -> false
             in
-            (* The marker, not a band of bold reversed text, locates the
-               selection. Keeping the description plain preserves the amount's
-               emphasis, including while focus is in another pane. *)
+            (* Follow a focused selection across the whole row. When focus moves
+               away, keep its marker but restore the date/amount hierarchy. *)
             let marker = if chosen then if active then " > " else " * " else "   " in
             let spans =
               ((if chosen && active then O.Active else O.Plain), marker)
               :: Lazy.force display_row.spans
             in
-            (O.Spans spans, O.spans_text spans)
+            let text = O.spans_text spans in
+            let spans = if chosen && active then [ (O.Active, text) ] else spans in
+            (O.Spans spans, text)
         | None ->
             (O.Plain, if row = 0 && pane = Transactions then " (no matching Actual records)" else ""))
   in

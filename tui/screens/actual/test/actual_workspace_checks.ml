@@ -91,6 +91,16 @@ let rec typography_spans ~width_of (style, text) =
   match style with
   | O.Spans spans ->
       require (O.spans_text spans = text) "typography-spans-text";
+      if List.exists (fun (style, _) -> style = O.Active) spans then
+        (* A framed selection paints its complete row, including fit padding;
+           only the frame cells stay outside the highlight. *)
+        begin match spans with
+        | [ (O.Plain, "│"); (O.Active, chosen); (O.Plain, "│") ] ->
+            require
+              (String.starts_with ~prefix:" > " chosen && width_of chosen > 3)
+              "typography-active-row-keeps-marker-and-content"
+        | _ -> require false "typography-active-covers-whole-row-inside-frame"
+        end;
       List.concat_map (typography_spans ~width_of) spans
   | O.Columns (width, left_style, right_style) ->
       let split cells text =
@@ -267,20 +277,24 @@ let self_check ~width_of () =
         state
     in
     require (List.length rows = snd dimensions) "typography-height-unchanged";
-    List.map
-      (fun ((_, text) as row) ->
-        let spans = typography_spans ~width_of row in
-        require (O.spans_text spans = text) "typography-flattened-text";
-        require
-          (width_of text <= fst dimensions && O.spans_width ~width_of spans = width_of text)
-          "typography-text-and-span-cell-widths";
-        List.iter
-          (fun (style, text) ->
-            if style = O.Active then
-              require (text = " > " && width_of text = 3) "typography-active-is-only-the-marker")
-          spans;
-        spans)
-      rows
+    let rows =
+      List.map
+        (fun ((_, text) as row) ->
+          let spans = typography_spans ~width_of row in
+          require (O.spans_text spans = text) "typography-flattened-text";
+          require
+            (width_of text <= fst dimensions && O.spans_width ~width_of spans = width_of text)
+            "typography-text-and-span-cell-widths";
+          spans)
+        rows
+    in
+    let active_rows =
+      List.concat rows |> List.filter (fun (style, _) -> style = O.Active) |> List.length
+    in
+    require
+      (active_rows = match Act.pane state with Act.Details -> 0 | Act.Loci | Act.Transactions -> 1)
+      "typography-only-focused-list-has-one-active-row";
+    rows
   in
   let typography_row rows token =
     match
@@ -337,10 +351,11 @@ let self_check ~width_of () =
       if fst dimensions >= 48 then
         require (styled_token day O.Chrome "2 entries") "typography-day-count";
       let coffee = typography_row listed "Coffee shop" in
-      require (styled_token coffee O.Plain "Coffee shop") "typography-entry-description";
-      require (styled_token coffee O.Active " > ") "typography-selected-entry-marker";
+      require
+        (styled_token coffee O.Active "Coffee shop" && styled_token coffee O.Active " > ")
+        "typography-selected-entry-description-and-marker";
       if fst dimensions >= 48 then begin
-        require (styled_token coffee O.Heading "500 jpy") "typography-entry-amount";
+        require (styled_token coffee O.Active "500 jpy") "typography-selected-entry-amount";
         let supermarket = typography_row listed "Supermarket" in
         require
           (styled_token supermarket O.Plain "Supermarket"
@@ -351,20 +366,25 @@ let self_check ~width_of () =
           (styled_token rent_day O.Chrome "1 entry" && styled_token rent_day O.Heading "50,000 jpy")
           "typography-singular-count-and-day-total"
       end
-      else require (styled_token coffee O.Heading "…") "typography-narrow-amount-cell-is-heading";
+      else require (styled_token coffee O.Active "…") "typography-narrow-selected-amount-is-active";
       let loci = press fresh (char_key 'h') in
       let loci_rows = typography_rows ~ctx ~dimensions loci in
+      let all_loci = typography_row loci_rows "[All loci]" in
       require
-        (styled_token (typography_row loci_rows "[All loci]") O.Active " > ")
-        "typography-selected-locus-marker";
+        (styled_token all_loci O.Active " > " && styled_token all_loci O.Active "[All loci]")
+        "typography-selected-locus-marker-and-description";
       if fst dimensions >= 98 then begin
         let inactive = typography_row loci_rows "Coffee shop" in
         require
-          (styled_token inactive O.Plain " * " && styled_token inactive O.Plain "Coffee shop")
-          "typography-unfocused-entry-marker-retained";
+          (styled_token inactive O.Plain " * "
+          && styled_token inactive O.Plain "Coffee shop"
+          && styled_token inactive O.Heading "500 jpy")
+          "typography-unfocused-entry-marker-description-and-amount";
+        let inactive_locus = typography_row listed "[All loci]" in
         require
-          (styled_token (typography_row listed "[All loci]") O.Plain " * ")
-          "typography-unfocused-locus-marker-retained"
+          (styled_token inactive_locus O.Plain " * "
+          && styled_token inactive_locus O.Plain "[All loci]")
+          "typography-unfocused-locus-marker-and-description"
       end;
       let details = press fresh (char_key 'i') in
       let detail_rows = typography_rows ~ctx ~dimensions details in
@@ -376,27 +396,44 @@ let self_check ~width_of () =
         (Act.selected_entry ~ctx fresh = Act.selected_entry ~ctx details
         && Act.selected_entry ~ctx fresh = Act.selected_entry ~ctx (press details (char_key 'i')))
         "typography-focus-roundtrip-retains-selection";
-      if fst dimensions >= 98 then
+      if fst dimensions >= 98 then begin
+        let inactive = typography_row detail_rows "Coffee shop" in
         require
-          (styled_token (typography_row detail_rows "Coffee shop") O.Plain " * ")
-          "typography-details-retains-inactive-entry-marker";
+          (styled_token inactive O.Plain " * "
+          && styled_token inactive O.Plain "Coffee shop"
+          && styled_token inactive O.Heading "500 jpy")
+          "typography-details-retains-inactive-entry-roles"
+      end;
       let japanese_ctx = make_ctx japanese_book in
       let japanese_rows = typography_rows ~ctx:japanese_ctx ~dimensions fresh in
       let japanese = typography_row japanese_rows "日本" in
-      require (styled_token japanese O.Plain "日本") "typography-japanese-description";
+      require (styled_token japanese O.Active "日本") "typography-selected-japanese-description";
       require
-        (styled_token japanese O.Active " > "
-        && Base.String.is_substring (O.spans_text japanese) ~substring:"…")
-        "typography-japanese-clipping-keeps-marker";
+        (styled_token japanese O.Active " > " && styled_token japanese O.Active "…")
+        "typography-selected-japanese-clipping-keeps-marker";
       if fst dimensions >= 48 then
-        require (styled_token japanese O.Heading "1,234 jpy") "typography-japanese-full-amount";
+        require
+          (styled_token japanese O.Active "1,234 jpy")
+          "typography-selected-japanese-full-amount";
       let largest = press (press fresh (char_key 's')) (char_key 's') in
       let amount_rows = typography_rows ~ctx ~dimensions largest in
       let rent = typography_row amount_rows "Apartment" in
-      require (styled_token rent O.Plain "Apartment") "typography-amount-order-description";
-      require (styled_token rent O.Chrome "2026-10-14") "typography-amount-order-date-is-context";
+      require
+        (styled_token rent O.Active "Apartment")
+        "typography-selected-amount-order-description";
+      require (styled_token rent O.Active "2026-10-14") "typography-selected-amount-order-date";
       if fst dimensions >= 48 then
-        require (styled_token rent O.Heading "50,000 jpy") "typography-amount-order-amount")
+        require (styled_token rent O.Active "50,000 jpy") "typography-selected-amount-order-amount";
+      if fst dimensions >= 98 then begin
+        let inactive_rows = typography_rows ~ctx ~dimensions (press largest (char_key 'h')) in
+        let inactive = typography_row inactive_rows "Apartment" in
+        require
+          (styled_token inactive O.Plain " * "
+          && styled_token inactive O.Plain "Apartment"
+          && styled_token inactive O.Chrome "2026-10-14"
+          && styled_token inactive O.Heading "50,000 jpy")
+          "typography-unfocused-amount-order-restores-description-date-and-money"
+      end)
     typography_dimensions;
 
   (* 6. Pane cycling *)
@@ -1070,10 +1107,22 @@ let self_check ~width_of () =
           let ctx = make_ctx book in
           let listed = typography_rows ~ctx ~dimensions (Act.create ()) in
           let row = typography_row listed description in
-          require (styled_token row O.Plain description) "typography-fallback-description";
+          require (styled_token row O.Active description) "typography-selected-fallback-description";
           if fst dimensions >= 48 then
-            require (styled_token row O.Heading summary) "typography-fallback-amount-column"
-          else require (styled_token row O.Heading "…") "typography-narrow-fallback-amount-cell")
+            require (styled_token row O.Active summary) "typography-selected-fallback-amount-column"
+          else require (styled_token row O.Active "…") "typography-narrow-selected-fallback-cell";
+          if fst dimensions >= 98 then begin
+            let inactive =
+              fst (Act.handle ~ctx ~dimensions ~width_of (Act.create ()) (char_key 'h'))
+            in
+            let row = typography_row (typography_rows ~ctx ~dimensions inactive) description in
+            require
+              (styled_token row O.Plain description)
+              "typography-inactive-fallback-description";
+            require
+              (styled_token row O.Heading summary)
+              "typography-inactive-fallback-amount-column"
+          end)
         [ (huge_book, "Huge amount", "see details"); (mixed_book, "Mixed measures", "multi (2)") ];
       let ctx = make_ctx huge_book in
       let detail = fst (Act.handle ~ctx ~dimensions ~width_of (Act.create ()) (char_key 'i')) in
