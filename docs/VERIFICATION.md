@@ -6,6 +6,58 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Balances Current typography trial (2026-11-04)
+
+- User asked to extend the Actual typography work to another area. Baseline main
+  and locally recorded origin/main were clean `2b03863`. Scope: Current rendering
+  and its existing owner checks; no dependency, format, palette or font change.
+- Exact list amounts use Heading, names remain Plain, list Measures/exact states
+  use Chrome, and only the focused selection marker uses Active. Current frame
+  titles omit `[active]`; active frames and inactive selection markers remain.
+  Detail Amount intentionally emphasizes its unit too, as one reading unit;
+  separate Measure metadata remains quiet. Unsupported amounts/states/reasons
+  and overflow placeholders use Status, never inferred zeros or partial digits.
+  Accounting, text order, geometry, footer, navigation, Observe/Print and save
+  semantics stay unchanged. Static review found no source-safety blocker; its
+  question about the detail unit was resolved as that intentional distinction.
+- Existing focused owner checks passed before editing. Added tests cover exact
+  zero, negative/scale-2 amounts, unknown, huge values, long/unidentifiable units,
+  malformed display config, marker-only selection, focus, span/text agreement,
+  and unchanged Observe/Print/Accounting. Test cell widths are fixture-only
+  ASCII/box/CJK widths, not full Notty or physical-font qualification.
+- Initial focused checks exited 1: compact Measure styling was missing, then
+  test assumptions overestimated the old 32-column footer and expected an
+  unsupported value when its unit could not be identified. The compact style
+  was corrected and those two expectations now preserve the pre-existing
+  display/safety behavior. Final focused owner checks pass.
+- `rtk test ./tools/check` and `rtk test ./tools/tui --self-check`: exit 0,
+  including existing native Notty cell-width/geometry checks. RTK summarizes
+  the existing commands; it does not replace them.
+- Final `rtk test ./tools/opam exec -- dune runtest tui/screens/balances/test --force`,
+  `./tools/format --check`, `./tools/privacy-scan --all` and `git diff --check`:
+  exit 0. Formatting was applied only to the two changed OCaml files.
+- Public synthetic tmux before/after captures cover list/detail at 120x36,
+  80x24, 48x14 and 32x9. Excluding intentionally changed frame-title rows, body
+  text matches exactly; ANSI presentation differs. Book and display-config
+  checksums remain unchanged. The synthetic book is admitted by `--check`.
+- One fresh read-only household generation was used for before/after and the
+  existing LOAM binary, at 120x36/80x24, list and focused detail. Body text
+  matches before/after. Initial synthetic/LOAM readiness conditions were wrong
+  (Home menu text was mistaken for LOAM Balances); those attempts were rejected.
+  Final captures positively require Current context and inactive selection after
+  detail focus. A bounded private review confirmed corrected LOAM Current states.
+  Reference differences include marker-only versus row-wide selection, money
+  emphasis and existing Shell/Amount-versus-Quanta geometry; no full accounting
+  or operation-parity claim. No unknown warning is visible in these latest-copy
+  captures; warning style is qualified only by synthetic checks in this pass.
+- All AI-owned capture processes are closed. Original book/config and both copies
+  compare identical; `./tools/compare clean-copies`: exit 0. Private material stays
+  only in ignored scratch. No AI operational-household writes, commit or push.
+  Daily `bk` remains `2b03863`; this trial has no pushed-SHA CI claim. Physical
+  font/terminal/IME and full human acceptance **not executed**. The user subsequently
+  responded favorably and requested committing the trial, then continuing with
+  Scheduled. This feedback does not establish exhaustive physical-terminal acceptance.
+
 ## bk publication preparation (2026-11-04)
 
 - User request: make the changes available through ordinary `bk`; after inspecting
@@ -28,6 +80,14 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
   qualification only: matching GitHub CI and an installed-revision/full-launcher
   check are separate post-push evidence, not inferred from local green.
   The operational household was not opened or written during this preparation.
+- Post-push completion: `2b038634f63db2749e0c6eaad21e3aaffc8f8d0f` was published.
+  [Matching CI](https://github.com/shumoku88-bit/bakhlo/actions/runs/41754910195)
+  concluded success, including Linux PTY; `gh run watch 41754910195 --exit-status`
+  exited 0. The real `bk` wrapper fetched/built this revision using an isolated
+  synthetic Git household and local bare backup remote. Updated Actual was visible;
+  exit 0, book checksum unchanged, synthetic repository clean. Main, origin/main,
+  dedicated run worktree and installed stamp matched. No operational-household TUI
+  session in that deployment. Existing Actions deprecation annotations were non-fatal.
 
 ## Actual headings and width-fitted help (2026-11-03)
 

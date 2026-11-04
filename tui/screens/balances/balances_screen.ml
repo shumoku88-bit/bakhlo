@@ -173,6 +173,14 @@ let quantity_cell ~width_of ~width quantity =
   if width_of quantity <= width then quantity else if width >= 11 then "see details" else "…"
 
 let current_table ~width_of ~width ~book items_list =
+  (* The amount leads the eye, not the whole selected row. Unsupported values and
+     overflow placeholders stay warnings; typography must not suggest exactness. *)
+  let styled spans = (O.Spans spans, O.spans_text spans) in
+  let quantity_span ~width ~supported quantity =
+    let text = quantity_cell ~width_of ~width quantity in
+    let style = if supported && text = quantity then O.Heading else O.Status in
+    (style, O.pad_left ~width_of width text)
+  in
   let room = max 0 (width - 5) in
   let measure_width =
     List.fold_left
@@ -187,9 +195,12 @@ let current_table ~width_of ~width ~book items_list =
     let name locus measure =
       let suffix = " / " ^ measure in
       if width_of suffix <= name_width then
-        (O.clip_text ~width_of (name_width - width_of suffix) locus ^ suffix, true)
-      else if width_of measure <= name_width then (measure, true)
-      else (locus, false)
+        ( [
+            (O.Plain, O.clip_text ~width_of (name_width - width_of suffix) locus); (O.Chrome, suffix);
+          ],
+          true )
+      else if width_of measure <= name_width then ([ (O.Chrome, measure) ], true)
+      else ([ (O.Plain, locus) ], false)
     in
     let lines =
       List.map
@@ -203,10 +214,18 @@ let current_table ~width_of ~width ~book items_list =
                   | Book_display.Exact _ -> current_amount ~book ~measure value
                   | Book_display.Unsupported -> current_state value
               in
-              O.pad ~width_of name_width name ^ "  "
-              ^ O.pad_left ~width_of quantity_width
-                  (quantity_cell ~width_of ~width:quantity_width quantity)
-          | item -> Balance_items.balance_item_line ~width_of ~width:room ~book item)
+              styled
+                (O.fit_spans ~width_of name_width name
+                @ [
+                    (O.Plain, "  ");
+                    quantity_span ~width:quantity_width
+                      ~supported:
+                        (match value with
+                        | Book_display.Exact _ -> identified
+                        | Unsupported -> false)
+                      quantity;
+                  ])
+          | item -> (O.Status, Balance_items.balance_item_line ~width_of ~width:room ~book item))
         items_list
     in
     ("Locus / Measure  Value / state", lines)
@@ -224,22 +243,29 @@ let current_table ~width_of ~width ~book items_list =
     in
     let quantity_width = min desired (room - measure_width - state_width - 13) in
     let locus_width = max 1 (room - quantity_width - measure_width - state_width - 5) in
-    let row locus quantity measure state =
-      O.pad ~width_of locus_width locus ^ "  "
-      ^ O.pad_left ~width_of quantity_width (quantity_cell ~width_of ~width:quantity_width quantity)
-      ^ " "
-      ^ O.pad ~width_of measure_width measure
-      ^ "  " ^ O.pad ~width_of state_width state
+    let row ~supported locus quantity measure state =
+      [
+        (O.Plain, O.pad ~width_of locus_width locus ^ "  ");
+        quantity_span ~width:quantity_width ~supported quantity;
+        (O.Chrome, " " ^ O.pad ~width_of measure_width measure ^ "  ");
+        ((if supported then O.Chrome else O.Status), O.pad ~width_of state_width state);
+      ]
     in
     let lines =
       List.map
         (function
           | Balance_items.Account_row { locus; measure; value; _ } ->
-              row locus (current_amount ~book ~measure value) measure (current_state value)
-          | item -> Balance_items.balance_item_line ~width_of ~width:room ~book item)
+              let supported =
+                match value with Book_display.Exact _ -> true | Unsupported -> false
+              in
+              styled
+                (row ~supported locus
+                   (current_amount ~book ~measure value)
+                   measure (current_state value))
+          | item -> (O.Status, Balance_items.balance_item_line ~width_of ~width:room ~book item))
         items_list
     in
-    (row "Locus" "Amount" "Measure" "State", lines)
+    (O.spans_text (row ~supported:false "Locus" "Amount" "Measure" "State"), lines)
 
 let current_detail ~book item =
   match item with
@@ -272,13 +298,25 @@ let detail_lines ~book t items_list =
       | `Current -> current_detail ~book item)
 
 let detail_rows ~width_of ~width ~book t items_list =
+  let unsupported =
+    match List.nth_opt items_list t.selected with
+    | Some (Balance_items.Account_row { value = Book_display.Unsupported; _ }) -> true
+    | _ -> false
+  in
   detail_lines ~book t items_list
   |> List.mapi (fun index line ->
       match t.mode with
       | `Accounting ->
           O.wrap_text ~width_of (max 1 (width - 6)) line |> List.map (fun text -> (O.Plain, text))
       | `Current ->
-          let style = if index = 0 || index = 2 then O.Plain else O.Chrome in
+          (* In detail the amount and its unit are one reading unit. Unknown
+             support is a warning, not the subdued metadata around that unit. *)
+          let style =
+            if index = 2 then if unsupported then O.Status else O.Heading
+            else if unsupported && (index = 3 || index = 4) then O.Status
+            else if index = 0 then O.Plain
+            else O.Chrome
+          in
           O.wrap_text ~width_of (max 1 (width - 3)) line
           |> List.map (fun text -> (style, " " ^ text)))
   |> List.concat
@@ -692,19 +730,16 @@ let screen ~book ~measure ~roles ~balance_view_text ~dimensions:(width, height) 
         let heading, lines = current_table ~width_of ~width:layout.list_width ~book items_list in
         (Some heading, lines)
     | `Accounting ->
-        (None, balance_lines ~width_of ~width:(max 0 (layout.list_width - 6)) ~book items_list)
+        ( None,
+          List.map
+            (fun text -> (O.Plain, text))
+            (balance_lines ~width_of ~width:(max 0 (layout.list_width - 6)) ~book items_list) )
   in
   let wrapped_detail = detail_rows ~width_of ~width:layout.detail_width ~book t items_list in
   let is_detail = t.pane = `Detail in
-  let list_title =
-    match t.mode with
-    | `Accounting -> title t
-    | `Current -> if is_detail then "Balances" else "Balances [active]"
-  in
+  let list_title = match t.mode with `Accounting -> title t | `Current -> "Balances" in
   let detail_title =
-    match t.mode with
-    | `Accounting -> "Selected Balance"
-    | `Current -> if is_detail then "Selected balance [active]" else "Selected balance"
+    match t.mode with `Accounting -> "Selected Balance" | `Current -> "Selected balance"
   in
   let list_panel ~height =
     match t.mode with
@@ -712,7 +747,7 @@ let screen ~book ~measure ~roles ~balance_view_text ~dimensions:(width, height) 
         Panel.frame ?heading ~width_of ~width:layout.list_width ~height ~focused:(not is_detail)
           ~title:list_title ~scroll:t.list_scroll
           ~selected:(if lines = [] then None else Some t.selected)
-          lines
+          (List.map snd lines)
     | `Current ->
         let count = List.length lines in
         let window =
@@ -728,10 +763,16 @@ let screen ~book ~measure ~roles ~balance_view_text ~dimensions:(width, height) 
             |> List.map (fun text -> (O.Chrome, " " ^ text))
           else
             List.filteri (fun i _ -> i >= window.start && i - window.start < window.capacity) lines
-            |> List.mapi (fun offset text ->
+            |> List.mapi (fun offset (style, text) ->
                 let chosen = t.selected = window.start + offset in
-                ( (if chosen && not is_detail then O.Active else O.Plain),
-                  (if chosen then if is_detail then " * " else " > " else "   ") ^ text ))
+                let marker =
+                  if chosen then if is_detail then (O.Chrome, " * ") else (O.Active, " > ")
+                  else (O.Plain, "   ")
+                in
+                let spans =
+                  marker :: (match style with O.Spans spans -> spans | _ -> [ (style, text) ])
+                in
+                (O.Spans spans, O.spans_text spans))
         in
         let rows =
           (if height >= 4 then

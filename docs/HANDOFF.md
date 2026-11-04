@@ -8,13 +8,24 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
 
 ## Where things stand (2026-11-04)
 
-- 2026-11-04: the user approved publishing the entire reading/typography series
-  for ordinary `bk` use. Source/test slices are `96f6de6`, `ce55121`, `5060525`
-  and `2117aa0`; the policy/evidence slice follows them. Fresh full checks,
-  TUI self-check, formatting, privacy scan and diff checks pass. `bk` still
-  delegates to `tools/household` and runs only pushed `origin/main`; its safety
-  policy and the operational household are not changed by this preparation.
-  Matching CI and the installed launcher revision are separate post-push checks.
+- 2026-11-04: Balances Current typography trial: exact list amounts lead, names
+  stay ordinary, units/exact-state metadata stay quiet, selection uses only its
+  marker, and Current titles omit `[active]`. Detail Amount includes its unit;
+  unsupported evidence and overflow placeholders stay strong. No changes to
+  Accounting, geometry, footer, quantities or save/Observe/Print semantics.
+  Focused/full/TUI checks pass; four synthetic sizes and latest-copy before/after
+  at two sizes keep body text unchanged. Corrected same-generation LOAM Current
+  captures retain intentional styling differences, not a full parity claim.
+  The user responded favorably and requested committing this trial, then continuing
+  with Scheduled. No push or daily `bk` adoption in this pass; `bk` still uses `2b03863`.
+  [Evidence](VERIFICATION.md#balances-current-typography-trial-2026-11-04).
+
+- 2026-11-04: the user-approved reading/Actual series was published as five scoped
+  commits through `2b03863`. Matching CI succeeded, including Linux PTY checks.
+  The real `bk` wrapper fetched/built that revision and showed the updated Actual
+  using an isolated synthetic Git household and local backup remote; exit 0,
+  synthetic book unchanged. Installed stamp, run worktree and origin/main matched.
+  No launcher policy change or operational-household TUI session in that deployment.
   [Evidence](VERIFICATION.md#bk-publication-preparation-2026-11-04).
 
 - 2026-11-03: Actual's follow-up typography trial shortens redundant pane titles

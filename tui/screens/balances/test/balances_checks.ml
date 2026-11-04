@@ -286,7 +286,13 @@ let unit_checks ~width_of () =
   require
     (not (List.exists (function O.Columns _, _ -> true | _ -> false) scr_stacked))
     "stacked-layout-has-no-columns";
-  require (painted_has scr_split "Balances [active]") "focused-list-title-marks-active";
+  require
+    (painted_has scr_split " Balances "
+    && (not (painted_has scr_split "[active]"))
+    && List.exists
+         (function O.Columns (_, O.Focused_frame, O.Frame), _ -> true | _ -> false)
+         scr_split)
+    "short-current-title-keeps-frame-focus";
   let tiny_geometry = geometry ~dimensions:(32, 9) ~width_of () in
   let scr_tiny = Lazy.force (Balances.view bv tiny_geometry owner).rows in
   require (List.length scr_tiny = 4) "screen-tiny-content-height-4";
@@ -395,6 +401,208 @@ let unit_checks ~width_of () =
           (char_key 'k', 0);
         ])
     [ (32, 9); (48, 14); (80, 24) ];
+  (* Fixture cell widths only: ASCII/box borders = 1, CJK = 2. Not a font qualification.
+     Columns carry cell offsets, so never split their UTF-8 text at byte offsets. *)
+  let glyph text i =
+    let decoded = String.get_utf_8_uchar text i in
+    require (Uchar.utf_decode_is_valid decoded) "typography-valid-utf8";
+    let code = Uchar.to_int (Uchar.utf_decode_uchar decoded) in
+    (Uchar.utf_decode_length decoded, if code >= 0x4e00 && code <= 0x9fff then 2 else 1)
+  in
+  let cell_width text =
+    let rec loop i cells =
+      if i = String.length text then cells
+      else
+        let bytes, width = glyph text i in
+        loop (i + bytes) (cells + width)
+    in
+    loop 0 0
+  in
+  let split_cells cells text =
+    let rec boundary i remaining =
+      if remaining = 0 then i
+      else (
+        require (i < String.length text) "typography-column-not-short";
+        let bytes, width = glyph text i in
+        require (width <= remaining) "typography-column-not-inside-glyph";
+        boundary (i + bytes) (remaining - width))
+    in
+    let i = boundary 0 cells in
+    (String.sub text 0 i, String.sub text i (String.length text - i))
+  in
+  let rec pane_spans (style, text) =
+    match style with
+    | O.Columns (width, left, right) ->
+        let lhs, tail = split_cells width text in
+        let gap, rhs = split_cells 1 tail in
+        require (gap = " ") "typography-column-gap";
+        pane_spans (left, lhs) @ pane_spans (right, rhs)
+    | O.Spans spans ->
+        require (O.spans_text spans = text) "typography-span-text-agreement";
+        [ spans ]
+    | _ -> [ [ (style, text) ] ]
+  in
+  let styled style needle spans =
+    List.exists (fun (s, text) -> s = style && contains text needle) spans
+  in
+  let paint environment dimensions state =
+    let view = Balances.view environment (geometry ~dimensions ~width_of:cell_width ()) state in
+    let rows = Lazy.force view.rows in
+    require (List.length rows = snd dimensions - 5) "typography-content-height-unchanged";
+    require
+      (List.for_all (fun (_, text) -> cell_width text <= fst dimensions) rows)
+      "typography-rows-fit-cells";
+    let width = fst dimensions in
+    let help =
+      if Balances.detail_focused state then
+        if width >= 48 then "[j/k] scroll [Esc/i/q] list [Space] commands"
+        else "[j/k] scroll [Esc/i/q] list"
+      else if width >= 80 then "[j/k] select [i/Enter] details [q] back [Space] commands"
+      else if width >= 48 then "[j/k] sel [i/Enter] info [q] back"
+      else "[j/k] sel [i] info [q] back"
+    in
+    let actions =
+      if width >= 120 then
+        "[C-u/d] page [Home/End] ends [p] print view [w] measure [v] view [c] config [o] observe"
+      else if width >= 80 then
+        "[C-u/d] page [Home/End] ends [p] print view [w] unit [v] view [c] cfg [o] obs"
+      else if width >= 48 then "[C-u/d] page [Home/End] ends [p] print view"
+      else "[C-u/d] page [p] print"
+    in
+    require (view.footer = [ help; actions ]) "typography-footer-unchanged";
+    List.concat_map pane_spans rows
+  in
+  let cases =
+    [
+      (bv, "bank", "jpy", Some (Z.of_int 200000), "200,000", O.Heading);
+      (edge_env, "wallet", "eur", Some Z.one, "0.01", O.Heading);
+      ( env ~book:edge_book (Ok (Some "bank\teur\n")),
+        "bank",
+        "eur",
+        Some (Z.neg Z.one),
+        "-0.01",
+        O.Heading );
+      (env ~book:edge_book (Ok (Some "food\teur\n")), "food", "eur", Some Z.zero, "0.00", O.Heading);
+      (unsupported_env, "bank", "eur", None, "?", O.Status);
+    ]
+  in
+  List.iter
+    (fun dimensions ->
+      let g = geometry ~dimensions ~width_of:cell_width () in
+      List.iter
+        (fun (environment, locus, measure, amount, money, money_style) ->
+          List.iter
+            (fun detail ->
+              let state =
+                if detail then fst (Balances.handle environment g owner (char_key 'i')) else owner
+              in
+              let panes = paint environment dimensions state in
+              require
+                (List.exists
+                   (styled O.Focused_frame (if detail then " Selected balance " else " Balances "))
+                   panes
+                && List.exists
+                     (styled O.Frame (if detail then " Balances " else " Selected balance "))
+                     panes
+                && not (List.exists (fun spans -> contains (O.spans_text spans) "[active]") panes))
+                "typography-short-titles-focus-via-frame";
+              let marker = if detail then " * " else " > " in
+              let row = List.find (fun spans -> contains (O.spans_text spans) marker) panes in
+              let active = List.concat panes |> List.filter (fun (s, _) -> s = O.Active) in
+              require
+                (active = if detail then [] else [ (O.Active, " > ") ])
+                "typography-active-only-on-marker";
+              require
+                (styled (if detail then O.Chrome else O.Active) marker row
+                && styled O.Plain locus row && styled O.Chrome measure row)
+                "typography-marker-name-measure-styles";
+              let compact = fst dimensions < 60 in
+              let value = if amount = None && compact then "unsupported" else money in
+              require (styled money_style value row) "typography-current-amount-style";
+              if not compact then
+                require
+                  (styled
+                     (if amount = None then O.Status else O.Chrome)
+                     (if amount = None then "unsupported" else "exact")
+                     row)
+                  "typography-current-state-style";
+              require
+                (List.exists (styled money_style ("Amount: " ^ money ^ " " ^ measure)) panes)
+                "typography-detail-amount-style";
+              require
+                (List.exists
+                   (styled
+                      (if amount = None then O.Status else O.Chrome)
+                      ("State: " ^ if amount = None then "unsupported" else "exact"))
+                   panes)
+                "typography-detail-state-style";
+              if amount = None then
+                O.wrap_text ~width_of:cell_width
+                  ((if fst dimensions = 120 then 48 else fst dimensions) - 3)
+                  "No current quantity support is justified for this coordinate. Do not infer zero."
+                |> List.iter (fun text ->
+                    require
+                      (List.exists (styled O.Status (String.trim text)) panes)
+                      "typography-unknown-explanation-stays-strong");
+              require
+                (Balances.selected state = 0 && Balances.detail_focused state = detail)
+                "typography-focus-preserves-selected-coordinate";
+              require
+                (snd (Balances.handle environment g state (char_key 'o'))
+                = Screen.Observe { locus; measure; amount })
+                "typography-observe-unchanged";
+              let summary = (Balances.print_preview_form environment state).Ui_form.summary in
+              require
+                (summary = (Balances.print_preview_form environment owner).Ui_form.summary
+                && List.exists (fun text -> contains text (money ^ " " ^ measure)) summary)
+                "typography-print-keeps-scaled-amount-and-focus-independence")
+            [ false; true ])
+        cases;
+      List.iter
+        (fun (environment, token, style) ->
+          let panes = paint environment dimensions owner in
+          let row = List.find (fun spans -> contains (O.spans_text spans) " > ") panes in
+          require (styled style token row) "typography-long-measure-and-overflow-style";
+          if style = O.Status then
+            require
+              (not (List.exists (fun (s, _) -> s = O.Heading) row))
+              "typography-placeholder-never-looks-exact")
+        [
+          (huge_env, "see details", O.Status);
+          ( long_measure_env,
+            (if fst dimensions = 32 then "see details" else "unsupported"),
+            O.Status );
+          ( long_currency_env,
+            (if fst dimensions = 32 then "see details" else "4,567"),
+            if fst dimensions = 32 then O.Status else O.Heading );
+        ];
+      let warned_env = env ~book (Ok (Some "malformed\n")) in
+      let warning = paint warned_env dimensions owner |> List.concat in
+      require
+        (List.exists (fun (s, text) -> s = O.Status && contains text "Balance view") warning)
+        "typography-malformed-config-warning-stays-strong")
+    [ (80, 36); (48, 36); (32, 36); (120, 36) ];
+  let huge_panes = paint huge_env (80, 48) owner in
+  O.wrap_text ~width_of:cell_width 77
+    ("Amount: " ^ Book_display.format_money huge_book "jpy" (Z.neg huge) ^ " jpy")
+  |> List.iter (fun text ->
+      require
+        (List.exists (styled O.Heading text) huge_panes)
+        "typography-huge-detail-keeps-all-digits-heading");
+  let selected = Balances.set_selected 1 owner in
+  let focused = fst (Balances.handle bv stacked_geometry selected (char_key 'i')) in
+  require
+    (Balances.selected focused = 1
+    && snd (Balances.handle bv stacked_geometry focused (char_key 'o'))
+       = Screen.Observe { locus = "wallet"; measure = "jpy"; amount = Some (Z.of_int 74500) })
+    "typography-detail-focus-keeps-nonfirst-coordinate";
+  let cjk_env = env ~book (Ok (Some "財布\tjpy\n")) in
+  ignore (paint cjk_env (120, 36) owner);
+  let acct = paint bv (120, 36) owner_acct |> List.concat in
+  require
+    (List.exists (fun (s, text) -> s = O.Active && contains text "bank") acct
+    && not (List.exists (fun (s, _) -> s = O.Heading) acct))
+    "typography-accounting-keeps-legacy-row-selection";
   print_endline
     "PASS: Balances vertical owner pure unit verification (state, query, motion, overlays, screen)."
 
