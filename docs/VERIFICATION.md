@@ -6,6 +6,27 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## PTY readiness after quiet Balance titles (2026-11-04)
+
+- Publication `d147b90` [CI run](https://github.com/shumoku88-bit/bakhlo/actions/runs/41798186668)
+  failed in the Linux PTY lane: `expected terminal text absent: Balances [active]`.
+  Linux setup, build and contract/regression/synthetic TUI checks all succeeded.
+  `gh run watch 41798186668 --exit-status`: exit 1, not a successful qualification.
+- The smoke retained two obsolete title waits, in ordinary Balances navigation
+  and the startup-queue check. Both now wait for Current's unique `Selected Locus`
+  context; bare `Balances` would incorrectly match the Home menu. Exact `1,000`,
+  all four dimensions, key/resize/cold-reopen/exit, queued-input and non-writing
+  assertions remain unchanged. No product code, workflow, dependency or gate change.
+- With isolated UI settings, `rtk test ./tools/ci-tui-pty _build/default/tui/app/bakhlo_tui.exe examples/book.txt`:
+  exit 0 locally on macOS. All four PTYs, startup type-ahead discard, exact unchanged
+  authority, and 32x9 Preview publication refusal pass. This does not substitute
+  for the next matching-SHA Linux CI run or qualify physical font/IME behavior.
+- Before this smoke correction, ordinary `bk` fetched/built `d147b90`, showed Home
+  and Balances with an isolated synthetic Git household/local backup remote, and
+  exited 0. Synthetic book checksum and repository remained unchanged; main,
+  origin/main, run worktree and installed stamp matched. No operational-household
+  write or TUI session. New-commit CI/installed-revision checks are separate evidence.
+
 ## Typography series publication qualification (2026-11-04)
 
 - User explicitly requested committing/pushing the remaining work and closing this

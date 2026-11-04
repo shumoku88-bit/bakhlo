@@ -8,6 +8,15 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
 
 ## Where things stand (2026-11-04)
 
+- 2026-11-04: publication `d147b90` passed Linux build/unit checks and the local
+  synthetic `bk` launch, but its Linux PTY lane still waited for the removed
+  `Balances [active]` decoration. Both readiness checks now use Current's unique
+  `Selected Locus` context, keeping all amount/key/resize/startup/non-writing gates.
+  The full local Expect matrix passes, including startup type-ahead and narrow
+  Preview refusal. This follow-up changes only the smoke and evidence, not the
+  product. Matching-SHA Linux CI remains separate from that local qualification.
+  [Evidence](VERIFICATION.md#pty-readiness-after-quiet-balance-titles-2026-11-04).
+
 - 2026-11-04: the user approved publishing the remaining typography series and
   closing this pass: Balances pilot `a0b7e6e`, full-row selection `9521d44`, and
   Scheduled List `3f47bec`, with the policy/evidence slice following. Fresh focused,

@@ -131,7 +131,8 @@ proc open_balances {} {
   wait_for "Actuals"
   press "\x1b"
   press "b"
-  wait_for "Balances \[active\]"
+  # Current's subtitle is unique; Home also offers "Balances" in its menu.
+  wait_for "Selected Locus"
   wait_for "1,000"
 }
 
@@ -230,7 +231,7 @@ proc smoke_startup_queue {binary fixture root} {
     wait_for "bakhlo"
     # Only Home answers 'b'; it runs after the queued Enter was flushed at startup.
     press "b"
-    wait_for "Balances \[active\]"
+    wait_for "Selected Locus"
     wait_for "1,000"
     regsub -all $csi $buffer {} visible
     if {[string first "bakhlo" $visible] < 0} { fail "Home left before any post-startup key" }
