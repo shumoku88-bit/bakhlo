@@ -247,8 +247,114 @@ let list_scope_checks ~width_of ~directory home =
   require
     (List.length huge_rows <= 36 && List.for_all (fun (_, line) -> width_of line <= 120) huge_rows)
     "list-huge-detail-bounded";
+  (* Inspect the Shell's physical panes, not byte offsets: their borders and
+     clipped ellipses are UTF-8, and Columns reserves one separator cell. *)
+  let split_cells cells text =
+    let cut =
+      Uutf.String.fold_utf_8
+        (fun cut offset -> function
+          | `Uchar c ->
+              let next = offset + String.length (O.utf8 c) in
+              if width_of (String.sub text 0 next) <= cells then next else cut
+          | `Malformed _ -> raise (F.Refused "list-typography-invalid-utf8"))
+        0 text
+    in
+    let left = String.sub text 0 cut in
+    require (width_of left = cells) "list-typography-cell-boundary";
+    (left, String.sub text cut (String.length text - cut))
+  in
+  let rec panes ((style, text) as row) =
+    match style with
+    | O.Columns (width, left_style, right_style) ->
+        let left, rest = split_cells width text in
+        let _, right = split_cells 1 rest in
+        panes (left_style, left) @ panes (right_style, right)
+    | _ -> [ row ]
+  in
+  let rec leaves ((style, text) as row) =
+    match style with
+    | O.Spans spans ->
+        require (O.spans_text spans = text) "list-typography-spans-retain-text";
+        List.concat_map leaves spans
+    | O.Columns _ -> List.concat_map leaves (panes row)
+    | _ -> [ row ]
+  in
+  let has needle text = Base.String.is_substring text ~substring:needle in
+  let find needle rows =
+    match List.find_opt (fun (_, text) -> has needle text) rows with
+    | Some row -> row
+    | None -> raise (F.Refused ("list-typography-missing: " ^ needle))
+  in
+  let styled style needle row =
+    require
+      (List.exists (fun (actual, text) -> actual = style && has needle text) (leaves row))
+      ("list-typography-field: " ^ needle)
+  in
+  let whole_row needle rows =
+    let row = find needle rows in
+    let _, rest = split_cells 1 (snd row) in
+    let body, _ = split_cells (width_of (snd row) - 2) rest in
+    require
+      (leaves row = [ (O.Plain, "│"); (O.Active, body); (O.Plain, "│") ])
+      "list-typography-single-active-span-over-whole-row";
+    row
+  in
+  let hierarchy ~marker ~shape amount rows =
+    let row = find amount rows in
+    require
+      (not (List.exists (fun (style, _) -> style = O.Active) (leaves row)))
+      "list-typography-background-row-not-active";
+    require
+      (List.nth_opt (leaves row) 1 = Some (marker, if marker = O.Chrome then "* " else "  "))
+      "list-typography-background-marker";
+    styled O.Heading "2026-11-10" row;
+    styled O.Heading amount row;
+    if shape then
+      styled O.Plain (if amount = "100 jpy" then "wallet -> food" else "bank -> wallet") row
+  in
+  let huge_loci = key ~width_of huged (`ASCII 'h') in
   List.iter
     (fun dimensions ->
+      let paint state = R.screen ~width_of dimensions state |> List.concat_map panes in
+      let occurrences = paint all and local_loci = paint loci in
+      let selected = whole_row "> 2026-11-10" occurrences in
+      styled O.Active "100 jpy" selected;
+      if fst dimensions >= 80 then styled O.Active "wallet -> food" selected
+      else if fst dimensions >= 48 then styled O.Active "wallet" selected;
+      ignore (whole_row "> [All loci]" local_loci);
+      styled O.Plain "bank" (find "│  bank" local_loci);
+      hierarchy ~marker:O.Plain ~shape:(fst dimensions >= 80) "200 jpy" occurrences;
+      if fst dimensions = 48 then styled O.Plain "bank" (find "200 jpy" occurrences);
+      let overflow = whole_row "> 2026-12-20" (paint huged) in
+      styled O.Active "too wide" overflow;
+      (if fst dimensions >= 48 then
+         let header = find "Date" occurrences in
+         List.iter (fun label -> styled O.Chrome label header) [ "Date"; "Shape"; "Amount" ]);
+      (* Below 80 cells the inactive pane is deliberately hidden. *)
+      if fst dimensions >= 80 then (
+        hierarchy ~marker:O.Chrome ~shape:true "100 jpy" local_loci;
+        let inactive_locus = find "* [All loci]" occurrences in
+        styled O.Chrome "* " inactive_locus;
+        styled O.Plain "[All loci]" inactive_locus;
+        let overflow = find "* 2026-12-20" (paint huge_loci) in
+        styled O.Chrome "* " overflow;
+        styled O.Heading "2026-12-20" overflow;
+        styled O.Plain "wallet -> food" overflow;
+        styled O.Status "too wide" overflow;
+        require
+          (not (List.exists (fun (style, _) -> style = O.Active) (leaves overflow)))
+          "list-typography-inactive-overflow-restores-field-styles");
+      List.iter
+        (fun state ->
+          let browser = plan_list state in
+          let selected = Plans.selected_plan state.C.session.book state.screens.scheduled in
+          ignore (paint state);
+          require
+            (plan_list state = browser
+            && Option.map (fun (p : B.plan) -> (Record_browser.Scheduled_row, p.id)) selected
+               = plan_id state)
+            "list-typography-keeps-selected-plan-and-browser")
+        [ all; loci; huged; huge_loci ];
       List.iter
         (fun state ->
           let rows = R.screen ~width_of dimensions state in
@@ -256,8 +362,58 @@ let list_scope_checks ~width_of ~directory home =
             (List.length rows <= snd dimensions
             && List.for_all (fun (_, line) -> width_of line <= fst dimensions) rows)
             "list-scope-resize-bounded")
-        [ loci; filtered; day; all; paged; huge_detail ])
+        [ loci; filtered; day; all; paged; huged; huge_loci; huge_detail ])
     [ (32, 9); (48, 14); (80, 24); (120, 36) ];
+  (* A style boundary must not change the old whole-line ellipsis. These widths
+     put the boundary just before, at and after the date/amount separator. *)
+  List.iter
+    (fun width ->
+      let inner = width - 2 in
+      let amount q = if width_of q <= max 0 (inner - 13) then q else "too wide" in
+      let expected marker q =
+        "│"
+        ^ O.pad ~width_of inner (O.clip_text ~width_of inner (marker ^ "2026-11-10 " ^ amount q))
+        ^ "│"
+      in
+      let geometry = X.screen_geometry ~dimensions:(width, 9) ~width_of all in
+      let env = X.screen_env ~config_files:Plans.config_files all in
+      let rows =
+        Lazy.force (Plans.view env geometry all.screens.scheduled).rows |> List.concat_map panes
+      in
+      let selected = whole_row "> 2026-11" rows in
+      require (snd selected = expected "> " "100 jpy") "list-tiny-selected-keeps-ellipsis";
+      require
+        (List.exists (fun (_, text) -> text = expected "  " "200 jpy") rows)
+        "list-tiny-unselected-keeps-ellipsis")
+    [ 14; 15; 16; 24 ];
+  (* Control-bearing identities are admitted data, not terminal instructions. The
+     Loci label needs the same escaping as the occurrence's already-clipped Shape. *)
+  let control_locus = "control\001locus" in
+  let control_book =
+    get
+      (B.read
+         ("BOOK\t1\nMEASURE\tjpy\t0\nLOCUS\twallet\tCash\tSynthetic\nLOCUS\t" ^ control_locus
+        ^ "\tControl\tSynthetic\n\
+           PLAN\tcontrol-plan\t2026-11-10\tjpy\n\
+           CHANGE\twallet\t-100\n\
+           CHANGE\t" ^ control_locus ^ "\t100\nENDPLAN\nEND\n"))
+  in
+  let control_env =
+    Screen.env_for_checks ~book:control_book ~measure:"jpy" ~today:"2026-11-15"
+      ~config:(function
+        | "scheduled-coverage.tsv" -> Ok None | name -> Error ("undeclared " ^ name))
+      ()
+  in
+  let geometry : Screen.geometry =
+    { screen = (120, 36); body = (120, 36); content = (120, 31); width_of }
+  in
+  let control_state = Plans.create (get (Months.create ~today:"2026-11-15")) in
+  let control_state, _ = Plans.handle control_env geometry control_state (`Key (`ASCII 'h', [])) in
+  let control_rows = Lazy.force (Plans.view control_env geometry control_state).rows in
+  require
+    (List.exists (fun (_, text) -> has (O.visible control_locus) text) control_rows
+    && List.for_all (fun (_, text) -> not (has control_locus text)) control_rows)
+    "list-control-identity-keeps-visible-escape";
   require
     (same_workspace paid_closed all && F.read path = before && not paid_closed.record_visible)
     "list-scope-never-writes";

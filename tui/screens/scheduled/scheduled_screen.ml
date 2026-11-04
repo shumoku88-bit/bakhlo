@@ -805,6 +805,21 @@ let list_paint (env : Screen.env) (geometry : Screen.geometry) t =
   in
   let panel_h = max 0 (height - detail_height) in
   let focused = if t.pane = Loci_pane then Loci_pane else List_pane in
+  (* Dates and quantities lead on unselected rows. A focused selection highlights
+     the whole row so its date, shape and quantity can be followed together. *)
+  let styled_line ~selected width spans =
+    let spans = List.map (fun (style, text) -> (style, O.visible text)) spans in
+    let text = O.clip_text ~width_of width (O.spans_text spans) in
+    let clipped = O.clip_spans ~width_of width spans in
+    let spans =
+      if selected then [ (O.Active, text) ]
+      else if O.spans_text clipped = text then clipped
+      (* At tiny widths a span can end exactly at the clipping boundary. Keep
+         the whole-line ellipsis rather than silently dropping what follows. *)
+        else [ (O.Plain, text) ]
+    in
+    (O.Spans spans, text)
+  in
   let locus_panel pane_w =
     let inner_w = max 0 (pane_w - 2) in
     let total = List.length names + 1 in
@@ -816,9 +831,11 @@ let list_paint (env : Screen.env) (geometry : Screen.geometry) t =
       if i = 0 then "[All loci]" else Option.value ~default:"" (List.nth_opt names (i - 1))
     in
     let line i =
-      ( (if i = selected && active then O.Active else O.Plain),
-        O.clip_text ~width_of inner_w
-          ((if i = selected then if active then "> " else "* " else "  ") ^ label i) )
+      let marker =
+        if i = selected then if active then (O.Active, "> ") else (O.Chrome, "* ")
+        else (O.Plain, "  ")
+      in
+      styled_line ~selected:(i = selected && active) inner_w [ marker; (O.Plain, label i) ]
     in
     let more = (if start > 0 then " ▲" else "") ^ if start + capacity < total then " ▼" else "" in
     Panel.frame_rows ~inset:0 ~width_of ~width:pane_w ~height:panel_h ~focused:active
@@ -841,25 +858,33 @@ let list_paint (env : Screen.env) (geometry : Screen.geometry) t =
            (max 12 (List.fold_left (fun w p -> max w (width_of (list_amount book p))) 0 plans)))
     in
     let shape_w = max 0 (inner_w - 2 - 14 - qty_w) in
+    let amount_span room amount =
+      let fits = width_of amount <= room in
+      ((if fits then O.Heading else O.Status), if fits then amount else "too wide")
+    in
     let cells date shape amount =
-      O.pad ~width_of 10 date ^ "  "
-      ^ O.pad ~width_of shape_w (O.clip_text ~width_of shape_w shape)
-      ^ "  "
-      ^ O.pad_left ~width_of qty_w (if width_of amount <= qty_w then amount else "too wide")
+      let amount_style, amount = amount_span qty_w amount in
+      [
+        (O.Heading, O.pad ~width_of 10 date ^ "  ");
+        (O.Plain, O.pad ~width_of shape_w (O.clip_text ~width_of shape_w shape) ^ "  ");
+        (amount_style, O.pad_left ~width_of qty_w amount);
+      ]
     in
     let active = t.pane = List_pane in
     let line index (p : B.plan) =
-      let text =
-        if tabular then
-          (if index = at then if active then "> " else "* " else "  ")
-          ^ cells p.B.day (list_shape p) (list_amount book p)
-        else
-          let amount = list_amount book p in
-          (if index = at then if active then "> " else "* " else "  ")
-          ^ p.day ^ " "
-          ^ if width_of amount <= max 0 (inner_w - 13) then amount else "too wide"
+      let marker =
+        if index = at then if active then (O.Active, "> ") else (O.Chrome, "* ") else (O.Plain, "  ")
       in
-      ((if index = at && active then O.Active else O.Plain), O.clip_text ~width_of inner_w text)
+      let spans =
+        if tabular then cells p.B.day (list_shape p) (list_amount book p)
+        else
+          [
+            (O.Heading, p.day);
+            (O.Plain, " ");
+            amount_span (max 0 (inner_w - 13)) (list_amount book p);
+          ]
+      in
+      styled_line ~selected:(index = at && active) inner_w (marker :: spans)
     in
     let empty =
       if total > 0 then []
@@ -880,7 +905,8 @@ let list_paint (env : Screen.env) (geometry : Screen.geometry) t =
     let body =
       if total = 0 then empty
       else
-        (if show_header then [ (O.Status, "  " ^ cells "Date" "Shape" "Amount") ] else [])
+        (if show_header then [ (O.Chrome, "  " ^ O.spans_text (cells "Date" "Shape" "Amount")) ]
+         else [])
         @ List.filteri (fun i _ -> i >= start && i - start < capacity) (List.mapi line plans)
     in
     let more = (if start > 0 then " ▲" else "") ^ if start + capacity < total then " ▼" else "" in
