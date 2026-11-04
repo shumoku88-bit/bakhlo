@@ -1,5 +1,15 @@
-(* Publishing to the book file: each change the Shell asks for, onto the revision its
-   draft was made from, and reloading after an outcome that could not be confirmed. *)
+(* From a reviewed request to a publication outcome.
+
+   Suppose a plan was reviewed against revision A. Before Publish, the Shell
+   reloads revision B. The old review must not silently become a request against
+   B. If only another writer has saved B, the Shell may still hold A: that is a
+   different conflict, detected when Book_file checks the file under its lock.
+   A draft's base, the current session and the file are three distinct things.
+
+   Book owns admission; Book_file owns replacement. Here we turn the Shell's
+   requests into book changes and keep the evidence needed to interpret their
+   outcomes. tui/scenarios/book_publication_recovery_checks.ml exercises the
+   two conflict gates and the read-only resolution of uncertain publications. *)
 module F = Book_file
 module B = Bakhlo_household.Book
 
@@ -15,6 +25,10 @@ type outcome =
   | Storage_failed of string
   | Refused of string
 
+(* 1. Translate the result without throwing away what can be checked later.
+
+   An uncertain result is not just a warning string: its candidate revision
+   lets a later reload establish whether those bytes are now present. *)
 let of_file_outcome = function
   | F.Written session -> Published session
   | F.Conflict -> Conflict
@@ -28,7 +42,11 @@ let changes ~session requested : outcome =
       Storage_failed (Printf.sprintf "%s (%s %s)" (Unix.error_message err) fn arg)
   | Sys_error msg -> Storage_failed msg
 
-(* Publish only onto the revision the draft was made from. *)
+(* 2. A reviewed request keeps its original base.
+
+   This gate compares the request to the supplied session. Passing it does
+   not mean the file is unchanged: Book_file still checks that separately.
+   Neither conflict updates the request's base or retries it on a newer book. *)
 let onto ~session ~base_revision requested =
   if base_revision <> session.F.revision then Conflict_base_changed else changes ~session requested
 
@@ -39,6 +57,9 @@ let transaction ~session ~base_revision (tx : Draft.transaction) : outcome =
 let plan ~session ~base_revision ~replace (plan : B.plan) : outcome =
   onto ~session ~base_revision [ B.Put_plan { replace; plan } ]
 
+(* A selected occurrence represents one change, even in a batch. Refuse a
+   repeated ID rather than let order decide which version wins; submit the
+   whole accepted selection to the writer as one publication. *)
 let plan_batch ?(replace = true) ~session ~base_revision (plans : B.plan list) : outcome =
   if base_revision <> session.F.revision then Conflict_base_changed
   else if plans = [] then Refused (tr "No Scheduled changes selected.")
@@ -51,6 +72,9 @@ let plan_batch ?(replace = true) ~session ~base_revision (plans : B.plan list) :
 let cancel_plan ~session ~base_revision ~id ~day : outcome =
   onto ~session ~base_revision [ B.Cancel_plan { id; day } ]
 
+(* A real reversal adds a fact; it does not erase mistaken input. Keep the
+   original and negate each posting in a new linked entry. Book still decides
+   whether that candidate is admissible, including any exchange constraints. *)
 let reverse_entry ~session ~base_revision ~id ~day : outcome =
   if base_revision <> session.F.revision then Conflict_base_changed
   else
@@ -89,6 +113,8 @@ let correct_entry_date ~session ~base_revision ~id ~day : outcome =
 let observations ~session ~base_revision rows : outcome =
   onto ~session ~base_revision [ B.Observe rows ]
 
+(* These section updates have no separate reviewed base in this API. They
+   use the supplied session; the writer's file-conflict check still applies. *)
 let roles ~session roles : outcome = changes ~session [ B.Set_roles roles ]
 
 let attention ~session ~items ~closes : outcome =
@@ -104,6 +130,8 @@ let payload ~session ~base_revision = function
 let set_locus_label ~session ~base_revision ~id ~label ?help () : outcome =
   onto ~session ~base_revision [ B.Set_locus_label { id; label; help } ]
 
+(* Save a new Locus and its optional role together, so a successful first
+   write cannot leave the role waiting on a second save that might fail. *)
 let add_locus ~session ?role name : outcome =
   let name = String.trim name in
   if String.equal name "" then Refused (tr "Enter the new Locus token.")
@@ -128,6 +156,13 @@ type reload_outcome =
   | Reloaded of F.t
   | Reload_failed of string
 
+(* 3. Reload answers what is present; it never submits a request.
+
+   Check a pending candidate first: if its bytes are present, the save can be
+   confirmed even when the old editor's base has changed. Without a pending
+   publication, changed contents invalidate Edit and Plan_edit instead. The
+   other modes return Reloaded; their editor/preview checks belong to callers.
+   A non-matching pending revision remains unconfirmed, not safe to repeat. *)
 let reload ~session ~pending ~mode : reload_outcome =
   try
     let loaded = F.reload session in

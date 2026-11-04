@@ -1,8 +1,63 @@
-(* Every book.txt publisher retains the same evidence when acknowledgement is
-   lost. Actual writer checkpoints exercise both an unlanded and a landed save. *)
+(* Publication's reviewed base, current session and file on disk are distinct.
+   Actual writer checkpoints also exercise unlanded and landed uncertain saves. *)
 open Interaction_check_fixture
 
+(* Publication's opening example: a plan is reviewed against A, then a role
+   update writes B but returns an uncertain result. An old session and an old
+   review hit different gates; neither gate is permission to rebase the request. *)
+let check_reviewed_base ~directory () =
+  let path = Filename.concat directory "publication-reviewed-base.txt" in
+  F.create_copy ~source:example_book ~target:path;
+  let original = F.load path in
+  let reviewed_plan = List.hd (B.plans original.book) in
+  let result =
+    F.publish
+      ~checkpoint:(function F.Replaced -> raise (Sys_error "synthetic interruption") | _ -> ())
+      original
+      [ B.Set_roles [ ("wallet", Asset) ] ]
+    |> Publication.of_file_outcome
+  in
+  let evidence =
+    match result with
+    | Publication.Uncertain { evidence; _ } -> evidence
+    | _ -> failwith "expected uncertain role update"
+  in
+  let current = F.load path in
+  let saved_bytes = F.read path in
+  require (current.revision <> original.revision) "publication-review-fixture-changed";
+  let cancel_reviewed_plan session =
+    Publication.cancel_plan ~session ~base_revision:original.revision ~id:reviewed_plan.id
+      ~day:"2026-10-11"
+  in
+  require
+    (match cancel_reviewed_plan original with Publication.Conflict -> true | _ -> false)
+    "publication-review-current-base-but-changed-file";
+  require (F.read path = saved_bytes) "publication-review-file-conflict-does-not-write";
+  require
+    (match cancel_reviewed_plan current with
+    | Publication.Conflict_base_changed -> true
+    | _ -> false)
+    "publication-review-stale-base-with-current-session";
+  require (F.read path = saved_bytes) "publication-review-base-conflict-does-not-write";
+  let mode = Draft.Plan_edit reviewed_plan in
+  require
+    (match Publication.reload ~session:original ~pending:(Some evidence) ~mode with
+    | Publication.Pending_confirmed loaded -> loaded.revision = current.revision
+    | _ -> false)
+    "publication-review-pending-confirmation-precedes-edit-staleness";
+  require (F.read path = saved_bytes) "publication-review-confirmation-does-not-write";
+  require
+    (match Publication.reload ~session:original ~pending:None ~mode with
+    | Publication.Edit_base_changed loaded -> loaded.revision = current.revision
+    | _ -> false)
+    "publication-review-without-pending-keeps-edit-stale";
+  require (F.read path = saved_bytes) "publication-review-stale-edit-reload-does-not-write";
+  print_endline
+    "PASS: Publication distinguishes an outdated review from a changed file, confirms pending \
+     saves before edit staleness and never writes during reload."
+
 let run ~width_of ~directory () =
+  check_reviewed_base ~directory ();
   let fresh name =
     let path = Filename.concat directory ("publication-recovery-" ^ name ^ ".txt") in
     F.create_copy ~source:example_book ~target:path;

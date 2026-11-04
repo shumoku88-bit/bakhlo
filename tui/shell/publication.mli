@@ -1,13 +1,21 @@
-(** Publishing to the book file: each change the Shell asks for, onto the revision its
-    draft was made from, and reloading after an outcome that could not be confirmed. *)
+(** Publish a reviewed request without silently changing what was reviewed.
+
+    A [base_revision] belongs to the request, not merely to the current session.
+    An outdated request and a file changed by another writer are distinct
+    conflicts. Book owns admission and Book_file owns the file checks; this
+    module translates requests and retains uncertain-save evidence for reload.
+
+    APIs without [base_revision] use the supplied session directly, but still
+    go through the writer's file-conflict check. *)
 
 type uncertain_evidence =
   | Expected_revision of string  (** The file revision had the save landed. *)
 
 type outcome =
   | Published of Book_file.t
-  | Conflict_base_changed  (** The book changed after the draft was made. *)
-  | Conflict
+  | Conflict_base_changed
+      (** The request's base differs from the supplied session; the writer was not called. *)
+  | Conflict  (** The writer found that the file no longer matches the supplied session. *)
   | Uncertain of { message : string; evidence : uncertain_evidence }
   | Storage_failed of string
   | Refused of string
@@ -22,7 +30,8 @@ val plan_batch :
   base_revision:string ->
   Bakhlo_household.Book.plan list ->
   outcome
-(** Refuses an empty batch or an occurrence selected twice. *)
+(** Refuses a stale base, an empty batch or an occurrence selected twice.
+    The whole selection is submitted in one publication, not one save per plan. *)
 
 val cancel_plan : session:Book_file.t -> base_revision:string -> id:string -> day:string -> outcome
 
@@ -68,10 +77,17 @@ val attention :
 
 type reload_outcome =
   | Pending_confirmed of Book_file.t
+      (** The candidate's revision is present now; not proof of a past user acknowledgement. *)
   | Pending_unconfirmed of Book_file.t
+      (** A book was loaded, but it does not confirm the candidate. Do not retry blindly. *)
   | Edit_base_changed of Book_file.t
+      (** With no pending candidate, Edit or Plan_edit observed a changed session revision. *)
   | Reloaded of Book_file.t
   | Reload_failed of string
 
 val reload :
   session:Book_file.t -> pending:uncertain_evidence option -> mode:Draft.mode -> reload_outcome
+(** Read and classify; never write or retry. Pending evidence takes precedence
+    over edit-base checks. Without it, Edit and Plan_edit detect a changed
+    revision; other modes return [Reloaded] and leave editor checks to callers.
+    The Shell owns retaining drafts and stopping/resuming writes from this result. *)
