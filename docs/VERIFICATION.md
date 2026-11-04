@@ -6,6 +6,215 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## bk publication preparation (2026-11-04)
+
+- User request: make the changes available through ordinary `bk`; after inspecting
+  its pushed-only launcher, the user explicitly selected committing/pushing the
+  entire series, not just the Actual changes. No launcher policy was bypassed.
+- Remote HEAD and the starting local main both named `ede3d21`. Independent
+  read-only review of all 18 changed files found no blocker; it verified that
+  Amount/Book_file/Publication production changes are comments/whitespace only.
+  That review did not execute tests or reproduce historical private comparisons.
+- Fresh `rtk test ./tools/check`, `rtk test ./tools/tui --self-check`,
+  `./tools/format --check`, `./tools/privacy-scan --all` and `git diff --check`:
+  exit 0. The first two execute the existing qualification commands; RTK only
+  summarizes their output. Private payload did not enter files or commit messages.
+- Four scoped source/test commits: `96f6de6` (Amount), `ce55121` (Book_file),
+  `5060525` (Publication), `2117aa0` (Actual typography). Policy and evidence are
+  published in a following documentation slice. No format or dependency change.
+- `/Users/user/.local/bin/bk` delegates to `tools/household`; that script fetches
+  `origin/main`, builds its dedicated worktree and keeps the last good binary
+  when unavailable. Neither wrapper was changed. This entry records pre-push
+  qualification only: matching GitHub CI and an installed-revision/full-launcher
+  check are separate post-push evidence, not inferred from local green.
+  The operational household was not opened or written during this preparation.
+
+## Actual headings and width-fitted help (2026-11-03)
+
+- Follow-up after the user reported a slight improvement and asked to continue.
+  Baseline is the prior uncommitted typography pilot on `ede3d21`; snapshots of
+  the two Actual files and the baseline binary were kept in ignored scratch.
+  Earlier work is preserved. Changes remain in Actual rendering/checks only:
+  no geometry, accounting, bindings, publication, theme, font or dependency change.
+- Pane titles omit redundant `[active]` text and the duplicate sort code. The
+  focused frame and active/inactive selection markers remain. Browse/detail/search
+  choose complete two-row legends that fit the native cell width; compact legends
+  prioritize important hints rather than being a full key reference. All bindings
+  remain available, including hints omitted at narrower widths.
+- Window warnings lead with the cause, not date metadata. Long causes explicitly
+  truncate while reserving the retained-draft suffix. Review found and corrected
+  an initial lost draft badge and an omitted 48-column period hint; regression
+  checks cover both. Final read-only source review found no blocker; no tests were
+  executed by that reviewer.
+- Added checks for seven footer widths (120, 80, 48, 32, 24, 1 and 0), three modes,
+  two-row/cell bounds, complete key groups and exit/open hints at supported widths,
+  period discovery from 48 columns, short titles and unchanged selection. Four
+  native-width warning checks also require the complete short cause first and a
+  retained-draft suffix under long warning truncation.
+- `./tools/opam exec -- dune runtest tui/app/test --force` failed against the old
+  display (exit 1, `typography-warning-cause-first`) and passes after the changes
+  (exit 0). Final `./tools/check`, `./tools/tui --self-check`,
+  `./tools/format --check` and `git diff --check`: exit 0. The pinned formatter
+  was applied only to the two Actual OCaml files. Logs are in ignored scratch.
+- Synthetic tmux before/after captures at 120x36, 80x24, 48x14 and 32x9 cover
+  browse, detail and search. Final accepted captures use fresh starts/mode checks:
+  body rows compare identical, while titles/help intentionally differ; book checksum
+  is unchanged. Early scripts were discarded after startup input timing, Escape/i
+  batching, search's pane reset and a clipped old search hint invalidated mode
+  assumptions. Those attempts are not evidence for the final comparison.
+- `./tools/compare refresh` produced a fresh household generation. Bounded private
+  capture review observed less crowded titles and complete two-row help at normal
+  and compact widths, retaining existing LOAM differences. A later identity check
+  found current config different from both agreeing comparison copies (book still
+  identical). No original was rewritten: refresh was repeated, then all three
+  Actual modes were recaptured at 120x36/80x24 on the new generation. Body rows
+  compare identical before/after; LOAM opens its own same-generation copy. No
+  claim of full visual/operation parity or exhaustive help discovery.
+- After closing only AI-owned processes, original book/config and both copies
+  compare identical. `./tools/compare clean-copies`: exit 0. Private captures and
+  configuration diagnostics stay only in ignored scratch; no private payload or
+  data counts are recorded here. No AI household writes, commit or push; daily
+  `bk` has not adopted these edits. Physical-terminal/font/IME and full human
+  acceptance, persistent acknowledgement and power-loss checks **not executed**.
+
+## Actual typography pilot (2026-11-03)
+
+- User-approved first typography slice, limited to Actual. HEAD/local `origin/main`
+  stayed `ede3d21`; the earlier literate-style edits were preserved. Only Actual's
+  rendering and owner checks changed in production/test code. No new style enum,
+  renderer, palette, font setting, dependency, geometry, key or publication path.
+- Existing spans separate day dates and exact amounts (Heading) from counts,
+  column/window labels (Chrome) and descriptions (Plain). Amount-order dates are
+  context, not group headings. Active selection reverses only the existing three-cell
+  marker; inactive selection keeps its existing marker. Aligned and wrapped detail
+  amounts are emphasized; window warnings use Status, not subdued context styling.
+  Off-screen entry formatting remains lazy. No runtime-performance claim was measured.
+- Owner checks exercise 120x36, 80x24, 48x14 and 32x9 with the native cell-width
+  function: styled text/span consistency, localized active and retained inactive
+  selection, focus round-trips, day/count/money roles, period/context and warnings,
+  Japanese clipping, amount-order columns, huge fully scrollable wrapped quantities
+  and separate-Measure summaries. Existing assertions remain, with the old whole-row
+  heading assertion updated to check the date span itself.
+- Initial `./tools/opam exec -- dune runtest tui/app/test --force` attempts exited 1:
+  direct Uutf/Z references were unavailable in this check library; test-only code was
+  rewritten using standard UTF-8 and Book amount APIs, without adding dependencies.
+  Further test failures exposed a byte-width stand-in used by an old assertion and
+  an expectation of an unabridged narrow Description. The old date-heading assertion
+  now reads the span directly, while the new tests use actual cell widths and check
+  the visible description prefix. No production gate or money expectation was weakened.
+  Final focused command: exit 0.
+- Pinned formatter applied only to the two changed OCaml files. Final
+  `./tools/format --check`, `git diff --check`, `./tools/check` and
+  `./tools/tui --self-check`: exit 0, including synthetic safety/recovery checks and
+  the standard changed-file privacy scan. Logs are in ignored scratch.
+- Synthetic before/after tmux captures at all four sizes: plain text and geometry
+  compare byte-identical; ANSI captures differ as intended. Light and Dark captures
+  at 120x36/80x24 have the same text too. The synthetic book's checksum is unchanged.
+  Initial capture attempts used an incorrect tmux window index; verified captures
+  were taken after discovering the actual pane. These are PTY/ANSI checks, not
+  physical-font acceptance; no claim fixes the separate terminal-palette remapping issue.
+- `./tools/compare refresh`: exit 0, selecting one fresh household generation.
+  Before/after Actual and Details text at 120x36/80x24 compares identical. LOAM was
+  opened read-only on its own copy of that same generation. Independent private-capture
+  review observed the intended weight/marker changes and no new clipping; existing
+  LOAM differences (per-row dates, full-row selection, top controls and compact Details)
+  remain. This is bounded comparison, not full visual/operation parity. No private
+  payload, dates, quantities, identities or data counts are recorded here.
+- Original book/config and both comparison copies were checked byte-identical;
+  only AI-owned comparison processes were closed, followed by
+  `./tools/compare clean-copies` (exit 0). The LOAM process needed its owned tmux
+  session closed after Ctrl-Q did not exit it. Private captures remain only in ignored
+  scratch. No household edits, commit or push; daily `bk` has not adopted these edits.
+  Physical-terminal/font/IME and human acceptance, persistent acknowledgement and
+  physical power-loss checks **not executed**.
+
+## Publication as a readable review boundary (2026-11-03)
+
+- Continued the approved reading style in `tui/shell/publication.ml` and `.mli`.
+  HEAD/local `origin/main` remained `ede3d21`; the existing Amount/Book_file,
+  AGENTS and evidence edits were preserved. Production changes are comments only:
+  no request, admission, publication, reload, API or storage behavior changed.
+- A plan reviewed against A, followed by a session/file at B, introduces the
+  difference between `Conflict_base_changed` and the writer's `Conflict`.
+  Commentary also explains retained uncertain evidence, one-save batches,
+  real reversals, session-only section updates, Locus/role admission in one
+  save and why pending evidence precedes edit-staleness checks during reload.
+- Added `check_reviewed_base` to the existing
+  `tui/scenarios/book_publication_recovery_checks.ml` runner. A role update
+  interrupted at `Replaced` supplies actual uncertain evidence. Cancellation
+  from an old session yields file conflict; a current session with the old
+  reviewed base yields base conflict. Reload with that evidence confirms B;
+  without it the same stale Plan_edit yields `Edit_base_changed`. Book bytes
+  remain unchanged after each refused request and reload. Existing landed and
+  unlanded recovery scenarios remain unchanged.
+- `./tools/opam exec -- dune runtest tui/app/test --force`: exit 0 before and
+  after the edit, including the new scenario's PASS line after the edit.
+  The subsequent `./tools/format --check` initially exited 1 for one match layout
+  in the changed scenario; that layout alone was corrected. Final
+  `./tools/format --check`, `git diff --check`, `./tools/check` and
+  `./tools/tui --self-check`: exit 0. Full checks include architecture,
+  synthetic recovery/UI checks and the standard changed-file privacy scan.
+- Independent read-only review found no blocker and passed a scoped
+  `git diff --check` (exit 0); it did not run tests. Byte equality alone cannot
+  exclude same-byte rewrites; the read-only claim also follows the inspected
+  reload path. No household edits, commit or push. Latest-data paired comparison,
+  physical-terminal/IME acceptance, persistent acknowledgement and physical
+  power-loss checks **not executed**.
+
+## Book file as a readable save story (2026-11-03)
+
+- Continued the user-approved Amount reading style in `store/book_file.ml` and
+  `.mli`. Baseline HEAD/local `origin/main` was `ede3d21`, with the prior Amount,
+  test and evidence edits still uncommitted; those edits were preserved.
+- The opening example distinguishes an uncertain save from a refusal. The
+  numbered reading path explains file identity, the stable lock name, flushing
+  contents versus directory names, stale sessions, hard-linking the old book
+  before replacement, conservative outcomes and fresh recovery copies.
+  `full_sync_stubs.c`'s comment now describes flush requests without claiming
+  physical power-loss qualification. All production changes are comments only;
+  no syscall order, algorithm, API, format or dependency changed.
+- One new expect test in `test/book_file_tests.ml` predicts a revision without
+  writing, injects `Sys_error` at `Replaced`, checks the retained candidate
+  revision, confirms exactly one added entry by reload and verifies that repeating
+  from the old session conflicts without changing the reloaded revision. This
+  is a deterministic interruption example, not persistent acknowledgement or
+  physical power-loss evidence. Existing interruption/SIGKILL checks are unchanged.
+- `./tools/opam exec -- dune runtest test --force`: exit 0 before and after the
+  edit, including the new example. The first subsequent `./tools/format --check`
+  exited 1 for doc-comment/test layout in two changed files; only those layouts
+  were corrected. Final `./tools/format --check`, `git diff --check`,
+  `./tools/check` and `./tools/tui --self-check`: exit 0. The full check includes
+  architecture checks, synthetic recovery/UI scenarios and a changed-file privacy scan.
+- Independent read-only source/diff review found no blocker; it did not run tests.
+  The approved literate-style preference is recorded in AGENTS. No household edits,
+  commit or push. Latest-data paired comparison, physical-terminal/IME acceptance,
+  persistent acknowledgement and physical power-loss checks **not executed**.
+
+## Amount as a small readable chapter (2026-11-03)
+
+- User request: try a bounded literate-programming-style pass, explaining why
+  the code is needed rather than paraphrasing each instruction. Baseline was
+  clean `ede3d21` (also the locally recorded `origin/main`).
+- `household/amount.ml` now reads from receipt examples through integer display,
+  notation/grouping, exact expression evaluation and literal/signed input rules.
+  `.mli` gives the caller's unit/scale contract and concrete accepted/refused
+  examples. Existing English comment conventions and the pinned layout are retained.
+  Production changes are comments only: no algorithm, API, storage or dependency change.
+- Two added expect tests in `test/amount_boundary_tests.ml` exercise the examples
+  through Book: exact intermediate thirds, final indivisibility, left associativity,
+  zero division/nonpositive results, literal versus expression precision, full-width
+  notation and malformed comma grouping. Existing entry-policy and scales 0..9
+  round-trip checks remain unchanged.
+- `./tools/opam exec -- dune runtest test --force`: exit 0 before and after the edit;
+  both new tests passed after the edit. `./tools/check` and
+  `./tools/tui --self-check`: exit 0, including architecture checks, synthetic
+  recovery/UI scenarios and the standard changed-file privacy scan in `tools/check`.
+  `./tools/format --check` and `git diff --check`: exit 0.
+- Independent read-only source/diff review found no blocker in prose accuracy or
+  test expectations; that review did not execute tests. No household edits, commit
+  or push. Latest-data paired comparison, physical-terminal/IME acceptance and
+  power-loss testing **not executed**; this pass makes no new claim about them.
+
 ## Readability: named balance groups and comments (2026-11-02)
 
 - Daily Pace Pool's internal `0`/`1`/`2` support groups are named variants.

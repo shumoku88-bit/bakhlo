@@ -6,7 +6,54 @@ Per-screen progress: [UI gap ledger](LOAM_UI_GAP_LEDGER.ja.md). Daily-use summar
 [VERIFICATION](VERIFICATION.md). The previous long handoff (per-feature evidence up
 to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
 
-## Where things stand (2026-11-02)
+## Where things stand (2026-11-04)
+
+- 2026-11-04: the user approved publishing the entire reading/typography series
+  for ordinary `bk` use. Source/test slices are `96f6de6`, `ce55121`, `5060525`
+  and `2117aa0`; the policy/evidence slice follows them. Fresh full checks,
+  TUI self-check, formatting, privacy scan and diff checks pass. `bk` still
+  delegates to `tools/household` and runs only pushed `origin/main`; its safety
+  policy and the operational household are not changed by this preparation.
+  Matching CI and the installed launcher revision are separate post-push checks.
+  [Evidence](VERIFICATION.md#bk-publication-preparation-2026-11-04).
+
+- 2026-11-03: Actual's follow-up typography trial shortens redundant pane titles
+  and chooses whole two-row browse/detail/search legends by width. Warnings lead
+  with their cause while reserving the retained-draft badge. Narrow legends are
+  prioritized hints, not a full key reference; all bindings and body geometry stay.
+  Regression/full/TUI/format checks pass; earlier work remains uncommitted.
+  [Evidence](VERIFICATION.md#actual-headings-and-width-fitted-help-2026-11-03).
+
+- 2026-11-03: Actual typography pilot uses existing spans/styles only: date and
+  money emphasis, ordinary-weight descriptions/counts and marker-only selection;
+  window warnings stay strong. Same text/geometry before and after at four synthetic
+  PTY sizes and in latest-copy Actual/Details at two sizes. Full checks, TUI self-check
+  and formatting pass. Font/IME/human acceptance remains separate; prior reading
+  edits are preserved, no commit or push.
+  [Evidence](VERIFICATION.md#actual-typography-pilot-2026-11-03).
+
+- 2026-11-03: `tui/shell/publication.ml` and `.mli` are the next reading chapter:
+  reviewed base, current session and disk contents explain the two conflict gates;
+  uncertain evidence explains pending-first, read-only reload. An added scenario
+  exercises those distinctions with a real writer checkpoint. Production changes
+  are comments only; focused app checks, full checks, TUI self-check and corrected
+  formatting pass. Prior reading edits remain intact; no commit or push.
+  [Evidence](VERIFICATION.md#publication-as-a-readable-review-boundary-2026-11-03).
+
+- 2026-11-03: the next literate-style chapter is `store/book_file.ml` and `.mli`:
+  an interrupted replacement explains why uncertain saves are reloaded, not retried;
+  the reading path covers file evidence, preparation, conflicts, replacement and copies.
+  One added synthetic test exercises the opening example. Production changes are
+  comments only; full checks, TUI self-check and corrected formatting pass.
+  The approved reading style is retained in AGENTS; no commit or push.
+  [Evidence](VERIFICATION.md#book-file-as-a-readable-save-story-2026-11-03).
+
+- 2026-11-03: first small literate-style reading pass in `household/amount.ml`
+  and `.mli`: receipt examples explain exact arithmetic, notation and precision;
+  two synthetic expect tests keep the examples executable. Production changes
+  are comments only; Core, full checks, TUI self-check and formatting pass.
+  No commit or push.
+  [Evidence](VERIFICATION.md#amount-as-a-small-readable-chapter-2026-11-03).
 
 - 2026-11-02: bounded readability edits name Daily Pace Pool's support groups,
   explain order preservation, remove a duplicate comment and fix terminal layout.

@@ -20,6 +20,10 @@ HANDOFF or the ledgers and evidence in `docs/VERIFICATION.md`, never here.
   hand with care. Fit parts by their types instead of glue helpers; name things for
   what the household means (not an earlier design); finish the parts nobody sees
   (tests, tools, file names); prefer removing to adding; one owner per rule.
+- User decision (2026-11-03): move toward literate programming in small readable
+  pieces, using `household/amount.ml` as the first style example. Lead with concrete
+  examples and the reasons for the design; keep examples executable in tests.
+  Prefer useful names/layout over comments that merely paraphrase the code.
 - Measure before optimizing; state the result as numbers, not adjectives.
 - Report outcomes faithfully: code connected, synthetic tests, latest-data paired
   comparison, human/IME acceptance and P7/power-loss are separate claims.
