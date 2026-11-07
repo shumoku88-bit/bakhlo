@@ -1,0 +1,91 @@
+BOOK	1
+MEASURE	jpy	0
+MEASURE	usd	2
+LOCUS	bank	Bank	
+LOCUS	wallet	Wallet	
+LOCUS	cash-usd	Dollar cash	
+LOCUS	card	Card	
+LOCUS	salary	Salary	
+LOCUS	rent	Rent	
+LOCUS	food	Food	
+LOCUS	phone	Phone	
+LOCUS	fee	Fee	
+LOCUS	equity	Opening balances	
+LOCUS	mystery	Not yet classified	
+ROLE	bank	ASSET
+ROLE	wallet	ASSET
+ROLE	cash-usd	ASSET
+ROLE	card	LIABILITY
+ROLE	salary	INCOME
+ROLE	rent	EXPENSE
+ROLE	food	EXPENSE
+ROLE	phone	EXPENSE
+ROLE	fee	EXPENSE
+ROLE	equity	EQUITY
+TX	tx-0001	2027-01-01	DESC	opening
+EFFECT	bank	jpy	100000
+EFFECT	equity	jpy	-100000
+ENDTX
+TX	tx-0002	2027-01-03
+EFFECT	bank	jpy	-20000
+EFFECT	wallet	jpy	20000
+ENDTX
+TX	tx-0003	2027-01-05	DESC	groceries
+EFFECT	food	jpy	1200
+EFFECT	wallet	jpy	-1200
+ENDTX
+TX	tx-0004	2027-01-10	DESC	January pay
+EFFECT	salary	jpy	-300000
+EFFECT	bank	jpy	300000
+ENDTX
+TX	tx-0005	2027-01-15	DESC	rent
+EFFECT	rent	jpy	80000
+EFFECT	bank	jpy	-80000
+ENDTX
+TX	tx-0006	2027-01-15	DESC	lunch and something
+EFFECT	food	jpy	800
+EFFECT	mystery	jpy	200
+EFFECT	wallet	jpy	-1000
+ENDTX
+TX	tx-0007	2027-01-20	DESC	returned groceries
+EFFECT	food	jpy	-300
+EFFECT	wallet	jpy	300
+ENDTX
+TX	tx-0008	2027-01-22	DESC	airport exchange
+EFFECT	bank	jpy	-16300	x-from
+EFFECT	fee	jpy	300
+EFFECT	cash-usd	usd	10000	x-to
+EXCHANGE	jpy	usd
+ENDTX
+TX	tx-0009	2027-01-23	DESC	cafe abroad
+EFFECT	cash-usd	usd	-450
+EFFECT	food	usd	450
+ENDTX
+TX	tx-0010	2027-01-25	DESC	card paid in dollars
+EFFECT	card	jpy	-1600
+EFFECT	food	jpy	1600
+ORIGINAL	usd	1000
+ENDTX
+TX	tx-0011	2027-02-02	DESC	rent refunded
+EFFECT	rent	jpy	-80000
+EFFECT	bank	jpy	80000
+REVERSAL-OF	tx-0005
+ENDTX
+PLAN	rent-2027-01	2027-01-15	jpy
+CHANGE	bank	-80000
+CHANGE	rent	80000
+PAID-BY	tx-0005
+ENDPLAN
+PLAN	phone-2027-02	2027-02-05	jpy
+CHANGE	bank	-3000
+CHANGE	phone	3000
+ENDPLAN
+PLAN	rent-2027-02	2027-02-15	jpy
+CHANGE	bank	-80000
+CHANGE	rent	80000
+ENDPLAN
+ZERO-ORIGIN	wallet	jpy
+ZERO-ORIGIN	cash-usd	usd
+ZERO-ORIGIN	card	jpy
+OPENING	bank	jpy	tx-0001
+END

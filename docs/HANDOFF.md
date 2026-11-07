@@ -18,6 +18,11 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   now refuse a day two presets cover, as Daily Pace already did. User decision (2026-11-08):
   HIDDEN only blocks new money flows, so a correction keeping its Loci and a refund
   to its target's Loci are saved (an intentional difference from LOAM).
+  Reports followed: `test/reports/` (one synthetic book, 29 hand-written questions)
+  pins Income & Expense, Transactions Flow, Stock–Flow, Trend / Locus, Liquidity,
+  Multicurrency and Actual's day and period EXPENSE totals, run by
+  `tui/app/test/report_answers.ml`. Open question for the user: Income & Expense
+  counts the refund of a paid plan as Ordinary, History as the plan's (pinned as is).
   [Evidence](VERIFICATION.md#scheduled-answer-samples-2026-11-08).
 
 - 2026-11-07: Record/Preview typography finishes the series' next step: exact

@@ -83,6 +83,23 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
   Stock–Flow and Trend / Locus stay unavailable (no balance-view.tsv or Locus
   selection) identically before and after. Digests unchanged; owned tmux closed;
   `clean-copies`: exit 0.
+- Follow-up, at the user's request: reports and Actual's totals. `test/reports/`
+  (README, one synthetic book with two currencies, an exchange, a refund, a
+  role-less Locus and three plans; a separate book of Original-amount witnesses)
+  holds 29 hand-written questions: EXPENSE-TOTAL (Actual day header and period
+  windows), INCOME-EXPENSE, TRANSACTIONS-FLOW, STOCK-FLOW, TREND, TREND-DEFAULT,
+  LIQUIDITY and MULTICURRENCY. `tui/app/test/report_answers.ml` reprints each
+  block from the report screens' calculations (Actual now exposes
+  `expense_sums` under its text total): 29 answers, 0 failures; every hand answer
+  matched, the only fixes being in the sample files (a section order in the witness
+  book; an answer line read as the block end, now `BALANCE-START`/`BALANCE-END`); three
+  deliberately wrong answers each failed, then were restored. No displayed
+  answer changed, so no screen capture was taken.
+- `./tools/check` (runs the 29 answers), `./tools/tui --self-check`,
+  `./tools/format --check` and `./tools/privacy-scan --all`: exit 0.
+- Pinned as current behavior, not decided: Income & Expense counts the refund of
+  a paid plan's payment as Ordinary, while History treats it as the plan's.
+  Report refusal reasons are English sentences, not codes.
 
 ## Record and Preview typography (2026-11-07)
 

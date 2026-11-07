@@ -1,0 +1,38 @@
+BOOK	1
+MEASURE	jpy	0
+MEASURE	usd	2
+LOCUS	bank	Bank	
+LOCUS	wallet	Wallet	
+LOCUS	cash-usd	Dollar cash	
+LOCUS	food	Food	
+LOCUS	fee	Fee	
+LOCUS	mystery	Not yet classified	
+ROLE	bank	ASSET
+ROLE	wallet	ASSET
+ROLE	cash-usd	ASSET
+ROLE	food	EXPENSE
+ROLE	fee	EXPENSE
+TX	o-1	2027-03-01	DESC	unknown purchase abroad
+EFFECT	mystery	jpy	500
+EFFECT	wallet	jpy	-500
+ORIGINAL	usd	300
+ENDTX
+TX	o-2	2027-03-02	DESC	refund abroad
+EFFECT	food	jpy	-200
+EFFECT	wallet	jpy	200
+ORIGINAL	usd	150
+ENDTX
+TX	o-3	2027-03-03	DESC	exchange with a receipt
+EFFECT	bank	jpy	-8150	x-from
+EFFECT	fee	jpy	150
+EFFECT	cash-usd	usd	5000	x-to
+ORIGINAL	usd	5000
+EXCHANGE	jpy	usd
+ENDTX
+TX	o-4	2027-03-04	DESC	meal abroad
+EFFECT	food	jpy	1000
+EFFECT	mystery	jpy	100
+EFFECT	wallet	jpy	-1100
+ORIGINAL	usd	700
+ENDTX
+END

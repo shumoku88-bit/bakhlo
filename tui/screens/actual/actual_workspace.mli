@@ -91,8 +91,12 @@ val screen :
 
 type expense_roles
 
-val expense_roles : ctx:context -> expense_roles
-(** The accounting roles of [ctx], ready for EXPENSE totals. *)
+val expense_roles : book:B.t -> (string * Roles.role) list -> expense_roles
+(** Accounting roles ready for EXPENSE totals; [book] supplies the Measure formats. *)
+
+val expense_sums : expense_roles -> B.entry list -> (string * Z.t) list * bool
+(** The EXPENSE sum per Measure (sorted, zeros kept) and whether some effect has no
+    role (test/reports, [EXPENSE-TOTAL]). *)
 
 val expense_total : expense_roles -> B.entry list -> string option
 (** The EXPENSE total per Measure of these entries in the shared money format,

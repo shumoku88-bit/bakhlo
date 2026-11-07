@@ -236,16 +236,15 @@ let totals_text ~book totals partial =
    window for the title. *)
 type expense_roles = { role_book : B.t; table : (string, Roles.role) Hashtbl.t }
 
-let expense_roles ~ctx =
-  let roles = ctx.scope.roles in
+let expense_roles ~book roles =
   let table = Hashtbl.create (List.length roles) in
   List.iter
     (fun (locus, role) -> if not (Hashtbl.mem table locus) then Hashtbl.add table locus role)
     roles;
-  { role_book = ctx.book; table }
+  { role_book = book; table }
 
 (* A ledger has few Measures, so the sums are an association list. *)
-let expense_total roles entries =
+let expense_sums roles entries =
   let totals = ref [] and partial = ref false in
   let add measure amount =
     let rec go = function
@@ -265,12 +264,15 @@ let expense_total roles entries =
           | None -> partial := true)
         e.effects)
     entries;
-  let sorted = List.sort (fun (a, _) (b, _) -> String.compare a b) !totals in
-  totals_text ~book:roles.role_book sorted !partial
+  (List.sort (fun (a, _) (b, _) -> String.compare a b) !totals, !partial)
+
+let expense_total roles entries =
+  let sums, partial = expense_sums roles entries in
+  totals_text ~book:roles.role_book sums partial
 
 (* The EXPENSE total per Measure of these entries in the shared money format,
    marked [+?] when an effect has no role. *)
-let shown_total ~ctx entries = expense_total (expense_roles ~ctx) entries
+let shown_total ~ctx entries = expense_total (expense_roles ~book:ctx.book ctx.scope.roles) entries
 
 (* Day groups follow the list order; under an amount order there is no day to
    group by, so no header is drawn. *)
@@ -288,7 +290,7 @@ let groups_of_entries ~ctx ~order records =
             in
             loop acc (index + 1) rest
       in
-      let roles = expense_roles ~ctx in
+      let roles = expense_roles ~book:ctx.book ctx.scope.roles in
       List.map
         (fun (g : group) ->
           let entries = List.rev g.entries in
