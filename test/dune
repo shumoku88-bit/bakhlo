@@ -20,7 +20,8 @@
  (inline_tests
   (flags -verbose)
   (deps
-   (glob_files common_format/*)))
+   (glob_files common_format/*)
+   (glob_files scheduled/*)))
  (preprocess
   (pps ppx_expect)))
 

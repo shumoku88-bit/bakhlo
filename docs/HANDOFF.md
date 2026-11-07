@@ -6,7 +6,15 @@ Per-screen progress: [UI gap ledger](LOAM_UI_GAP_LEDGER.ja.md). Daily-use summar
 [VERIFICATION](VERIFICATION.md). The previous long handoff (per-feature evidence up
 to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
 
-## Where things stand (2026-11-07)
+## Where things stand (2026-11-08)
+
+- 2026-11-08: answer samples for the Zig rewrite start with Scheduled:
+  `test/scheduled/` (22 hand-written samples, README) passes through
+  `test/scheduled_tests.ml`. Next candidates: move History's plan rules out of
+  `daily_pace_trend.ml` into the core with samples. Open question for the user:
+  `COMMON_FORMAT` says HIDDEN never refuses corrections/refunds, but `Book.put_entry`
+  refuses them (`locus-unapproved`, pinned in `book_cold_reload_tests.ml`).
+  [Evidence](VERIFICATION.md#scheduled-answer-samples-2026-11-08).
 
 - 2026-11-07: Record/Preview typography finishes the series' next step: exact
   quantities, dates and Balanced total lead (Heading), the Effects heading, ID

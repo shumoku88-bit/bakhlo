@@ -6,6 +6,22 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Scheduled answer samples (2026-11-08)
+
+- User request: before a later Zig rewrite, pin plan creation, replacement,
+  cancellation, payment by an Actual and today's Daily Pace as language-neutral
+  answers. `test/scheduled/` holds one synthetic base book and 22 samples
+  (10 applied with exact `book.txt` after, 12 refusals with reason, 11 Pace
+  questions with exact answers); `test/scheduled/README.md` defines the files.
+- The after files and Pace numbers were written by hand from the rules, not
+  printed from Bakhlo. `test/scheduled_tests.ml` runs them through `Book.apply`
+  and `Book.daily_pace`: all 22 matched on the first run. Three deliberately
+  wrong answers (a Pace day value, a refusal code, a CANCELLED date) each
+  produced a failure, then were restored.
+- `./tools/check`, `./tools/tui --self-check` and `./tools/format --check`: exit 0.
+- Not covered: the past-day Pace (History) treatment of paid, reversed and
+  cancelled plans still lives in `tui/screens/pace/daily_pace_trend.ml`.
+
 ## Record and Preview typography (2026-11-07)
 
 - The user approved continuing the typography series to Record/Preview and asked
