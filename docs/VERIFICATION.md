@@ -72,7 +72,17 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
   latest-copy 120×36/80×24. Latest copy: byte-identical throughout. Synthetic: the
   only difference is the missing-previous-cycle message (and its wrap); every
   other capture is byte-identical. Digests unchanged; owned tmux closed;
-  `clean-copies`: exit 0. The reports' period screens were not captured.
+  `clean-copies`: exit 0.
+- Report period screens, same binaries, fresh generation (`reports.sh`, `trend.sh`):
+  Income & Expense, Transactions Flow and Stock–Flow through periods 1–5, Cycle
+  `[` `]]`, Month `[`; Income & Expense table and compare picker; Trend / Locus
+  open, `←` `←` `→→→`, finer grain and `←`; Liquidity and Multicurrency open,
+  Multicurrency `[` `]]`. Synthetic and latest copy 120×36/80×24 (Trend / Locus
+  moves on the latest copy only): 36 + 6 flows per size, all byte-identical
+  before/after; the moves change the screen, so they were reached. Synthetic
+  Stock–Flow and Trend / Locus stay unavailable (no balance-view.tsv or Locus
+  selection) identically before and after. Digests unchanged; owned tmux closed;
+  `clean-copies`: exit 0.
 
 ## Record and Preview typography (2026-11-07)
 
