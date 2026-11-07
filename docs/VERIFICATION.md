@@ -6,6 +6,43 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Record and Preview typography (2026-11-07)
+
+- The user approved continuing the typography series to Record/Preview and asked
+  to finish it at a clean point and push it together with the local Daily Pace
+  commit `c83645c`. A previous assistant left the slice uncommitted; this pass
+  reviewed that diff, ran it and completed the evidence. Remote HEAD was `0153434`.
+- `Book_display` now builds Preview rows as `(style, text)` from book fields, never
+  from parsing a memo or label: exact Effect quantities (with keys), Date, Original
+  amount, Original due date (kept) and Balanced total use Heading; the Effects
+  heading, ID and Measure use Chrome; descriptions, Merchant, links and status
+  stay Plain. `entry_lines`/`plan_lines` keep their exact text for Actual, Selected
+  Day and Scheduled details. The Record form makes a filled, inactive Amount
+  Heading; the active field keeps its caret. Wrapped continuations keep the style.
+  No text, row order, wrapping, geometry, keys, calculation or save path changes.
+- Added checks in `record_session_checks.ml`: exact Preview text and styles for a
+  new Movement, a Scheduled plan (open/cancelled/completed) and a Scheduled
+  completion; a memo that looks like labels stays Plain prose; Original amount
+  and EUR scale stay exact; keyed postings and the completion backlink; 120×36,
+  80×24 geometry; a 32×9 huge-quantity continuation keeps Heading; inactive
+  filled Amount is strong and the active caret remains at 48×14/80×24/120×36.
+- `rtk test ./tools/check`, `rtk test ./tools/tui --self-check` and
+  `./tools/format --check`: exit 0.
+- Before (`HEAD` export) and after binaries built in ignored scratch.
+  `./tools/compare refresh`: exit 0, fresh generation. A scratch tmux script
+  drove Record full form → Preview → End → Escape (draft held, never published)
+  at synthetic 120×36/80×24/48×14/32×9 and latest-copy 120×36/80×24: plaintext of
+  all four flows matches before/after (generated entry ID masked); Preview ANSI
+  differs at every size except 32×9, where only the action line is visible.
+  Same-generation LOAM reaches Record / Preview at both latest-copy sizes; its
+  existing layout difference is unchanged here and LOAM shows no bold.
+- Not captured in a PTY: the Scheduled create/edit Preview and Scheduled
+  completion Preview (synthetic owner checks only).
+- Original, both copies and synthetic book/config digests unchanged; owned tmux
+  servers closed; `./tools/compare clean-copies`: exit 0. Private captures stay in
+  ignored scratch. Physical terminal/font, IME, human acceptance and P7/power-loss
+  **not executed**.
+
 ## Daily Pace local commit qualification (2026-11-07)
 
 - User gave favorable feedback on both typography trials and requested committing

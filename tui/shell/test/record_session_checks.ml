@@ -113,6 +113,74 @@ let self_check ~width_of () =
   require
     (List.map (fun (p : B.posting) -> p.amount) tx.entry.effects = [ Z.of_int (-100); Z.of_int 100 ])
     "signed-conservation";
+  (* Preview's field-owned hierarchy keeps the old text and row order. A memo
+     that looks like a label is still prose, not a typography command. *)
+  let displayed = Book_display.preview_rows book tx in
+  require
+    (displayed
+    = [
+        (O.Plain, "Record new Movement");
+        (O.Chrome, "Effects (exact quantities):");
+        (O.Plain, "Posting 1: 財布 [wallet]");
+        (O.Heading, "  -100 jpy");
+        (O.Plain, "Posting 2: 食費 [food]");
+        (O.Heading, "  +100 jpy");
+        (O.Plain, "");
+        (O.Plain, "Description: q 食事");
+        (O.Heading, "Date: 2026-10-11");
+        (O.Chrome, "ID: " ^ tx.entry.id);
+        (O.Plain, "Merchant: Unresolved");
+        (O.Heading, "Balanced total: 100 jpy");
+      ])
+    "record-preview-exact-text-and-field-hierarchy";
+  let misleading =
+    {
+      tx with
+      entry =
+        {
+          tx.entry with
+          memo = Some "Date: 2000-01-01  Balanced total: 0";
+          original_amount = Some ("eur", Z.of_int 12345);
+        };
+    }
+  in
+  let misleading_rows = Book_display.preview_rows book misleading in
+  require
+    (List.mem (O.Plain, "Description: Date: 2000-01-01  Balanced total: 0") misleading_rows
+    && List.mem (O.Heading, "Original amount: 123.45 eur") misleading_rows)
+    "record-preview-prose-is-not-parsed-and-original-is-exact";
+  let scaled =
+    {
+      tx with
+      entry =
+        {
+          tx.entry with
+          effects =
+            List.map
+              (fun (p : B.posting) ->
+                { p with measure = "eur"; amount = Z.mul p.amount (Z.of_int 123) })
+              tx.entry.effects;
+        };
+    }
+  in
+  require
+    (List.mem (O.Heading, "  -123.00 eur") (Book_display.preview_rows book scaled)
+    && List.mem (O.Heading, "Balanced total: 123.00 eur") (Book_display.preview_rows book scaled))
+    "record-preview-keeps-currency-scale";
+  List.iter
+    (fun (width, height) ->
+      let painted = screen ~dimensions:(width, height) review in
+      require
+        (List.length painted = height
+        && List.for_all (fun (_, row) -> width_of row <= width) painted)
+        "record-typography-retains-preview-geometry";
+      require
+        (List.exists
+           (fun (style, text) ->
+             style = O.Heading && Base.String.is_substring text ~substring:"-100 jpy")
+           painted)
+        "record-preview-paints-strong-quantity")
+    [ (120, 36); (80, 24) ];
   (* Selecting an action wraps in either direction without changing the reviewed
      payload. Edit and Cancel remain available while publication is blocked. *)
   let previous state = update state (`Key (`Tab, [ `Shift ])) in
@@ -220,6 +288,22 @@ let self_check ~width_of () =
            (Z.of_string huge))
         "huge-exact-quantity"
   | _ -> failwith "huge-review-is-not-partial-number");
+  let tiny_dimensions = (32, 9) in
+  let huge_start = update ~dimensions:tiny_dimensions huge_review (`Key (`Home, [])) in
+  let rec review_pages remaining state collected =
+    if remaining = 0 then collected
+    else
+      let painted = screen ~dimensions:tiny_dimensions state in
+      let next = update ~dimensions:tiny_dimensions state (`Key (`Arrow `Down, [])) in
+      review_pages (remaining - 1) next (painted @ collected)
+  in
+  let tiny_rows = review_pages 32 huge_start [] in
+  List.iter
+    (fun part ->
+      require
+        (List.mem (O.Heading, "│" ^ O.pad ~width_of 30 part ^ "│") tiny_rows)
+        "record-narrow-quantity-continuations-keep-emphasis")
+    (O.wrap_text ~width_of 28 ("  -" ^ huge ^ " jpy"));
   let edit_book = get (B.put_entry book ~replace:false tx.entry ~plan:None) in
   let edit = get (S.of_edit ~book:edit_book tx.entry) in
   let sign_locked =
@@ -245,6 +329,30 @@ let self_check ~width_of () =
         "edit-preserves-identity-structure"
   | _ -> failwith "edit-preview-publish");
   let plan = List.hd (B.plans book) in
+  require
+    (Book_display.plan_preview_rows book ~replace:false plan
+    = [
+        (O.Plain, "Create new Scheduled");
+        (O.Chrome, "Expected Effects (exact quantities):");
+        (O.Heading, "Posting 1: 財布 [wallet]  -200 jpy");
+        (O.Heading, "Posting 2: 食費 [food]  +200 jpy");
+        (O.Heading, "Due: 2026-10-10");
+        (O.Chrome, "ID: scheduled-1");
+        (O.Chrome, "Measure: jpy");
+        (O.Plain, "Open Scheduled occurrence");
+        (O.Heading, "Balanced total: 200 jpy");
+      ])
+    "scheduled-preview-exact-text-and-field-hierarchy";
+  List.iter
+    (fun (plan, status) ->
+      require
+        (List.mem (O.Plain, status) (Book_display.plan_preview_rows book ~replace:true plan)
+        && List.mem status (Book_display.plan_lines book plan))
+        "scheduled-preview-retains-explicit-status")
+    [
+      ({ plan with cancelled_on = Some "2026-10-11" }, "Cancelled on: 2026-10-11");
+      ({ plan with paid_by = Some "synthetic-paid" }, "Completed by Actual: synthetic-paid");
+    ];
   let completion = get (S.of_plan ~day:"2026-10-11" ~book plan) in
   let completion =
     S.preview ~new_id:Book_file.new_id ~book ~base_revision ~blocked:false completion
@@ -253,7 +361,13 @@ let self_check ~width_of () =
   | S.Publish (Draft.Entry_tx next, _, _) ->
       require
         (next.plan = Some plan.id && next.entry.day = "2026-10-11")
-        "scheduled-link-and-actual-day"
+        "scheduled-link-and-actual-day";
+      let rows = Book_display.preview_rows book next in
+      require
+        (List.mem (O.Plain, "Complete Scheduled: scheduled-1") rows
+        && List.mem (O.Plain, "Actual and completion link publish together.") rows
+        && List.mem (O.Heading, "Original due date (kept): 2026-10-10") rows)
+        "completion-preview-retains-link-and-both-dates"
   | _ -> failwith "scheduled-completion-preview");
   require
     (Result.is_error (S.of_plan ~book { plan with paid_by = Some "already" }))
@@ -351,6 +465,21 @@ let self_check ~width_of () =
            rows)
         "record-wide-panes-retain-child-chrome")
     [ (72, 20); (80, 24); (120, 36) ];
+  List.iter
+    (fun dimensions ->
+      let painted = screen ~dimensions draft in
+      require
+        (List.exists
+           (fun (style, text) ->
+             (style = O.Heading
+             || match style with O.Columns (_, O.Heading, _) -> true | _ -> false)
+             && Base.String.is_substring text ~substring:"-100")
+           painted)
+        "record-inactive-filled-amount-is-strong";
+      require
+        (O.cursor_in_rows ~width_of ~width:(fst dimensions) painted <> None)
+        "record-typography-keeps-active-caret")
+    [ (48, 14); (80, 24); (120, 36) ];
   let compact_focus = update draft (`Key (`Tab, [ `Shift ])) in
   require
     (List.exists
@@ -390,7 +519,9 @@ let self_check ~width_of () =
       require (next.entry.memo = Some long_description) "ended-review-retains-whole-payload";
       let count =
         List.length
-          (List.concat_map (O.wrap_text ~width_of 68) (Book_display.preview_lines book next))
+          (Book_display.preview_rows book next
+          |> List.map snd
+          |> List.concat_map (O.wrap_text ~width_of 68))
       in
       require
         (List.exists
@@ -429,6 +560,12 @@ let self_check ~width_of () =
       require
         (next.entry.id = keyed.id && next.entry.effects = keyed.effects)
         "edit-preserves-posting-keys";
+      let displayed = Book_display.preview_rows keyed_book next in
+      require
+        (List.mem (O.Heading, "  -100 jpy / Key: key-0") displayed
+        && List.mem (O.Plain, "Completed Scheduled: scheduled-1 / 2026-10-10") displayed
+        && List.mem "  -100 jpy / Key: key-0" (Book_display.entry_lines keyed_book next.entry))
+        "record-preview-keeps-displayed-keys-and-completion-backlink";
       let edited_book = get (B.put_entry keyed_book ~replace:true next.entry ~plan:next.plan) in
       require
         ((List.hd (B.plans edited_book)).paid_by = Some keyed.id)

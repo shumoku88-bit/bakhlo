@@ -472,10 +472,10 @@ let edit_original t (ed : original_editor) (updated, cursor) =
   in
   { t with phase = Original ed; cursor = Some cursor; notice = "" }
 
-let review_lines ~book review =
+let review_rows ~book review =
   match review.payload with
-  | A.Entry_tx tx -> Book_display.preview_lines book tx
-  | A.Plan_tx { plan; replace } -> Book_display.plan_preview_lines book ~replace plan
+  | A.Entry_tx tx -> Book_display.preview_rows book tx
+  | A.Plan_tx { plan; replace } -> Book_display.plan_preview_rows book ~replace plan
 
 let notice_lines ~dimensions:(width, height) ~width_of t =
   let room = max 1 (width - 4) in
@@ -494,7 +494,10 @@ let review_geometry ~book ~dimensions:(width, height) ~width_of t review =
   let gate_height = if height >= 14 then 2 else 0 in
   let available = max 0 (height - feedback - 5 - action_height - gate_height) in
   let lines =
-    List.concat_map (O.wrap_text ~width_of (max 1 (width - 4))) (review_lines ~book review)
+    List.concat_map
+      (fun (style, text) ->
+        O.wrap_text ~width_of (max 1 (width - 4)) text |> List.map (fun part -> (style, part)))
+      (review_rows ~book review)
   in
   let last = max 0 (List.length lines - available) in
   (available, lines, min last (max 0 review.scroll), last)
@@ -1082,7 +1085,7 @@ let screen ?surface ~book ~dimensions:(width, height) ~width_of t =
               lines |> List.filteri (fun i _ -> i >= scroll && i < scroll + shown_capacity)
             in
             let shown_rows =
-              List.map (fun text -> inner_line ~width_of ~width O.Plain text) shown
+              List.map (fun (style, text) -> inner_line ~width_of ~width style text) shown
             in
             let pad_rows =
               List.init
@@ -1226,7 +1229,9 @@ let screen ?surface ~book ~dimensions:(width, height) ~width_of t =
                             match l_caret with Some c -> O.Input (1 + c) | None -> O.Plain
                           in
                           let a_s =
-                            match a_caret with Some c -> O.Input (1 + c) | None -> O.Plain
+                            match a_caret with
+                            | Some c -> O.Input (1 + c)
+                            | None -> if row.amount = "" then O.Plain else O.Heading
                           in
                           [
                             inner_line ~width_of ~width:p_width l_s l_text;
@@ -1347,12 +1352,14 @@ let screen ?surface ~book ~dimensions:(width, height) ~width_of t =
                   in
                   let panel_height = max 3 (height - footer_height - 1) in
                   let capacity = max 0 (panel_height - 2) in
-                  let field index label value =
+                  let field style index label value =
                     let text, caret =
                       field_text ~width_of (width - 2) (t.focus = index) t.cursor label value
                     in
                     let style =
-                      match caret with Some cell -> O.Input (1 + cell) | None -> O.Plain
+                      match caret with
+                      | Some cell -> O.Input (1 + cell)
+                      | None -> if value = "" then O.Plain else style
                     in
                     inner_line ~width_of ~width style text
                   in
@@ -1362,22 +1369,23 @@ let screen ?surface ~book ~dimensions:(width, height) ~width_of t =
                         (List.mapi (fun index _ -> [ 3 + (2 * index); 4 + (2 * index) ]) t.rows)
                   in
                   let fields =
-                    (if is_plan t then [ field 0 "Date" t.day; field 2 "Measure" t.measure ]
+                    (if is_plan t then
+                       [ field O.Plain 0 "Date" t.day; field O.Plain 2 "Measure" t.measure ]
                      else
                        [
-                         field 0 (if date_kept t then "Date (kept)" else "Date") t.day;
-                         field 1 "Description" t.description;
-                         field 2 "Measure" t.measure;
+                         field O.Plain 0 (if date_kept t then "Date (kept)" else "Date") t.day;
+                         field O.Plain 1 "Description" t.description;
+                         field O.Plain 2 "Measure" t.measure;
                        ])
                     @ List.concat
                         (List.mapi
                            (fun index row ->
                              [
-                               field
+                               field O.Plain
                                  (3 + (2 * index))
                                  (Ui_text.format_message "Posting %d" (index + 1))
                                  row.locus;
-                               field (4 + (2 * index)) "Amount" row.amount;
+                               field O.Heading (4 + (2 * index)) "Amount" row.amount;
                              ])
                            t.rows)
                   in

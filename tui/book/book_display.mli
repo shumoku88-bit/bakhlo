@@ -28,10 +28,11 @@ val plan_lines : B.t -> B.plan -> string list
 (** Every expected Effect, the due day, IDs and whether it is open, cancelled or
     completed. *)
 
-val preview_lines : B.t -> Draft.transaction -> string list
+val preview_rows : B.t -> Draft.transaction -> (Ui_render.style * string) list
 (** What saving the transaction publishes: new, correction or Scheduled completion,
-    then [entry_lines] and the balanced total. *)
+    then [entry_lines] and the balanced total. Styles come from the book fields;
+    exact quantities/dates lead, identities and headings recede. *)
 
-val plan_preview_lines : B.t -> replace:bool -> B.plan -> string list
+val plan_preview_rows : B.t -> replace:bool -> B.plan -> (Ui_render.style * string) list
 (** What saving the plan publishes: new or same-ID edit, then [plan_lines] and the
-    balanced total. *)
+    balanced total, with the same field-owned hierarchy. *)

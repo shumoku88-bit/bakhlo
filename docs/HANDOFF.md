@@ -8,6 +8,16 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
 
 ## Where things stand (2026-11-07)
 
+- 2026-11-07: Record/Preview typography finishes the series' next step: exact
+  quantities, dates and Balanced total lead (Heading), the Effects heading, ID
+  and Measure recede (Chrome), prose stays Plain; a filled inactive Record Amount
+  is strong. Styles come from book fields, never from parsing text; detail text
+  and geometry are unchanged. Checks pass; synthetic four-size and latest-copy
+  two-size before/after plaintext match, LOAM Preview reached. The user asked to
+  push it with the Daily Pace commit. Scheduled Preview has only synthetic owner
+  checks; font/IME/human acceptance remain separate.
+  [Evidence](VERIFICATION.md#record-and-preview-typography-2026-11-07).
+
 - 2026-11-07: user approved committing the Daily Pace typography and continuing to
   Record/Preview. The combined History/Selected day slice is qualified for a local
   commit: fresh full/TUI/format/privacy-all checks pass, prior scoped reviews and

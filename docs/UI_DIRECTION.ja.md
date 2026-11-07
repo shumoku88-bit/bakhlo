@@ -97,6 +97,12 @@ LOAMの本番データや記帳先の切替は別の判断であり、この方�
   不明の理由・変化の内訳が出せない理由は`Status`。既存の行単位のstyleと折り返しだけを使い、
   文字・順番・行数・配置・キー・計算・保存は保つ。
   [詳細欄の検証範囲](VERIFICATION.md#daily-pace-selected-day-typography-trial-2026-11-07)。本人受入とは別。
+- Record／Preview（2026-11-07）：Previewの正確な数量（キー付きを含む）・日付・原額・元の期日・
+  Balanced totalを`Heading`、Effects見出し・ID・Measureを`Chrome`、説明・Merchant・リンク・状態は`Plain`。
+  強弱はbookの項目から決め、説明文やラベルの文字列を解析しない。Record入力欄は入力済みで
+  非activeのAmountだけを`Heading`にし、active欄のcaretは保つ。Actual・Selected Day・Scheduledの
+  詳細の文字、Previewの文字・順番・折り返し・配置・キー・保存は変えない。
+  [検証範囲](VERIFICATION.md#record-and-preview-typography-2026-11-07)。本人受入とは別。
 - 数量は符号・通貨・桁区切りを明示し、右寄せで揃える。桁を途中で切って別の金額に見せない。
   一覧に収まらない値は詳細へ誘導し、詳細では完全な値を読めるようにする。不明とゼロ、異なる通貨を混同しない。
 - 入力ラベルは揃え、編集中の値と文字カーソルを明確にする。長い入力は編集中の末尾を見せ、保存値を切らない。
