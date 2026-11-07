@@ -12,7 +12,10 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   `test/scheduled/` (28 hand-written samples with 27 Daily Pace questions, README)
   passes through `test/scheduled_tests.ml`. History's plan rules now live in the
   core (`Book.past_paces`, `Book.day_activities`) and are sampled as `PAST` and
-  `ACTIVITY`; the screen only formats them. User decision (2026-11-08):
+  `ACTIVITY`; the screen only formats them. Periods followed: `household/period.ml`
+  (with `Day` moved into the core) owns boundary-presets.tsv, cycles, calendar
+  windows and History ranges, pinned by `test/periods/`. Actual and the reports
+  now refuse a day two presets cover, as Daily Pace already did. User decision (2026-11-08):
   HIDDEN only blocks new money flows, so a correction keeping its Loci and a refund
   to its target's Loci are saved (an intentional difference from LOAM).
   [Evidence](VERIFICATION.md#scheduled-answer-samples-2026-11-08).

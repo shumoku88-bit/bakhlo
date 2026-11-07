@@ -1,5 +1,6 @@
 (* Income & Expense Report: period-based P/L analysis by month, cycle, year, or all-time. *)
 module B = Bakhlo_household.Book
+module Day = Bakhlo_household.Day
 module Roles = Locus_roles
 module O = Ui_render
 module A = Draft
@@ -45,7 +46,6 @@ let preset_label = function
   | All_time -> "All Time"
 
 let presets = [ Month; Cycle; Previous_cycle; Year; All_time ]
-let parse_boundary_presets = Period_window.parse_boundary_presets
 let resolve_period = Period_window.resolve
 
 (* How much of [period] has elapsed at [today]: (completed days, total days).

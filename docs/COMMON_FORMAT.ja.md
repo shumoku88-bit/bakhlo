@@ -452,6 +452,7 @@ L1は、Bakhloがすでに受け入れていること（Bakhlo S5）と同じ。
 `config/` のTSVは表示や画面の設定なので、正データに入れない：
 `balance-view.tsv`、`boundary-presets.tsv`、`daily-pace.tsv`、`measure-presentation.tsv`、
 `scheduled-coverage.tsv`。
+`boundary-presets.tsv` の書き方と期間の決め方は `test/periods/README.md` と見本が決める。
 
 ## 保存のしかた
 

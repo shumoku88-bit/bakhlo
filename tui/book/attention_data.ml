@@ -1,3 +1,4 @@
+module Day = Bakhlo_household.Day
 module T = Bakhlo_book_txt.Book_txt
 
 type due = T.due = Due_on of string | No_due_date | Due_undetermined

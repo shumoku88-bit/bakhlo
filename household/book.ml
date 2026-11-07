@@ -230,20 +230,10 @@ type daily_pace = {
   daily_pace_quanta : Z.t;
 }
 
-(* Calendar arithmetic over the existing validated 0001..9999 ISO spelling;
-   never Unix timestamps, local clock reads, or retained period state. *)
+(* A book date as a day count (Day), refusing what book.txt would refuse. *)
 let day_number text =
   valid_date text;
-  let year = int_of_string (String.sub text 0 4)
-  and month = int_of_string (String.sub text 5 2)
-  and day = int_of_string (String.sub text 8 2) in
-  let previous = year - 1 in
-  let months = [| 0; 31; 59; 90; 120; 151; 181; 212; 243; 273; 304; 334 |] in
-  let leap = year mod 400 = 0 || (year mod 4 = 0 && year mod 100 <> 0) in
-  (365 * previous) + (previous / 4) - (previous / 100) + (previous / 400)
-  + months.(month - 1)
-  + day
-  + if leap && month > 2 then 1 else 0
+  Result.get_ok (Day.index text)
 
 (* What a plan takes out of the pool: the net of its changes on the pool's Loci, when
    negative. A move between two pool Loci nets to zero and a planned inflow takes

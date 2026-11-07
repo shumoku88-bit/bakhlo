@@ -1,0 +1,11 @@
+case	presets	note
+pay	pay.tsv	1つのpresetの4つの境界日が3つの窓になる。開始日を含み終わりの日は含まない。月・年・日・全期間はファイルを読まない
+two-presets	two-presets.tsv	2つのpresetが重なる日は、どちらかを選ばずに拒否する
+messy	messy.tsv	CRLF・コメント・空行・前後の空白は同じに読む
+ng-one-date	ng-one-date.tsv	境界日が1つだけの行はファイル全体を拒否する。月はそのまま答える
+ng-repeated-name	ng-repeated-name.tsv	同じ名前が2行あれば拒否する
+ng-not-increasing	ng-not-increasing.tsv	境界日が増えていなければ拒否する
+ng-not-canonical	ng-not-canonical.tsv	YYYY-MM-DDでない日付は拒否する（入力欄のような補正はしない）
+ng-not-real	ng-not-real.tsv	実在しない日付は拒否する
+ng-name-with-space	ng-name-with-space.tsv	空白を含む名前は拒否する
+not-configured	-	ファイルがなければ周期は答えないが、月や直近の日数は答える

@@ -5,6 +5,7 @@
    never yields a window boundary. Never a fabricated zero; unsupported
    coordinates are listed, not used to refuse the whole report. *)
 module B = Bakhlo_household.Book
+module Day = Bakhlo_household.Day
 module IncExp = Income_expense_report
 module O = Ui_render
 module A = Draft

@@ -1,5 +1,6 @@
 (* Date-only editing keeps the captured Actual intact until the existing publisher accepts it. *)
 module B = Bakhlo_household.Book
+module Day = Bakhlo_household.Day
 module A = Draft
 module O = Ui_render
 module Form = Ui_form

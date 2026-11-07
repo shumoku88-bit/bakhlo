@@ -21,7 +21,8 @@
   (flags -verbose)
   (deps
    (glob_files common_format/*)
-   (glob_files scheduled/*)))
+   (glob_files scheduled/*)
+   (glob_files periods/*)))
  (preprocess
   (pps ppx_expect)))
 

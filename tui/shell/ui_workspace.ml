@@ -1,3 +1,5 @@
+module Day = Bakhlo_household.Day
+
 type route = Screen.route =
   | Home
   | Selected_day of string

@@ -51,6 +51,28 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
   the detail differ from each other, so the flows were reached. Original, copy and
   synthetic digests unchanged; owned tmux closed; `clean-copies`: exit 0. LOAM
   was not driven (no displayed answer changed).
+- Follow-up, at the user's request: periods. `Day` moved from `tui/book` into
+  `household/`; Book and History now count days through it instead of their own
+  copies. `household/period.ml` owns boundary-presets.tsv reading, the cycle of a
+  day, Day/Month/Year/Cycle/Previous/All windows and the Daily Pace History
+  ranges; `Boundary_presets` and History's and the Trend report's own copies were
+  removed, and `Period_window` only adds report labels. One rule changed: Actual
+  and the reports picked the first preset covering today, while Daily Pace and
+  the Trend report refused; all now refuse (`ambiguous:<day>`). The household's
+  presets do not overlap. Wording: "Cycle not configured…" and Daily Pace's
+  missing previous cycle now read as the shared Period messages.
+- `test/periods/` (README, 10 samples, 58 question/answer lines) written by hand;
+  `test/periods_tests.ml` agreed on the first run, and two wrong answers each
+  failed before being restored. The old `boundary_presets_checks` cases are now
+  samples. `./tools/check`, `./tools/tui --self-check`, `./tools/format --check`,
+  `./tools/privacy-scan --all`: exit 0.
+- `scratch/period-core-20261108/capture.sh`, before (`5d905a1` export) and after,
+  fresh `./tools/compare refresh`: Daily Pace presets 1–5, Actual at its window,
+  `[`, `]]`, `{`, and the period picker with `l`, `l`, `hhh`, at synthetic and
+  latest-copy 120×36/80×24. Latest copy: byte-identical throughout. Synthetic: the
+  only difference is the missing-previous-cycle message (and its wrap); every
+  other capture is byte-identical. Digests unchanged; owned tmux closed;
+  `clean-copies`: exit 0. The reports' period screens were not captured.
 
 ## Record and Preview typography (2026-11-07)
 

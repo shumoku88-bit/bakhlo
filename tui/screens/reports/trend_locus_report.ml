@@ -2,6 +2,7 @@
    explicitly configured cycle history. Read-only; no balance, support,
    role or household-coverage inference. *)
 module B = Bakhlo_household.Book
+module Day = Bakhlo_household.Day
 module IncExp = Income_expense_report
 module Roles = Locus_roles
 
@@ -73,31 +74,22 @@ type bounds = {
 (* One explicit preset must own the observation day; its first boundary is the
    only history start, and every scope is clipped to it. *)
 let configured_bounds ~observed_at ~text =
-  let* text =
-    match text with
-    | None -> Error "Period not configured (boundary-presets.tsv missing)."
-    | Some text -> Ok text
-  in
-  let* windows = IncExp.parse_boundary_presets text in
-  let containing =
-    List.filter
-      (fun (_, start_day, end_exclusive) -> start_day <= observed_at && observed_at < end_exclusive)
-      windows
-  in
-  let* preset, cycle_start =
-    match List.sort_uniq String.compare (List.map (fun (name, _, _) -> name) containing) with
-    | [ preset ] -> (
-        match List.find_opt (fun (name, _, _) -> name = preset) containing with
-        | Some (_, start_day, _) -> Ok (preset, start_day)
-        | None -> Error "No explicit boundary preset contains the observation day.")
-    | [] -> Error "No explicit boundary preset contains the observation day."
-    | _ -> Error "Multiple boundary presets contain the observation day; selection is ambiguous."
-  in
-  let windows = List.filter (fun (name, _, _) -> name = preset) windows in
-  let history_start =
-    List.fold_left (fun first (_, start_day, _) -> min first start_day) cycle_start windows
-  in
-  Ok { preset; history_start; cycle_start; windows }
+  match
+    Result.bind (Bakhlo_household.Period.read text) (Bakhlo_household.Period.cycle ~day:observed_at)
+  with
+  | Error (No_cycle _) -> Error "No explicit boundary preset contains the observation day."
+  | Error (Ambiguous _) ->
+      Error "Multiple boundary presets contain the observation day; selection is ambiguous."
+  | Error why -> Error (Bakhlo_household.Period.message why)
+  | Ok cycle ->
+      let cycle_start = fst (List.nth cycle.windows cycle.index) in
+      Ok
+        {
+          preset = cycle.name;
+          history_start = fst (List.hd cycle.windows);
+          cycle_start;
+          windows = List.map (fun (a, b) -> (cycle.name, a, b)) cycle.windows;
+        }
 
 let catalog ~book ~measure =
   let historical =

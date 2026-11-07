@@ -973,7 +973,8 @@ let self_check ~width_of () =
   let unconfigured = env ~presets:None book in
   let bare = press ~env:unconfigured fresh (char_key 'f') in
   require
-    (contains (overlay ~env:unconfigured bare) "Cycle not configured in boundary-presets.tsv.")
+    (contains (overlay ~env:unconfigured bare)
+       "Period not configured (boundary-presets.tsv missing).")
     "picker-names-a-missing-cycle";
   require
     (Sc.modal (press ~env:unconfigured bare (key `Enter))

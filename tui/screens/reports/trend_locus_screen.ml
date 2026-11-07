@@ -9,6 +9,7 @@
    old one. The selection is an immutable period; the effective point index is
    derived from the current projection. *)
 module B = Bakhlo_household.Book
+module Day = Bakhlo_household.Day
 module R = Trend_locus_report
 module O = Ui_render
 

@@ -1,6 +1,7 @@
 (* The Actual's period picker: every window of one period, newest first, with its
    entry count and EXPENSE total. *)
 module B = Bakhlo_household.Book
+module Day = Bakhlo_household.Day
 module Act = Actual_workspace
 module O = Ui_render
 module Panel = Ui_panel

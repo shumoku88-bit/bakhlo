@@ -2,6 +2,7 @@
    exact families. Current entry evidence is read directly; no FX rate,
    valuation, home currency or cross-Measure arithmetic is inferred. *)
 module B = Bakhlo_household.Book
+module Day = Bakhlo_household.Day
 module O = Ui_render
 module A = Draft
 module M = Map.Make (String)

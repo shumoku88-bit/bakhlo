@@ -1,5 +1,7 @@
 (* Daily Pace Trend: retrospective current-truth spending pace analysis over 10d, 30d, month, cycle. *)
 module B = Bakhlo_household.Book
+module P = Bakhlo_household.Period
+module Day = Bakhlo_household.Day
 module O = Ui_render
 module A = Draft
 module Panel = Ui_panel
@@ -68,60 +70,19 @@ let presets = [ Ten_days; Thirty_days; Month; Cycle; Previous_cycle ]
 let next_graph_style = function Line -> Dots | Dots -> Line
 let graph_style_label = function Line -> "line" | Dots -> "dots"
 
-(* Every window of boundary-presets.tsv as (name, start, end-exclusive). *)
-let parse_boundary_presets text =
-  match Boundary_presets.parse text with
-  | Ok presets -> Ok (Boundary_presets.windows presets)
-  | Error () -> Error "Malformed boundary-presets.tsv; no period was inferred."
-
-(* Every window and the one window containing [today]. *)
-let current_window ~today = function
-  | None -> Error "Period not configured (boundary-presets.tsv missing)."
-  | Some text ->
-      Result.bind (parse_boundary_presets text) (fun windows ->
-          match List.filter (fun (_, a, b) -> a <= today && today < b) windows with
-          | [ current ] -> Ok (windows, current)
-          | [] -> Error "No explicit boundary preset contains today."
-          | _ -> Error "Multiple boundary presets contain today; selection is ambiguous.")
-
+(* The days a preset lists, first and last inclusive; Period owns the rules. *)
 let resolve_range ~today ~preset ~boundary_presets_text =
-  match preset with
-  | Ten_days ->
-      let start = match Day.shift_days today (-9) with Ok d -> d | Error e -> failwith e in
-      Ok (start, today, None)
-  | Thirty_days ->
-      let start = match Day.shift_days today (-29) with Ok d -> d | Error e -> failwith e in
-      Ok (start, today, None)
-  | Month ->
-      let start = String.sub today 0 8 ^ "01" in
-      Ok (start, today, None)
-  | Cycle ->
-      Result.map
-        (fun (_, (_, a, b)) -> (a, today, Some b))
-        (current_window ~today boundary_presets_text)
-  | Previous_cycle ->
-      Result.bind (current_window ~today boundary_presets_text) (fun (windows, (name, a, _)) ->
-          let prev_through = match Day.shift_days a (-1) with Ok d -> d | Error e -> failwith e in
-          let prev =
-            List.filter
-              (fun (n, pa, pb) -> n = name && pa <= prev_through && prev_through < pb)
-              windows
-          in
-          match prev with
-          | [ (_, pa, pb) ] when pb = a -> Ok (pa, prev_through, Some pb)
-          | _ -> Error "Previous cycle boundary is not explicitly configured or not adjacent.")
+  let range =
+    match preset with
+    | Ten_days -> P.Last_days 10
+    | Thirty_days -> P.Last_days 30
+    | Month -> P.Month_to_date
+    | Cycle -> P.Cycle_to_date
+    | Previous_cycle -> P.Whole_previous_cycle
+  in
+  Result.map_error (P.message ~today) (P.range ~config:boundary_presets_text ~today range)
 
-let day_number text =
-  match Day.parts text with
-  | Error _ -> 0
-  | Ok (y, m, d) ->
-      let prev = y - 1 in
-      let months = [| 0; 31; 59; 90; 120; 151; 181; 212; 243; 273; 304; 334 |] in
-      let leap = y mod 400 = 0 || (y mod 4 = 0 && y mod 100 <> 0) in
-      (365 * prev) + (prev / 4) - (prev / 100) + (prev / 400)
-      + months.(m - 1)
-      + d
-      + if leap && m > 2 then 1 else 0
+let day_number text = Result.value ~default:0 (Day.index text)
 
 let dates_between start_day through_day =
   let start_num = day_number start_day in
@@ -191,22 +152,16 @@ let compute_samples ~book ~measure ~pool ~boundary_presets_text ~today ~preset =
   let ( let* ) = Result.bind in
   if pool = [] then Error "Daily Pace pool is empty."
   else
-    let* start_day, through_day, _ = resolve_range ~today ~preset ~boundary_presets_text in
-    let* windows =
-      match boundary_presets_text with
-      | None -> Error "Period not configured (boundary-presets.tsv missing)."
-      | Some text -> parse_boundary_presets text
+    let* start_day, through_day = resolve_range ~today ~preset ~boundary_presets_text in
+    let* cycle =
+      Result.map_error (P.message ~today)
+        (Result.bind (P.read boundary_presets_text) (P.cycle ~day:today))
     in
-    let* name, current_end =
-      match List.filter (fun (_, a, b) -> a <= today && today < b) windows with
-      | [ (name, _, stop) ] -> Ok (name, stop)
-      | [] -> Error "No explicit boundary preset contains today."
-      | _ -> Error "Multiple boundary presets contain today; selection is ambiguous."
-    in
+    let current_end = snd (List.nth cycle.windows cycle.index) in
     let end_for day =
-      match List.filter (fun (n, a, b) -> n = name && a <= day && day < b) windows with
-      | [ (_, _, stop) ] -> Ok stop
-      | _ -> Error ("No explicit cycle boundary for " ^ day ^ ".")
+      match P.window_of cycle day with
+      | Some (_, stop) -> Ok stop
+      | None -> Error ("No explicit cycle boundary for " ^ day ^ ".")
     in
     let* coords =
       List.fold_right
@@ -303,11 +258,11 @@ let compute_samples ~book ~measure ~pool ~boundary_presets_text ~today ~preset =
 let change_preset ~today ~boundary_presets_text state preset =
   match resolve_range ~today ~preset ~boundary_presets_text with
   | Error msg -> Error msg
-  | Ok (new_start, new_through, _) ->
+  | Ok (new_start, new_through) ->
       let selected_day =
         match resolve_range ~today ~preset:state.preset ~boundary_presets_text with
         | Error _ -> day_number today
-        | Ok (old_start, old_through, _) ->
+        | Ok (old_start, old_through) ->
             let first = day_number old_start in
             let last = max 0 (day_number old_through - first) in
             first + Panel.move ~last ~position:state.selected_index 0
@@ -321,7 +276,7 @@ let change_preset ~today ~boundary_presets_text state preset =
 let move_selection ~today ~preset ~boundary_presets_text ~position delta =
   match resolve_range ~today ~preset ~boundary_presets_text with
   | Error msg -> Error msg
-  | Ok (start_day, through_day, _) ->
+  | Ok (start_day, through_day) ->
       let last = max 0 (day_number through_day - day_number start_day) in
       Ok (Panel.move ~last ~position delta)
 

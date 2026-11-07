@@ -5,6 +5,7 @@
    prefix/substring live search and a single-source cursor. *)
 
 module B = Bakhlo_household.Book
+module Day = Bakhlo_household.Day
 module A = Draft
 module O = Ui_render
 module Panel = Ui_panel

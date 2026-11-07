@@ -1,6 +1,7 @@
 (* Multicurrency Spend: an explicit Actual-only window. Calendar Month, named
    boundary presets and explicit Custom dates stay independent sources; a named
    source never silently falls back. Nothing is queried before Run. *)
+module Day = Bakhlo_household.Day
 module A = Draft
 module O = Ui_render
 module P = Report_period
@@ -48,8 +49,8 @@ let canonical_day day =
 
 let parse_presets text =
   Result.map_error
-    (fun () -> "Malformed boundary-presets.tsv; named presets are unavailable.")
-    (Boundary_presets.parse text)
+    (fun _ -> "Malformed boundary-presets.tsv; named presets are unavailable.")
+    (Bakhlo_household.Period.parse text)
 
 let load_presets (env : Screen.env) =
   match env.config preset_file with

@@ -2,6 +2,7 @@
    Unlike Daily Pace this keeps future conditional inflows and refuses overdue
    selected changes; it never claims a forecast path or a known low-water mark. *)
 module B = Bakhlo_household.Book
+module Day = Bakhlo_household.Day
 module O = Ui_render
 module A = Draft
 

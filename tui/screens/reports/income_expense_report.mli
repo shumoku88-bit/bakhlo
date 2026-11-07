@@ -43,7 +43,6 @@ type t = { preset : period_preset; period_offset : int }
 val initial : unit -> t
 val preset_label : period_preset -> string
 val presets : period_preset list
-val parse_boundary_presets : string -> ((string * string * string) list, string) result
 
 val resolve_period :
   today:string ->

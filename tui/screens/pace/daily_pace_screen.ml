@@ -2,6 +2,7 @@
    pool / cycle-boundary editors. Configuration bytes are captured in each
    form's payload; saving goes through the Shell with those captured bytes. *)
 module B = Bakhlo_household.Book
+module Period = Bakhlo_household.Period
 module A = Draft
 module O = Ui_render
 module Form = Ui_form
@@ -89,13 +90,9 @@ let resolve_window (env : Screen.env) =
   Result.bind (env.config boundary_file) (function
     | None -> Error "Period not configured (boundary-presets.tsv missing)."
     | Some text -> (
-        match Boundary_presets.parse text with
-        | Error () -> Error "Malformed boundary-presets.tsv; no period was inferred."
-        | Ok presets -> (
-            match Boundary_presets.containing env.today presets with
-            | [ (_, start_day, end_exclusive) ] -> Ok (start_day, end_exclusive)
-            | [] -> Error "No explicit boundary preset contains today."
-            | _ -> Error "Multiple boundary presets contain today; selection is ambiguous.")))
+        match Result.bind (Period.parse text) (Period.cycle ~day:env.today) with
+        | Error why -> Error (Period.message ~today:env.today why)
+        | Ok cycle -> Ok (List.nth cycle.windows cycle.index)))
 
 let resolve_pool (env : Screen.env) =
   let measure = env.measure in
@@ -236,14 +233,16 @@ let detail_viewport env (geometry : Screen.geometry) t =
 
 let decode_boundary_presets text =
   Result.map_error
-    (fun () -> "Boundary preset config malformed. Refusing implicit replacement.")
-    (Boundary_presets.parse text)
+    (fun _ -> "Boundary preset config malformed. Refusing implicit replacement.")
+    (Period.parse text)
 
+(* The current cycle of [presets] as (preset name, start, end-exclusive). *)
 let current_window_for presets today =
-  match Boundary_presets.containing today presets with
-  | [ w ] -> Ok w
-  | [] -> Error "no configured boundary preset contains the current date"
-  | _ -> Error "multiple configured boundary presets contain the current date"
+  match Period.cycle presets ~day:today with
+  | Ok cycle ->
+      let start, stop = List.nth cycle.windows cycle.index in
+      Ok (cycle.name, start, stop)
+  | Error why -> Error (Period.message ~today why)
 
 let cycle_form (env : Screen.env) =
   let today = env.today in

@@ -5,7 +5,6 @@
   stock_flow_checks
   liquidity_checks
   multicurrency_spend_checks
-  boundary_presets_checks
   report_frame_checks)
  (libraries
   bakhlo_screen_reports

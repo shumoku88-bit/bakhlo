@@ -2,6 +2,7 @@
    Euclidean division as in Lean's Int. Unlike LOAM (JPY only), any Measure
    works: inputs are whole units of the pace Measure, scaled to its quanta. *)
 module B = Bakhlo_household.Book
+module Day = Bakhlo_household.Day
 module O = Ui_render
 module A = Draft
 module Panel = Ui_panel

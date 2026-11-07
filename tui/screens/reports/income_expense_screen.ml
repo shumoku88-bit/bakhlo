@@ -4,6 +4,7 @@
    each Locus bar has the compared window's bar under it on one scale. [t] shows
    the last windows side by side. One full-width frame; formulas and keys live in
    the [?] help overlay. *)
+module Day = Bakhlo_household.Day
 module IncExp = Income_expense_report
 module P = Report_period
 module Frame = Report_frame

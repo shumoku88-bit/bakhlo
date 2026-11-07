@@ -1,5 +1,6 @@
 (* Pure draft construction and validation. IDs and dates are supplied by the caller. *)
 module B = Bakhlo_household.Book
+module Day = Bakhlo_household.Day
 module R = Posting_draft
 
 let tr = Ui_text.tr

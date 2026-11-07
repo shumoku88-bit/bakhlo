@@ -2,6 +2,7 @@
    from the book on every keystroke; amounts are exact quanta at the Measure's
    scale. The record date defaults to Record's own day (LOAM: today). *)
 module B = Bakhlo_household.Book
+module Day = Bakhlo_household.Day
 module O = Ui_render
 module A = Draft
 

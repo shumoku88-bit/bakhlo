@@ -2,6 +2,7 @@
    negative source and a positive destination Effect. No rate is inferred.
    The reviewed entry is published against the bytes it was reviewed from. *)
 module B = Bakhlo_household.Book
+module Day = Bakhlo_household.Day
 module A = Draft
 module Form = Ui_form
 

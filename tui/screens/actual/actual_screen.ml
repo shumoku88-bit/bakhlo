@@ -3,6 +3,8 @@
    Screen owns the window because only it can read the configured boundary
    presets the reports use. Record actions on the selected entry are requests to
    the Shell, which owns the retained Record draft and the editor sessions. *)
+module Day = Bakhlo_household.Day
+module Period = Bakhlo_household.Period
 module Act = Actual_workspace
 module Pw = Period_window
 module Picker = Actual_period_picker
@@ -146,11 +148,16 @@ let reference (env : Screen.env) ws =
 let picker_for (env : Screen.env) ws period ~reference =
   let cycle =
     Result.bind (env.config Pw.boundary_file) (fun boundary_presets_text ->
-        match Pw.cycle_windows ~today:reference ~boundary_presets_text with
-        | Ok (windows, _) -> Ok windows
+        let windows day =
+          Result.map
+            (fun (c : Period.cycle) -> c.windows)
+            (Result.bind (Period.read boundary_presets_text) (Period.cycle ~day))
+        in
+        match windows reference with
+        | Ok windows -> Ok windows
         | Error _ when reference <> env.today ->
-            Result.map fst (Pw.cycle_windows ~today:env.today ~boundary_presets_text)
-        | Error why -> Error why)
+            Result.map_error (Period.message ~today:env.today) (windows env.today)
+        | Error why -> Error (Period.message ~today:env.today why))
   in
   let rows =
     Result.map

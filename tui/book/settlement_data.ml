@@ -1,3 +1,5 @@
+module Day = Bakhlo_household.Day
+
 type row = {
   id : string;
   label : string option;
