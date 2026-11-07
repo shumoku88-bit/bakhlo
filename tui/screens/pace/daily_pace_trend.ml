@@ -563,9 +563,14 @@ let render_history ~width ~height ~width_of ~book ~today ~measure ~samples ~sele
       else if room > 0 then "…"
       else ""
     in
-    let cell room text = O.pad_left ~width_of room (fit room text) in
-    let pace_text s =
-      match s.pace_quanta with None -> "unknown" | Some q -> money_of book measure q
+    let cell style room text =
+      let fitted = fit room text in
+      ((if fitted = text then style else O.Status), O.pad_left ~width_of room fitted)
+    in
+    let pace_cell room s =
+      match s.pace_quanta with
+      | None -> cell O.Status room "unknown"
+      | Some q -> cell O.Heading room (money_of book measure q)
     in
     let partial = count_supported samples < count in
     let table = width >= 46 && List.exists (fun s -> s.activity <> None) samples in
@@ -581,17 +586,17 @@ let render_history ~width ~height ~width_of ~book ~today ~measure ~samples ~sele
           fun s ->
             let spent, diff =
               match s.activity with
-              | None -> ("—", "—")
+              | None -> (cell O.Chrome spent_width "—", cell O.Chrome diff_width "—")
               | Some activity ->
-                  ( Book_display.format_money book measure activity.discretionary_outflow,
+                  ( cell O.Heading spent_width
+                      (Book_display.format_money book measure activity.discretionary_outflow),
                     match s.pace_quanta with
-                    | None -> "—"
-                    | Some q -> signed_money book measure (Z.sub q activity.discretionary_outflow)
-                  )
+                    | None -> cell O.Chrome diff_width "—"
+                    | Some q ->
+                        cell O.Heading diff_width
+                          (signed_money book measure (Z.sub q activity.discretionary_outflow)) )
             in
-            O.pad ~width_of 11 s.day
-            ^ cell pace_width (pace_text s)
-            ^ cell spent_width spent ^ cell diff_width diff )
+            [ (O.Heading, O.pad ~width_of 11 s.day); pace_cell pace_width s; spent; diff ] )
       else
         let current_width = if (not partial) && width >= 39 then 9 else 0 in
         let date_width = min 12 (width - 3) in
@@ -599,9 +604,8 @@ let render_history ~width ~height ~width_of ~book ~today ~measure ~samples ~sele
         ( "   " ^ O.pad ~width_of date_width "Day"
           ^ O.pad_left ~width_of value_width (if partial then "Value / status" else "Quanta/day"),
           fun s ->
-            O.pad ~width_of date_width s.day
-            ^ cell value_width (pace_text s)
-            ^ if current_width > 0 && s.day = today then "  current" else "" )
+            [ (O.Heading, O.pad ~width_of date_width s.day); pace_cell value_width s ]
+            @ if current_width > 0 && s.day = today then [ (O.Chrome, "  current") ] else [] )
     in
     let rows =
       List.filteri (fun i _ -> i >= start && i < start + capacity) samples
@@ -613,7 +617,13 @@ let render_history ~width ~height ~width_of ~book ~today ~measure ~samples ~sele
             else if detail_focused && not selected_active then " * "
             else " > "
           in
-          ((if selected_active then O.Active else O.Plain), O.pad ~width_of width (marker ^ row s)))
+          let spans =
+            O.fit_spans ~width_of width (((if chosen then O.Heading else O.Plain), marker) :: row s)
+          in
+          let text = O.spans_text spans in
+          (* The focused row, including its padding, remains one selection band.
+             Other rows let exact values lead; unknown and overflow stay explicit. *)
+          ((if selected_active then O.Active else O.Spans spans), text))
     in
     (O.Plain, "") :: (O.Chrome, O.pad ~width_of width heading) :: rows
 
@@ -719,13 +729,17 @@ let render_detail ~width ~width_of ~book ~measure ~samples ~selected_index ~toda
   let line style text =
     List.map (fun part -> (style, " " ^ part)) (O.wrap_text ~width_of (max 1 (width - 1)) text)
   in
+  (* Pace and spending answer the day's question. Supporting sums remain readable;
+     periods and provenance recede. Style whole wrapped lines, so a long quantity
+     keeps its emphasis without another wrapping rule. *)
   let plain = line O.Plain and muted = line O.Chrome in
+  let heading = line O.Heading and status = line O.Status in
   let amount q = Book_display.format_money book measure q in
   let count = List.length samples in
   let index = max 0 (min (count - 1) selected_index) in
   let activity_lines ~pace (a : day_activity) =
     let spent = "Spent: " ^ amount a.discretionary_outflow ^ " " ^ measure in
-    plain
+    heading
       (match pace with
       | Some q ->
           spent ^ " (diff: "
@@ -733,11 +747,11 @@ let render_detail ~width ~width_of ~book ~measure ~samples ~selected_index ~toda
           ^ " " ^ measure ^ ")"
       | None -> spent)
     @ (if Z.sign a.discretionary_inflow > 0 then
-         muted ("Unscheduled inflow: +" ^ amount a.discretionary_inflow ^ " " ^ measure)
+         plain ("Unscheduled inflow: +" ^ amount a.discretionary_inflow ^ " " ^ measure)
        else [])
     @ (if Z.sign a.scheduled_settled_outflow > 0 || Z.sign a.scheduled_reserved_outflow > 0 then
          let variance = Z.sub a.scheduled_reserved_outflow a.scheduled_settled_outflow in
-         muted
+         plain
            ("Settled: "
            ^ amount a.scheduled_settled_outflow
            ^ " " ^ measure
@@ -749,7 +763,7 @@ let render_detail ~width ~width_of ~book ~measure ~samples ~selected_index ~toda
        income: a linked reversal restores pool funds but is not a receipt. *)
     @
     if Z.sign a.scheduled_settled_inflow > 0 then
-      muted
+      plain
         ("Scheduled-linked inflow/reversal: +" ^ amount a.scheduled_settled_inflow ^ " " ^ measure)
     else []
   in
@@ -762,27 +776,27 @@ let render_detail ~width ~width_of ~book ~measure ~samples ~selected_index ~toda
   let movement prev current =
     match compare_change ~prev ~current with
     | Ok b ->
-        muted
+        plain
           ("Time passage: "
           ^ signed_money book measure b.time_passage_effect
           ^ " " ^ measure ^ "/day")
-        @ muted
+        @ plain
             ("Free money effect: "
             ^ signed_money book measure b.free_money_effect
             ^ " " ^ measure ^ "/day")
-        @ muted
+        @ plain
             ("Pool balance delta: "
             ^ signed_money book measure b.pool_balance_change
             ^ " " ^ measure)
-        @ muted
+        @ plain
             ("Scheduled protection release: "
             ^ signed_money book measure b.protection_release
             ^ " " ^ measure)
-        @ muted
+        @ plain
             ("Free-through-end delta: "
             ^ signed_money book measure b.free_through_end_change
             ^ " " ^ measure)
-    | Error _ -> muted "Day-to-day breakdown unavailable (not adjacent within one cycle)."
+    | Error _ -> status "Day-to-day breakdown unavailable (not adjacent within one cycle)."
   in
   let prev = if index = 0 then None else List.nth_opt samples (index - 1) in
   match List.nth_opt samples index with
@@ -793,11 +807,11 @@ let render_detail ~width ~width_of ~book ~measure ~samples ~selected_index ~toda
       let body =
         match s.pace_quanta with
         | None ->
-            plain ("Selected " ^ s.day ^ ": unavailable, not zero")
-            @ muted (Option.value s.unavailable ~default:"Historical pace unavailable.")
+            status ("Selected " ^ s.day ^ ": unavailable, not zero")
+            @ status (Option.value s.unavailable ~default:"Historical pace unavailable.")
             @ activity s
         | Some q ->
-            plain ("Selected " ^ s.day ^ ": " ^ money_of book measure q)
+            heading ("Selected " ^ s.day ^ ": " ^ money_of book measure q)
             @ muted
                 (match prev with
                 | None -> "first point"
@@ -811,9 +825,9 @@ let render_detail ~width ~width_of ~book ~measure ~samples ~selected_index ~toda
                 else "reconstructed from current knowledge, not as-known history")
             @ muted ("Cycle end (exclusive): " ^ s.end_exclusive)
             @ muted ("Remaining days: " ^ string_of_int s.remaining_days)
-            @ muted ("Pool: " ^ amount s.pool_balance ^ " " ^ measure)
-            @ muted ("Scheduled deductions: " ^ amount s.deductions)
-            @ muted ("Available: " ^ amount s.available_through_end)
+            @ plain ("Pool: " ^ amount s.pool_balance ^ " " ^ measure)
+            @ plain ("Scheduled deductions: " ^ amount s.deductions)
+            @ plain ("Available: " ^ amount s.available_through_end)
       in
       header @ body @ disclosure
       @ match prev with Some p when known p && known s -> movement p s | _ -> [])
@@ -824,15 +838,15 @@ let render_detail ~width ~width_of ~book ~measure ~samples ~selected_index ~toda
       in
       muted ("Period: " ^ preset_label preset)
       @ muted ("Display: " ^ first ^ " through " ^ last)
-      @ plain ("Selected " ^ s.day)
-      @ plain ("Pace: " ^ pace ^ if s.day = today then "  current" else "")
+      @ heading ("Selected " ^ s.day)
+      @ heading ("Pace: " ^ pace ^ if s.day = today then "  current" else "")
       @ muted (summary_change ~book ~measure ~samples ~selected:index)
       @ activity s
       @ muted ("Cycle end (exclusive): " ^ s.end_exclusive)
       @ muted ("Remaining days: " ^ string_of_int s.remaining_days)
-      @ muted ("Pool: " ^ amount s.pool_balance ^ " " ^ measure)
-      @ muted ("Scheduled deductions: " ^ amount s.deductions)
-      @ muted ("Available: " ^ amount s.available_through_end ^ " / remaining days")
+      @ plain ("Pool: " ^ amount s.pool_balance ^ " " ^ measure)
+      @ plain ("Scheduled deductions: " ^ amount s.deductions)
+      @ plain ("Available: " ^ amount s.available_through_end ^ " / remaining days")
       @ muted ("From: " ^ first)
       @ muted ("Through: " ^ last)
       @ disclosure

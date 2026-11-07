@@ -6,6 +6,96 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Daily Pace local commit qualification (2026-11-07)
+
+- User gave favorable feedback on both typography trials and requested committing
+  before continuing to Record/Preview. Reviewed scope is the seven Daily Pace
+  source/test/policy/ledger/evidence files; no unrelated changes were staged.
+- Fresh `rtk test ./tools/check`, `rtk test ./tools/tui --self-check`,
+  `./tools/format --check`, `./tools/privacy-scan --all` and `git diff --check`:
+  exit 0. The prior synthetic/latest-copy comparisons and scoped static reviews
+  are recorded below, not rerun or upgraded into full acceptance in this commit pass.
+- This is a local commit only. No push was requested; remote HEAD remains
+  `0153434`, so daily `bk` remains unchanged. No matching-new-SHA CI claim.
+  Physical terminal/font/IME and P7/power-loss remain unqualified.
+
+## Daily Pace Selected day typography trial (2026-11-07)
+
+- After favorable feedback on History, the user requested continuing with Selected
+  day. Remote HEAD remains `0153434`; the prior uncommitted History slice is retained.
+  The before executable was rebuilt and byte-matches that History trial's after
+  binary. No commit, push, dependency, format, font, palette or launcher change.
+- Only `Daily_pace_trend.render_detail` styles change: Selected date, Pace and Spent
+  lines use Heading; Pool/deductions/Available, activity inflows/settlements/reversals
+  and day-to-day money terms use Plain. Periods, provenance and disclosure remain
+  Chrome. Unknown pace and its cause, and unavailable day-to-day breakdown, use
+  Status. Existing whole-line wrapping keeps the same style on continuation lines;
+  no span/wrapping engine, extra rows, changed text, calculations or save path.
+- Existing exact full/partial/unknown detail assertions now specify those styles
+  without dropping their text/order checks. Added tests cover ordinary inflows,
+  scheduled-linked reversals, settlement variance, negative 400-digit quantities,
+  cycle-reset refusal, and exact text/style wrapping at widths 8/26/42/74/114.
+  The added detail checks use JPY; other currency formatting is unchanged and the
+  existing broader scale checks still pass, not new detail-specific scale coverage.
+- `rtk test ./tools/opam exec -- dune runtest tui/app/test --force`: exit 0.
+  `rtk test ./tools/opam exec -- dune build tui/app/bakhlo_tui.exe`: exit 0.
+  `rtk test ./tools/check`, `rtk test ./tools/tui --self-check` and
+  `./tools/format --check`: exit 0. Pinned local ocamlformat ran on the two touched
+  source files. Read-only independent review found no blocker and confirmed History
+  unchanged; that reviewer did not run tests or inspect private comparisons.
+- `./tools/compare refresh`: exit 0, fresh generation for this follow-up.
+  `sh scratch/pace-detail-type-20261107/capture.sh`: exit 0. Before/after Trend,
+  focused Detail, End-scroll and return plaintext/geometry match at synthetic
+  120x36/80x24/48x14/32x9 and latest-copy 120x36/80x24; focused Detail ANSI differs.
+  Same-generation LOAM positively reaches Trend and focused Detail at both sizes.
+  This is not all-five-period or full styling/operation parity acceptance.
+- Owned capture sessions closed; original, both copy and synthetic book/config
+  digests stay unchanged. `./tools/compare clean-copies`: exit 0. All private
+  captures/results remain in ignored scratch. No operational-household TUI/write.
+  Physical terminal/font, IME and Selected day human acceptance **not executed**;
+  daily `bk` is not updated and P7/power-loss remain unqualified.
+
+## Daily Pace History typography trial (2026-11-07)
+
+- User asked to continue the typography work. Starting local main and remote HEAD
+  were clean `0153434`. This trial changes only `Daily_pace_trend.render_history`
+  and its existing scenario checks; no dependency, format, font or palette change.
+- History's non-active dates and exact Pace/Spent/diff cells use Heading. `current`
+  and absent-activity dashes use Chrome; unknown and overflow substitutions use
+  Status. Column headings remain Chrome. Focused selection still paints the whole
+  padded row Active; inactive `*` and partial narrow-history `>` behavior remain.
+  Chart, Selected day, context/footer, keys, calculations and save paths are unchanged.
+- Regression checks exercise widths 26/43/46/70/114, both focus states, span/text
+  agreement, canonical table text, zero/negative/scaled quantities, unknown and
+  400-digit overflow. Existing partial-history selection and exact detail tests pass.
+  Read-only independent diff review found no blocker; it did not run checks or
+  inspect private captures. Tiny widths and absent activity have less focused style
+  coverage; existing geometry checks remain, not exhaustive byte-for-byte proof.
+- `rtk test ./tools/opam exec -- dune runtest tui/app/test --force`: exit 0.
+  Initial `./tools/format --check`: exit 1 for formatting only; the pinned local
+  ocamlformat corrected the two changed source files. Subsequent
+  `./tools/format --check`: exit 0. One overlapping executable build exited 1 on
+  Dune's existing-process lock; serialized rebuild passed, exit 0.
+- `rtk test ./tools/check` and `rtk test ./tools/tui --self-check`: exit 0.
+  The checks include admission/saving regressions and the changed-files privacy scan.
+  After the ledger/evidence updates, `./tools/privacy-scan --all`, `git diff --check`
+  and `./tools/format --check`: exit 0; no private-token matches.
+- Ignored scratch retains disposable before/after binaries, synthetic fixture and
+  tmux captures. Before binary was rebuilt from `0153434`; after is that base plus
+  this diff. Synthetic Trend, focused Detail, End-scroll and return captures at
+  120x36/80x24/48x14/32x9 have identical complete plaintext before/after. Wide History
+  ANSI changes; small geometries still hide History as before. No geometry change.
+- `./tools/compare refresh`: exit 0, fresh household generation on this pass.
+  The same generation supplies Bakhlo before/after and the existing LOAM binary.
+  `sh scratch/pace-typography-20261107/capture.sh`: exit 0. At 120x36/80x24 Bakhlo's
+  four flows retain complete text; LOAM positively reaches Trend and focused Detail.
+  This scopes the paired check, not full operation/style parity or human acceptance.
+  All private captures/digests stay in ignored scratch; no private facts recorded here.
+- After closing owned sessions, original and both copy book/config digests remain
+  identical, as does the synthetic fixture. `./tools/compare clean-copies`: exit 0.
+  No operational-household TUI session/write, commit or push. Physical terminal/font,
+  IME and human acceptance **not executed**; P7/power-loss remain unqualified.
+
 ## PTY readiness after quiet Balance titles (2026-11-04)
 
 - Publication `d147b90` [CI run](https://github.com/shumoku88-bit/bakhlo/actions/runs/41798186668)

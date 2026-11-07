@@ -6,7 +6,36 @@ Per-screen progress: [UI gap ledger](LOAM_UI_GAP_LEDGER.ja.md). Daily-use summar
 [VERIFICATION](VERIFICATION.md). The previous long handoff (per-feature evidence up
 to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
 
-## Where things stand (2026-11-04)
+## Where things stand (2026-11-07)
+
+- 2026-11-07: user approved committing the Daily Pace typography and continuing to
+  Record/Preview. The combined History/Selected day slice is qualified for a local
+  commit: fresh full/TUI/format/privacy-all checks pass, prior scoped reviews and
+  copy comparisons remain the evidence. No push requested; daily `bk` stays on
+  pushed `origin/main`. Favorable user feedback is not full font/IME/P7 acceptance.
+  [Evidence](VERIFICATION.md#daily-pace-local-commit-qualification-2026-11-07).
+
+- 2026-11-07: after favorable History feedback, Selected day gets a small typography
+  follow-up: strong Selected/Pace/Spent lines, ordinary supporting-money rows,
+  quiet period/provenance, strong unknown reasons and unavailable breakdown.
+  It reuses whole-line styles, preserving all text/wrapping/geometry; prior History
+  remains intact. Focused/full/TUI/format checks pass; four synthetic and two fresh
+  latest-copy sizes retain complete text, and same-generation LOAM Trend/detail
+  is reached. Original/copy/synthetic bytes unchanged; owned sessions closed and
+  copies cleaned. Local/uncommitted/unpushed; daily `bk`, physical/font/IME and
+  Selected day human acceptance remain separate.
+  [Evidence](VERIFICATION.md#daily-pace-selected-day-typography-trial-2026-11-07).
+
+- 2026-11-07: typography continues with Daily Pace History only: strong dates and
+  exact Pace/Spent/diff cells, quiet `current`/absent-activity dashes, strong
+  unknown/overflow. Whole-row Active selection and partial fallback focus remain.
+  Text, geometry, chart/detail, keys, calculations and saves stay unchanged.
+  Focused/full/TUI/format checks pass; synthetic four-size and fresh-copy two-size
+  before/after captures retain complete text, with same-generation LOAM Trend/detail
+  reached. Original/copy/synthetic bytes unchanged, owned sessions closed, old
+  copies cleaned. This is a local uncommitted trial, not daily `bk` deployment or
+  physical/font/IME/human acceptance.
+  [Evidence](VERIFICATION.md#daily-pace-history-typography-trial-2026-11-07).
 
 - 2026-11-04: publication `d147b90` passed Linux build/unit checks and the local
   synthetic `bk` launch, but its Linux PTY lane still waited for the removed

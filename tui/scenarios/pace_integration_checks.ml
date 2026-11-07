@@ -1209,7 +1209,8 @@ let daily_pace_graph_render_checks ~width_of () =
               ~substring:"12,345,678"))
         "pace-unknown-never-paints-dummy-pool")
     [ 26; 42; 74; 114 ];
-  (* Selected day follows LOAM detailLines order, wording and muted rows. *)
+  (* Selected day keeps LOAM's text/order; typography distinguishes the answer,
+     supporting money, metadata and explicit unavailable evidence. *)
   let basis ~day ~remaining ~q =
     {
       (sample ~day ~q ()) with
@@ -1228,8 +1229,27 @@ let daily_pace_graph_render_checks ~width_of () =
     Trend.render_detail ~width:60 ~width_of ~book ~measure:"jpy" ~samples ~selected_index
       ~today:"2026-10-19" ~preset:Trend.Ten_days
   in
-  let loam_rows plain rows =
-    List.map (fun row -> ((if List.mem row plain then O.Plain else O.Chrome), " " ^ row)) rows
+  let expected_rows ~headings ~ordinary ~warnings rows =
+    List.map
+      (fun row ->
+        let style =
+          if List.mem row headings then O.Heading
+          else if List.mem row ordinary then O.Plain
+          else if List.mem row warnings then O.Status
+          else O.Chrome
+        in
+        (style, " " ^ row))
+      rows
+  in
+  let supporting_money = [ "Pool: 74,500 jpy"; "Scheduled deductions: 12,000" ] in
+  let movement =
+    [
+      "Time passage: +343 jpy/day";
+      "Free money effect: 0 jpy/day";
+      "Pool balance delta: 0 jpy";
+      "Scheduled protection release: 0 jpy";
+      "Free-through-end delta: 0 jpy";
+    ]
   in
   let tail =
     [
@@ -1243,8 +1263,10 @@ let daily_pace_graph_render_checks ~width_of () =
   let spent = "Spent: 0 jpy (diff: +4,807 jpy)" in
   require
     (detail [ d18; d19 ] 1
-    = loam_rows
-        [ "Selected 2026-10-19"; "Pace: 4,807 jpy/day  current"; spent ]
+    = expected_rows
+        ~headings:[ "Selected 2026-10-19"; "Pace: 4,807 jpy/day  current"; spent ]
+        ~ordinary:(supporting_money @ [ "Available: 62,500 / remaining days" ] @ movement)
+        ~warnings:[]
         ([
            "Period: 10d";
            "Display: 2026-10-18 through 2026-10-19";
@@ -1255,19 +1277,14 @@ let daily_pace_graph_render_checks ~width_of () =
          ]
         @ tail
         @ [ "Available: 62,500 / remaining days"; "From: 2026-10-18"; "Through: 2026-10-19" ]
-        @ disclosure
-        @ [
-            "Time passage: +343 jpy/day";
-            "Free money effect: 0 jpy/day";
-            "Pool balance delta: 0 jpy";
-            "Scheduled protection release: 0 jpy";
-            "Free-through-end delta: 0 jpy";
-          ]))
+        @ disclosure @ movement))
     "pace-detail-full-history-loam-order";
   require
     (detail [ unknown18; d19 ] 1
-    = loam_rows
-        [ "Selected 2026-10-19: 4,807 jpy/day"; spent ]
+    = expected_rows
+        ~headings:[ "Selected 2026-10-19: 4,807 jpy/day"; spent ]
+        ~ordinary:(supporting_money @ [ "Available: 62,500" ])
+        ~warnings:[]
         ([
            "Supported: 1/2 days";
            "Selected 2026-10-19: 4,807 jpy/day";
@@ -1279,8 +1296,8 @@ let daily_pace_graph_render_checks ~width_of () =
     "pace-detail-partial-history-loam-order";
   require
     (detail [ unknown18; d19 ] 0
-    = loam_rows
-        [ "Selected 2026-10-18: unavailable, not zero"; "Spent: 0 jpy" ]
+    = expected_rows ~headings:[ "Spent: 0 jpy" ] ~ordinary:[]
+        ~warnings:[ "Selected 2026-10-18: unavailable, not zero"; "Historical pace unavailable." ]
         ([
            "Supported: 1/2 days";
            "Selected 2026-10-18: unavailable, not zero";
@@ -1289,6 +1306,58 @@ let daily_pace_graph_render_checks ~width_of () =
          ]
         @ disclosure))
     "pace-detail-partial-unknown-cause-and-known-activity";
+  let rich =
+    {
+      d19 with
+      Trend.pace_quanta = Some (Z.neg huge_digit);
+      activity =
+        Some
+          {
+            Trend.zero_activity with
+            discretionary_inflow = Z.of_int 250;
+            scheduled_settled_outflow = Z.of_int 1000;
+            scheduled_reserved_outflow = Z.of_int 900;
+            scheduled_settled_inflow = Z.of_int 400;
+          };
+    }
+  in
+  let rich_rows = detail [ d18; rich ] 1 in
+  List.iter
+    (fun row -> require (List.mem (O.Plain, " " ^ row) rich_rows) "pace-detail-supporting-inflows")
+    [
+      "Unscheduled inflow: +250 jpy";
+      "Settled: 1,000 jpy (-100 vs plan)";
+      "Scheduled-linked inflow/reversal: +400 jpy";
+    ];
+  List.iter
+    (fun samples ->
+      let render width =
+        Trend.render_detail ~width ~width_of ~book ~measure:"jpy" ~samples ~selected_index:1
+          ~today:"2026-10-19" ~preset:Trend.Ten_days
+      in
+      let whole = render 4096 in
+      List.iter
+        (fun width ->
+          let expected =
+            List.concat_map
+              (fun (style, text) ->
+                O.wrap_text ~width_of (width - 1) (unindent (style, text))
+                |> List.map (fun part -> (style, " " ^ part)))
+              whole
+          in
+          let painted = render width in
+          require
+            (painted = expected && List.for_all (fun (_, text) -> width_of text <= width) painted)
+            "pace-detail-wrapped-text-and-style-unchanged")
+        [ 8; 26; 42; 74; 114 ])
+    [ [ d18; d19 ]; [ unknown18; d19 ]; [ d19; unknown18 ]; [ d18; rich ] ];
+  let reset = { d19 with Trend.end_exclusive = "2026-12-01" } in
+  require
+    (List.mem
+       (O.Status, " Day-to-day breakdown unavailable (not adjacent within one cycle).")
+       (Trend.render_detail ~width:114 ~width_of ~book ~measure:"jpy" ~samples:[ d18; reset ]
+          ~selected_index:1 ~today:"2026-10-19" ~preset:Trend.Ten_days))
+    "pace-detail-unavailable-breakdown-stays-strong";
   (* Target plan arithmetic, as LOAM DailyPaceTarget on the same answer. *)
   let pace : B.daily_pace =
     {
@@ -1424,9 +1493,82 @@ let daily_pace_graph_render_checks ~width_of () =
         (List.length rows <= height && List.for_all (fun (_, row) -> width_of row <= width) rows)
         "pace-history-geometry")
     [ (0, 0); (1, 1); (26, 2); (46, 4); (70, 4) ];
+  (* Typography changes only History's styles, not its cells or focus policy. *)
+  let history_rows ?(measure = "jpy") ~width ~detail_focused samples =
+    Trend.render_history ~width ~height:6 ~width_of ~book ~today:"2026-10-19" ~measure ~samples
+      ~selected_index:1 ~detail_focused
+  in
+  let has_span expected needle = function
+    | O.Spans spans ->
+        List.exists
+          (fun (style, text) -> style = expected && Base.String.is_substring text ~substring:needle)
+          spans
+    | _ -> false
+  in
+  let first = sample ~day:"2026-10-18" ~q:4233 () in
+  let second = { current with Trend.pace_quanta = Some (Z.of_int (-123)) } in
+  List.iter
+    (fun width ->
+      List.iter
+        (fun detail_focused ->
+          let rows = history_rows ~width ~detail_focused [ first; second ] in
+          List.iter
+            (fun (style, text) ->
+              require (width_of text <= width) "pace-history-typography-width";
+              match style with
+              | O.Spans spans ->
+                  require (O.spans_text spans = text) "pace-history-typography-span-text"
+              | _ -> ())
+            rows;
+          let style, text = List.nth rows 2 in
+          require (has_span O.Heading "2026-10-18" style) "pace-history-date-leads";
+          if width >= 46 then
+            require
+              (has_span O.Heading "4,233 jpy/day" style
+              && has_span O.Heading "0" style && has_span O.Heading "+4,233" style)
+              "pace-history-exact-quantities-lead";
+          let selected_style, selected_text = List.nth rows 3 in
+          require
+            (selected_style = O.Active = not detail_focused
+            && String.starts_with ~prefix:(if detail_focused then " * " else " > ") selected_text
+            && width_of selected_text = width)
+            "pace-history-full-row-selection-and-inactive-marker";
+          if detail_focused && width >= 46 then
+            require
+              (has_span O.Heading "-123 jpy/day" selected_style
+              && has_span O.Heading "1,000" selected_style
+              && has_span O.Heading "-1,123" selected_style)
+              "pace-history-inactive-negative-values";
+          if width = 43 && detail_focused then
+            require (has_span O.Chrome "current" selected_style) "pace-history-current-is-context";
+          require
+            (snd (List.nth rows 1) = snd (List.nth (painted_history width 6) 1)
+            && fst (List.nth rows 1) = O.Chrome
+            && String.starts_with ~prefix:"   2026-10-18" text)
+            "pace-history-heading-and-date-geometry")
+        [ false; true ])
+    [ 26; 43; 46; 70; 114 ];
+  let full = history_rows ~width:70 ~detail_focused:true [ first; second ] in
+  require
+    (snd (List.nth full 2)
+    = "   " ^ O.pad ~width_of 11 first.day
+      ^ O.pad_left ~width_of 23 "4,233 jpy/day"
+      ^ O.pad_left ~width_of 15 "0" ^ O.pad_left ~width_of 18 "+4,233")
+    "pace-history-canonical-table-text";
+  let unknown = { first with Trend.pace_quanta = None } in
+  let overflow = { first with Trend.pace_quanta = Some huge_digit } in
+  List.iter
+    (fun (entry, needle) ->
+      let style, _ = List.nth (history_rows ~width:70 ~detail_focused:true [ entry; second ]) 2 in
+      require (has_span O.Status needle style) "pace-history-unknown-overflow-stay-strong")
+    [ (unknown, "unknown"); (overflow, "see details") ];
+  let euro_rows = history_rows ~measure:"eur" ~width:70 ~detail_focused:true [ first; second ] in
+  require
+    (has_span O.Heading "42.33 eur/day" (fst (List.nth euro_rows 2)))
+    "pace-history-scaled-quantity-leads";
   print_endline
-    "PASS: Daily Pace braille graph fits panes (Line vs Dots, holes/cycle resets, grouped Measure \
-     scale)."
+    "PASS: Daily Pace braille graph and History typography (exact values, unknown/overflow, \
+     full-row focus and unchanged cells)."
 
 let pool_review_checks ~width_of ~directory () =
   (* Interleave support groups in the entry and reverse the alphabetical order of

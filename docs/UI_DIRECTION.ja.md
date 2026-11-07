@@ -87,6 +87,16 @@ LOAMの本番データや記帳先の切替は別の判断であり、この方�
 - Scheduledへの今回の適用はListだけ（2026-11-04）：選択行は上記のとおり、非選択行の日付・金額は
   `Heading`、Shapeは`Plain`、列見出しは`Chrome`とする。`too wide`の明示表示は非active時も`Status`を保ち、
   `split(n)`は変更しない。計算・保存・キー・配置・Series Calendar・Months・Plan・pace・詳細は変更対象にしない。
+- Daily Paceの今回の試置きはHistoryだけ（2026-11-07）：非activeの日付・正確なPace／Spent／差額を
+  `Heading`、`current`とactivity不明のダッシュを`Chrome`、unknownと桁あふれの明示表示を`Status`にする。
+  行全体の選択強調・非activeの選択印・partial狭幅の従来の選択規則は保つ。
+  文字・配置・Chart・Selected day・context／footer・キー・計算・保存は変更しない。
+  [試置きの検証範囲](VERIFICATION.md#daily-pace-history-typography-trial-2026-11-07)。本人受入とは別。
+- 続いてSelected dayを整える（2026-11-07）：Selected日付・Pace・Spentの行を`Heading`、Pool／控除／残額・
+  入出金／予定支払の戻り・日ごとの変化の内訳を`Plain`、期間・出所は`Chrome`とする。
+  不明の理由・変化の内訳が出せない理由は`Status`。既存の行単位のstyleと折り返しだけを使い、
+  文字・順番・行数・配置・キー・計算・保存は保つ。
+  [詳細欄の検証範囲](VERIFICATION.md#daily-pace-selected-day-typography-trial-2026-11-07)。本人受入とは別。
 - 数量は符号・通貨・桁区切りを明示し、右寄せで揃える。桁を途中で切って別の金額に見せない。
   一覧に収まらない値は詳細へ誘導し、詳細では完全な値を読めるようにする。不明とゼロ、異なる通貨を混同しない。
 - 入力ラベルは揃え、編集中の値と文字カーソルを明確にする。長い入力は編集中の末尾を見せ、保存値を切らない。
