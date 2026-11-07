@@ -36,8 +36,18 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
   differs at every size except 32×9, where only the action line is visible.
   Same-generation LOAM reaches Record / Preview at both latest-copy sizes; its
   existing layout difference is unchanged here and LOAM shows no bold.
-- Not captured in a PTY: the Scheduled create/edit Preview and Scheduled
-  completion Preview (synthetic owner checks only).
+- Follow-up the same day, at the user's request: Scheduled Previews in a PTY with
+  the same before/after binaries and a fresh `./tools/compare refresh`. From
+  Scheduled List, Edit (`r`, same ID) and Complete (`Enter`) advance field by field,
+  checking for the Preview title before every Enter so nothing is confirmed;
+  New (`n`) has its own editor, not `Book_display`, and serves as a control.
+  At synthetic 120×36/80×24/48×14/32×9 and latest-copy 120×36/80×24 all three
+  reach Preview; form, Preview and End plaintext match before/after (entry ID
+  masked). Edit/Complete Preview ANSI changes (at 32×9 only after End, where the
+  rows are visible); New stays byte-identical. Newly bold rows are the posting
+  quantities, Due/Original due date and Balanced total. LOAM was not driven for
+  Scheduled here. Digests unchanged, owned tmux closed, `clean-copies`: exit 0.
+- CI for `4473f91` (`core.yml`, including the Linux PTY smoke): success.
 - Original, both copies and synthetic book/config digests unchanged; owned tmux
   servers closed; `./tools/compare clean-copies`: exit 0. Private captures stay in
   ignored scratch. Physical terminal/font, IME, human acceptance and P7/power-loss

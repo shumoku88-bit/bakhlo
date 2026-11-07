@@ -13,9 +13,10 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   and Measure recede (Chrome), prose stays Plain; a filled inactive Record Amount
   is strong. Styles come from book fields, never from parsing text; detail text
   and geometry are unchanged. Checks pass; synthetic four-size and latest-copy
-  two-size before/after plaintext match, LOAM Preview reached. The user asked to
-  push it with the Daily Pace commit. Scheduled Preview has only synthetic owner
-  checks; font/IME/human acceptance remain separate.
+  two-size before/after plaintext match, LOAM Preview reached. Pushed as `4473f91`
+  with the Daily Pace commit; matching CI succeeded. A follow-up PTY pass covers
+  Scheduled Edit/Complete Previews (New is a separate, unchanged editor) with the
+  same text before/after. Font/IME/human acceptance remain separate.
   [Evidence](VERIFICATION.md#record-and-preview-typography-2026-11-07).
 
 - 2026-11-07: user approved committing the Daily Pace typography and continuing to
