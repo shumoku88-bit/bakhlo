@@ -25,3 +25,5 @@ refund-hidden-locus	base.txt	ok	使わなくなった科目（HIDDEN）への支
 correct-hidden-locus	base.txt	ok	HIDDENの科目を含む実績も、もともと入っていた科目のまま訂正できる
 refuse-new-entry-hidden-locus	base.txt	locus-unapproved	HIDDENの科目へ新しくお金を流す実績は作れない
 refuse-correction-into-hidden-locus	base.txt	locus-unapproved	訂正でも、元の記録になかったHIDDENの科目は使えない
+history-rules	base.txt	ok	変更なし。過去の日の目安：払った予定は払った日まで取っておく、取り消した予定は取り消す前の日も数えない、根拠のない残高は拒否。日ごとの動き：予定の支払いはScheduled、払った日に取っておいた分が戻る、プール内の移動は動きなし
+reverse-same-day	base.txt	ok	同じ日の返金は元の記録と打ち消し合い、その日の動きに出ない（残高には反映される）

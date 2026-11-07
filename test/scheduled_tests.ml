@@ -112,23 +112,46 @@ let rec changes = function
       | [ "CORRECT-ENTRY-DATE"; id; day ] -> B.Correct_entry_date { id; day } :: changes rest
       | _ -> bad ("change " ^ line))
 
-(* 4. Today's guide over the book after the changes. A block names its question
-   (Measure, observed day, exclusive end and pool Loci) and is followed by the
-   answer; the runner prints the whole block again and compares the text. *)
+(* 4. The Daily Pace questions over the book after the changes. A block names its
+   question and pool Loci and is followed by the answer; the runner prints the whole
+   block again and compares the text.
+
+   PACE asks today's guide (Measure, observed day, exclusive end). PAST asks the
+   guide at the end of a past day, restated from current truth. ACTIVITY asks what
+   moved the pool on each day. *)
+let money n = Z.to_string n
+
+let guide ~balances ~deductions ~available ~days ~daily =
+  balances
+  @ List.map (fun (id, n) -> Printf.sprintf "DEDUCTION\t%s\t%s" id (money n)) deductions
+  @ [ "AVAILABLE\t" ^ money available; "DAYS\t" ^ string_of_int days; "DAILY\t" ^ money daily ]
+
+let activity_lines (a : B.day_activity) =
+  List.filter_map
+    (fun (label, n) -> if Z.equal n Z.zero then None else Some (label ^ "\t" ^ money n))
+    [
+      ("DISCRETIONARY-OUT", a.discretionary_outflow);
+      ("DISCRETIONARY-IN", a.discretionary_inflow);
+      ("SCHEDULED-OUT", a.scheduled_settled_outflow);
+      ("SCHEDULED-IN", a.scheduled_settled_inflow);
+      ("PROTECTION-RELEASED", a.scheduled_reserved_outflow);
+    ]
+
 let pace_blocks book text =
   let rec split acc = function
-    | [] -> if acc = [] then [] else bad "PACE without ENDPACE"
-    | "ENDPACE" :: rest -> List.rev ("ENDPACE" :: acc) :: split [] rest
+    | [] -> if acc = [] then [] else bad "question without its END line"
+    | line :: rest when String.starts_with ~prefix:"END" line ->
+        List.rev (line :: acc) :: split [] rest
     | line :: rest -> split (line :: acc) rest
   in
   List.map
     (fun block ->
       match block with
       | header :: body ->
-          let measure, observed_at, end_exclusive =
+          let measure, kind =
             match fields header with
-            | [ "PACE"; m; o; e ] -> (m, o, e)
-            | _ -> bad ("PACE line " ^ header)
+            | [ ("PACE" | "PAST"); m; _; _ ] | [ "ACTIVITY"; m ] -> (m, List.hd (fields header))
+            | _ -> bad ("question line " ^ header)
           in
           let pool =
             List.filter_map
@@ -137,28 +160,40 @@ let pace_blocks book text =
               body
           in
           let answer =
-            match B.daily_pace book ~measure ~pool ~observed_at ~end_exclusive with
-            | Error why -> [ "REFUSED\t" ^ why ]
-            | Ok r ->
-                List.map
-                  (fun ((c : B.coordinate), n) ->
-                    Printf.sprintf "BALANCE\t%s\t%s" c.locus (Z.to_string n))
-                  r.pool_balances
-                @ List.map
-                    (fun (id, n) -> Printf.sprintf "DEDUCTION\t%s\t%s" id (Z.to_string n))
-                    r.plan_deductions
-                @ [
-                    "AVAILABLE\t" ^ Z.to_string r.available_through_end;
-                    "DAYS\t" ^ string_of_int r.remaining_days;
-                    "DAILY\t" ^ Z.to_string r.daily_pace_quanta;
-                  ]
+            match fields header with
+            | [ "PACE"; _; observed_at; end_exclusive ] -> (
+                match B.daily_pace book ~measure ~pool ~observed_at ~end_exclusive with
+                | Error why -> [ "REFUSED\t" ^ why ]
+                | Ok r ->
+                    guide
+                      ~balances:
+                        (List.map
+                           (fun ((c : B.coordinate), n) ->
+                             Printf.sprintf "BALANCE\t%s\t%s" c.locus (money n))
+                           r.pool_balances)
+                      ~deductions:r.plan_deductions ~available:r.available_through_end
+                      ~days:r.remaining_days ~daily:r.daily_pace_quanta)
+            | [ "PAST"; _; day; end_exclusive ] -> (
+                match B.past_paces book ~measure ~pool ~days:[ (day, end_exclusive) ] with
+                | [ Error why ] -> [ "REFUSED\t" ^ why ]
+                | [ Ok r ] ->
+                    guide
+                      ~balances:[ "RESTATED\t" ^ money r.restated_pool ]
+                      ~deductions:r.protected ~available:r.available ~days:r.remaining_days
+                      ~daily:r.pace
+                | _ -> bad "one PAST answer per question")
+            | _ ->
+                List.concat_map
+                  (fun (day, a) -> ("ON\t" ^ day) :: activity_lines a)
+                  (B.day_activities book ~measure ~pool)
           in
           let printed =
             (header :: List.map (fun (c : B.coordinate) -> "POOL\t" ^ c.locus) pool)
-            @ answer @ [ "ENDPACE" ]
+            @ answer
+            @ [ "END" ^ kind ]
           in
           (block, printed)
-      | [] -> bad "empty PACE block")
+      | [] -> bad "empty question block")
     (split [] (lines text))
 
 let%expect_test "every Scheduled sample gives its listed answer" =
@@ -199,4 +234,4 @@ let%expect_test "every Scheduled sample gives its listed answer" =
     (List.tl (lines (read "cases.tsv")));
   Printf.printf "%d applied, %d refused, %d pace answers, %d failures\n" !accepted !refused !paces
     !failures;
-  [%expect {| 12 applied, 14 refused, 11 pace answers, 0 failures |}]
+  [%expect {| 14 applied, 14 refused, 27 pace answers, 0 failures |}]

@@ -3,7 +3,7 @@ module B = Bakhlo_household.Book
 
 type preset = Ten_days | Thirty_days | Month | Cycle | Previous_cycle
 
-type day_activity = {
+type day_activity = B.day_activity = {
   discretionary_outflow : Z.t;
   discretionary_inflow : Z.t;
   scheduled_settled_outflow : Z.t;
@@ -53,9 +53,6 @@ val graph_style_label : graph_style -> string
 val format_pace_error : string -> string
 (** Reader-facing cause of a refused Daily Pace calculation; unknown causes pass through. *)
 
-val zero_activity : day_activity
-(** All-zero daily activity for days with no pool movement. *)
-
 val compute_samples :
   book:B.t ->
   measure:string ->
@@ -65,11 +62,9 @@ val compute_samples :
   preset:preset ->
   (string * string * sample list, string) result
 (** Restated current-truth history, not an as-known-at-day log. Each date uses
-    its explicit window in today's uniquely selected named cycle preset.
-    Past quantities require historical support; unsupported dates stay unknown.
-    Retained paid occurrences reserve their net Pool drain until their Actual
-    payment date; cancelled occurrences are closed throughout the reconstruction.
-    Overdue open occurrences count without a lower due-date bound. *)
+    its explicit window in today's uniquely selected named cycle preset; today is
+    {!B.daily_pace}, past days {!B.past_paces} (which own the plan rules), and each
+    day's activity {!B.day_activities}. Unsupported dates stay unknown. *)
 
 val day_number : string -> int
 (** Proleptic Gregorian day ordinal of a valid ISO date; 0 when invalid. *)

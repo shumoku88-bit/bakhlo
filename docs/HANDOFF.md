@@ -9,9 +9,10 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
 ## Where things stand (2026-11-08)
 
 - 2026-11-08: answer samples for the Zig rewrite start with Scheduled:
-  `test/scheduled/` (22 hand-written samples, README) passes through
-  `test/scheduled_tests.ml`. Next candidates: move History's plan rules out of
-  `daily_pace_trend.ml` into the core with samples. User decision (2026-11-08):
+  `test/scheduled/` (28 hand-written samples with 27 Daily Pace questions, README)
+  passes through `test/scheduled_tests.ml`. History's plan rules now live in the
+  core (`Book.past_paces`, `Book.day_activities`) and are sampled as `PAST` and
+  `ACTIVITY`; the screen only formats them. User decision (2026-11-08):
   HIDDEN only blocks new money flows, so a correction keeping its Loci and a refund
   to its target's Loci are saved (an intentional difference from LOAM).
   [Evidence](VERIFICATION.md#scheduled-answer-samples-2026-11-08).

@@ -245,6 +245,31 @@ let day_number text =
   + day
   + if leap && month > 2 then 1 else 0
 
+(* What a plan takes out of the pool: the net of its changes on the pool's Loci, when
+   negative. A move between two pool Loci nets to zero and a planned inflow takes
+   nothing, so neither is protected. *)
+let pool_drain ~pool (p : plan) =
+  let in_pool locus = List.exists (fun (c : coordinate) -> c.locus = locus) pool in
+  let net =
+    List.fold_left
+      (fun total (locus, n) -> if in_pool locus then Z.add total n else total)
+      Z.zero p.changes
+  in
+  Z.neg (Z.min Z.zero net)
+
+(* The plans the guide sets money aside for, in book order: due before the end, not
+   cancelled (a cancellation counts for every day, as current truth), still [owed],
+   and draining the pool. *)
+let protected_plans t ~measure ~pool ~end_exclusive ~owed =
+  List.filter_map
+    (fun (p : plan) ->
+      if p.measure <> measure || p.day >= end_exclusive || p.cancelled_on <> None || not (owed p)
+      then None
+      else
+        let drain = pool_drain ~pool p in
+        if Z.sign drain > 0 then Some (p.id, drain) else None)
+    (plans t)
+
 let pool_balance t (c : coordinate) =
   match quantity t ~locus:c.locus ~measure:c.measure with Some q -> Some q.amount | None -> None
 
@@ -269,18 +294,10 @@ let daily_pace t ~measure ~pool ~observed_at ~end_exclusive =
                 raise (Refused ("daily-pace-balance-support-unknown:" ^ c.locus ^ ":" ^ measure)))
           pool
       in
-      let selected locus = List.exists (fun (c : coordinate) -> c.locus = locus) pool in
+      (* Today's balances already hold every recorded payment, so only open plans
+         are still owed. *)
       let plan_deductions =
-        open_plans t
-        |> List.filter_map (fun (p : plan) ->
-            if p.measure <> measure || p.day >= end_exclusive then None
-            else
-              let net =
-                List.fold_left
-                  (fun total (locus, n) -> if selected locus then Z.add total n else total)
-                  Z.zero p.changes
-              in
-              if Z.sign net < 0 then Some (p.id, Z.neg net) else None)
+        protected_plans t ~measure ~pool ~end_exclusive ~owed:(fun p -> p.paid_by = None)
       in
       let sum rows = List.fold_left (fun total (_, n) -> Z.add total n) Z.zero rows in
       let eligible_pool = sum pool_balances and automatic_deductions = sum plan_deductions in
@@ -373,6 +390,137 @@ let pools_at_end_of_days t ~measure ~pool ~days =
 
 let pool_at_end_of_day t ~measure ~pool ~day =
   List.hd (pools_at_end_of_days t ~measure ~pool ~days:[ day ])
+
+(* ---- the guide on past days ---- *)
+
+type past_pace = {
+  remaining_days : int;
+  restated_pool : Z.t;
+  protected : (string * Z.t) list;
+  available : Z.t;
+  pace : Z.t;
+}
+
+(* A past day's pool holds only the payments made by its end, so a paid plan stays
+   protected until the day it was paid. *)
+let past_paces t ~measure ~pool ~days =
+  let restated = pools_at_end_of_days t ~measure ~pool ~days:(List.map fst days) in
+  List.map2
+    (fun (day, end_exclusive) restated ->
+      Result.bind restated (fun restated_pool ->
+          protect (fun () ->
+              let remaining_days = day_number end_exclusive - day_number day in
+              require (remaining_days > 0) "daily-pace-non-positive-horizon";
+              let owed (p : plan) =
+                match p.paid_by with
+                | None -> true
+                | Some id -> (
+                    (* book.txt refuses a PAID-BY whose TX is gone. *)
+                    match find_entry t id with
+                    | Some paid -> paid.day > day
+                    | None -> raise (Refused ("plan-payment-missing:" ^ id)))
+              in
+              let protected = protected_plans t ~measure ~pool ~end_exclusive ~owed in
+              let available =
+                List.fold_left (fun total (_, n) -> Z.sub total n) restated_pool protected
+              in
+              {
+                remaining_days;
+                restated_pool;
+                protected;
+                available;
+                pace = Z.ediv available (Z.of_int remaining_days);
+              })))
+    days restated
+
+(* ---- what moved the pool on each day ---- *)
+
+type day_activity = {
+  discretionary_outflow : Z.t;
+  discretionary_inflow : Z.t;
+  scheduled_settled_outflow : Z.t;
+  scheduled_settled_inflow : Z.t;
+  scheduled_reserved_outflow : Z.t;
+}
+
+let quiet_day =
+  {
+    discretionary_outflow = Z.zero;
+    discretionary_inflow = Z.zero;
+    scheduled_settled_outflow = Z.zero;
+    scheduled_settled_inflow = Z.zero;
+    scheduled_reserved_outflow = Z.zero;
+  }
+
+(* Each entry counts by its net effect on the pool, so a move inside the pool is
+   quiet. An entry that pays a plan, or reverses such a payment, is Scheduled; the
+   rest is discretionary. A reversal recorded on its target's day cancels it out of
+   both days' activity. The paying day also shows the plan's protected drain being
+   released. *)
+let day_activities t ~measure ~pool =
+  let in_pool (p : posting) =
+    p.measure = measure && List.exists (fun (c : coordinate) -> c.locus = p.locus) pool
+  in
+  let entries = entries t in
+  let ids = List.fold_left (fun set id -> Smap.add id () set) Smap.empty in
+  let paying = ids (List.filter_map (fun (p : plan) -> p.paid_by) (plans t)) in
+  let scheduled (e : entry) =
+    Smap.mem e.id paying
+    || match e.reversal_of with Some target -> Smap.mem target paying | None -> false
+  in
+  let same_day_pairs =
+    ids
+      (List.concat_map
+         (fun (e : entry) ->
+           match e.reversal_of with
+           | Some target -> (
+               match find_entry t target with
+               | Some old when old.day = e.day -> [ e.id; target ]
+               | Some _ | None -> [])
+           | None -> [])
+         entries)
+  in
+  let add day f days =
+    Smap.update day (fun a -> Some (f (Option.value ~default:quiet_day a))) days
+  in
+  let reserved =
+    List.fold_left
+      (fun days (p : plan) ->
+        match p.paid_by with
+        | Some id when p.measure = measure -> (
+            let drain = pool_drain ~pool p in
+            match find_entry t id with
+            | Some paid when Z.sign drain > 0 ->
+                add paid.day
+                  (fun a ->
+                    { a with scheduled_reserved_outflow = Z.add a.scheduled_reserved_outflow drain })
+                  days
+            | Some _ | None -> days)
+        | Some _ | None -> days)
+      Smap.empty (plans t)
+  in
+  List.fold_left
+    (fun days (e : entry) ->
+      let delta =
+        List.fold_left
+          (fun total (p : posting) -> if in_pool p then Z.add total p.amount else total)
+          Z.zero e.effects
+      in
+      if Z.equal delta Z.zero || Smap.mem e.id same_day_pairs then days
+      else
+        let out = Z.sign delta < 0 and size = Z.abs delta in
+        add e.day
+          (fun a ->
+            match (scheduled e, out) with
+            | true, true ->
+                { a with scheduled_settled_outflow = Z.add a.scheduled_settled_outflow size }
+            | true, false ->
+                { a with scheduled_settled_inflow = Z.add a.scheduled_settled_inflow size }
+            | false, true -> { a with discretionary_outflow = Z.add a.discretionary_outflow size }
+            | false, false -> { a with discretionary_inflow = Z.add a.discretionary_inflow size })
+          days)
+    reserved entries
+  |> Smap.bindings
 
 (* ---- changes ---- *)
 

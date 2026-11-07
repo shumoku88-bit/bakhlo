@@ -31,6 +31,26 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
   the refund on its own copy, keeping the plan paid. LOAM still refuses both;
   this is recorded as an intentional difference. Real-data comparison of this
   change **not executed**.
+- Follow-up, at the user's request: History's plan rules moved from
+  `tui/screens/pace/daily_pace_trend.ml` into `household/book.ml`. `past_paces`
+  owns the past-day guide (a paid plan stays protected until its payment day; a
+  cancelled plan is never protected) and `day_activities` the per-day split
+  (Scheduled payments and their refunds, the protection released on the paying
+  day, same-day reversal pairs cancelled). Today's guide and past days share
+  one `protected_plans` rule. The screen keeps period resolution and wording.
+  Samples gained `PAST` and `ACTIVITY` questions written by hand (14 applied,
+  14 refused, 27 Pace answers, 0 failures on the first run); a wrong PAST pace
+  and a wrong released amount each failed, then were restored.
+- `./tools/check`, `./tools/tui --self-check` (existing Daily Pace History,
+  activity and change checks unchanged), `./tools/format --check` and
+  `./tools/privacy-scan --all`: exit 0.
+- Before (`c9a14ae` export) and after binaries; fresh `./tools/compare refresh`.
+  `scratch/history-core-20261108/capture.sh` at synthetic and latest-copy
+  120×36/80×24: all five presets, a day seven days back, its Selected day detail
+  and its End scroll read byte-identical before/after; presets, the past day and
+  the detail differ from each other, so the flows were reached. Original, copy and
+  synthetic digests unchanged; owned tmux closed; `clean-copies`: exit 0. LOAM
+  was not driven (no displayed answer changed).
 
 ## Record and Preview typography (2026-11-07)
 

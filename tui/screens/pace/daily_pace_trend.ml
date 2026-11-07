@@ -6,7 +6,7 @@ module Panel = Ui_panel
 
 type preset = Ten_days | Thirty_days | Month | Cycle | Previous_cycle
 
-type day_activity = {
+type day_activity = B.day_activity = {
   discretionary_outflow : Z.t;
   discretionary_inflow : Z.t;
   scheduled_settled_outflow : Z.t;
@@ -165,105 +165,6 @@ let query_pool_balance book coords =
   in
   sum Z.zero coords
 
-let zero_activity =
-  {
-    discretionary_outflow = Z.zero;
-    discretionary_inflow = Z.zero;
-    scheduled_settled_outflow = Z.zero;
-    scheduled_settled_inflow = Z.zero;
-    scheduled_reserved_outflow = Z.zero;
-  }
-
-(* Exact day activity: fold entries per day with per-entry NET pool effect so
-   intra-pool transfers cancel. B.plans paid_by links identify scheduled
-   payments; reversals of scheduled payments are scheduled too. Same-day
-   target/reversal pairs skip effects but keep reserved on the paying day. *)
-let compute_activities book measure pool =
-  let entries = B.entries book in
-  let plans = B.plans book in
-  let by_id = Hashtbl.create (max 8 (List.length entries)) in
-  List.iter (fun (e : B.entry) -> Hashtbl.replace by_id e.id e) entries;
-  let paid_ids = Hashtbl.create 8 in
-  List.iter
-    (fun (p : B.plan) ->
-      match p.paid_by with None -> () | Some eid -> Hashtbl.replace paid_ids eid true)
-    plans;
-  let scheduled_ids = Hashtbl.create 8 in
-  Hashtbl.iter (fun eid _ -> Hashtbl.replace scheduled_ids eid true) paid_ids;
-  List.iter
-    (fun (e : B.entry) ->
-      match e.reversal_of with
-      | Some t when Hashtbl.mem paid_ids t -> Hashtbl.replace scheduled_ids e.id true
-      | _ -> ())
-    entries;
-  let skip = Hashtbl.create 8 in
-  List.iter
-    (fun (e : B.entry) ->
-      match e.reversal_of with
-      | Some t -> (
-          match Hashtbl.find_opt by_id t with
-          | Some target when target.day = e.day ->
-              Hashtbl.replace skip e.id true;
-              Hashtbl.replace skip t true
-          | _ -> ())
-      | None -> ())
-    entries;
-  let plan_net (p : B.plan) =
-    List.fold_left
-      (fun acc (loc, q) -> if List.mem loc pool then Z.add acc q else acc)
-      Z.zero p.changes
-  in
-  let table : (string, day_activity) Hashtbl.t = Hashtbl.create (max 8 (List.length entries)) in
-  let add day f =
-    let prev = match Hashtbl.find_opt table day with None -> zero_activity | Some a -> a in
-    Hashtbl.replace table day (f prev)
-  in
-  List.iter
-    (fun (p : B.plan) ->
-      match p.paid_by with
-      | Some eid when p.measure = measure -> (
-          let reserved = Z.neg (Z.min Z.zero (plan_net p)) in
-          if Z.sign reserved > 0 then
-            match Hashtbl.find_opt by_id eid with
-            | None -> ()
-            | Some pay ->
-                add pay.day (fun a ->
-                    {
-                      a with
-                      scheduled_reserved_outflow = Z.add a.scheduled_reserved_outflow reserved;
-                    }))
-      | None | Some _ -> ())
-    plans;
-  List.iter
-    (fun (e : B.entry) ->
-      if Hashtbl.mem skip e.id then ()
-      else
-        let delta =
-          List.fold_left
-            (fun acc (eff : B.posting) ->
-              if eff.B.measure = measure && List.mem eff.B.locus pool then Z.add acc eff.B.amount
-              else acc)
-            Z.zero e.effects
-        in
-        if Z.equal delta Z.zero then ()
-        else if Hashtbl.mem scheduled_ids e.id then
-          if Z.sign delta < 0 then
-            add e.day (fun a ->
-                {
-                  a with
-                  scheduled_settled_outflow = Z.add a.scheduled_settled_outflow (Z.neg delta);
-                })
-          else
-            add e.day (fun a ->
-                { a with scheduled_settled_inflow = Z.add a.scheduled_settled_inflow delta })
-        else if Z.sign delta < 0 then
-          add e.day (fun a ->
-              { a with discretionary_outflow = Z.add a.discretionary_outflow (Z.neg delta) })
-        else
-          add e.day (fun a -> { a with discretionary_inflow = Z.add a.discretionary_inflow delta }))
-    entries;
-  table
-
 (* Core refusal codes carry "code:locus:measure"; name the coordinate, never guess. *)
 let history_reason code =
   let kind, coordinate =
@@ -281,6 +182,9 @@ let history_reason code =
       ^ "."
   | "history-support-conflict" ->
       "History refused: overlapping history support for " ^ coordinate ^ "."
+  | "daily-pace-non-positive-horizon" -> "Past pace has no remaining calendar horizon."
+  | "plan-payment-missing" ->
+      "History unavailable: Scheduled completion Actual " ^ coordinate ^ " is not retained."
   | _ -> "History unavailable: " ^ code
 
 let compute_samples ~book ~measure ~pool ~boundary_presets_text ~today ~preset =
@@ -320,45 +224,29 @@ let compute_samples ~book ~measure ~pool ~boundary_presets_text ~today ~preset =
       | Ok pace -> Ok pace
       | Error why -> Error (format_pace_error why)
     in
-    let plans = B.plans book in
-    let activities = compute_activities book measure pool in
+    let activities = Hashtbl.create 64 in
+    List.iter
+      (fun (day, a) -> Hashtbl.replace activities day a)
+      (B.day_activities book ~measure ~pool:coords);
     let activity_of day =
-      Some (Option.value ~default:zero_activity (Hashtbl.find_opt activities day))
+      Some (Option.value ~default:B.quiet_day (Hashtbl.find_opt activities day))
     in
     (* Opening/current observation alone does not certify a complete historical
        interval: Core routes each coordinate through zero-origin or explicit
        bounded-history support, and refuses otherwise. *)
     let days = dates_between start_day through_day in
-    let pools = Hashtbl.create (List.length days) in
-    List.iter2 (Hashtbl.replace pools) days
-      (B.pools_at_end_of_days book ~measure ~pool:coords ~days);
-    let history_pool day = Result.map_error history_reason (Hashtbl.find pools day) in
-    let deductions_for day stop =
-      List.fold_left
-        (fun result (plan : B.plan) ->
-          let* total = result in
-          let drain =
-            if plan.measure <> measure then Z.zero
-            else
-              Z.neg
-                (Z.min Z.zero
-                   (List.fold_left
-                      (fun sum (locus, q) -> if List.mem locus pool then Z.add sum q else sum)
-                      Z.zero plan.changes))
-          in
-          if Z.equal drain Z.zero || plan.day >= stop || plan.cancelled_on <> None then Ok total
-          else
-            match plan.paid_by with
-            | None -> Ok (Z.add total drain)
-            | Some id -> (
-                match B.find_entry book id with
-                | None ->
-                    Error
-                      ("History unavailable: Scheduled completion Actual " ^ id
-                     ^ " is not retained.")
-                | Some paid -> Ok (if paid.day <= day then total else Z.add total drain)))
-        (Ok Z.zero) plans
+    let ends = List.map (fun day -> (day, end_for day)) days in
+    let past = Hashtbl.create (List.length days) in
+    let asked =
+      List.filter_map
+        (fun (day, stop) ->
+          match stop with Ok stop when day <> today -> Some (day, stop) | _ -> None)
+        ends
     in
+    List.iter2
+      (fun (day, _) answer -> Hashtbl.replace past day answer)
+      asked
+      (B.past_paces book ~measure ~pool:coords ~days:asked);
     let unavailable day stop why =
       {
         day;
@@ -374,8 +262,8 @@ let compute_samples ~book ~measure ~pool ~boundary_presets_text ~today ~preset =
     in
     let samples =
       List.map
-        (fun day ->
-          match end_for day with
+        (fun (day, stop) ->
+          match stop with
           | Error why -> unavailable day "" why
           | Ok stop -> (
               if day = today then
@@ -391,30 +279,21 @@ let compute_samples ~book ~measure ~pool ~boundary_presets_text ~today ~preset =
                   unavailable = None;
                 }
               else
-                match history_pool day with
-                | Error why -> unavailable day stop why
-                | Ok pool_balance -> (
-                    let remaining_days = day_number stop - day_number day in
-                    if remaining_days <= 0 then
-                      unavailable day stop "Past pace has no remaining calendar horizon."
-                    else
-                      match deductions_for day stop with
-                      | Error why -> unavailable day stop why
-                      | Ok deductions ->
-                          let available_through_end = Z.sub pool_balance deductions in
-                          {
-                            day;
-                            pace_quanta =
-                              Some (Z.ediv available_through_end (Z.of_int remaining_days));
-                            available_through_end;
-                            pool_balance;
-                            deductions;
-                            remaining_days;
-                            end_exclusive = stop;
-                            activity = activity_of day;
-                            unavailable = None;
-                          })))
-        days
+                match Hashtbl.find past day with
+                | Error why -> unavailable day stop (history_reason why)
+                | Ok (p : B.past_pace) ->
+                    {
+                      day;
+                      pace_quanta = Some p.pace;
+                      available_through_end = p.available;
+                      pool_balance = p.restated_pool;
+                      deductions = Z.sub p.restated_pool p.available;
+                      remaining_days = p.remaining_days;
+                      end_exclusive = stop;
+                      activity = activity_of day;
+                      unavailable = None;
+                    }))
+        ends
     in
     Ok (start_day, through_day, samples)
 

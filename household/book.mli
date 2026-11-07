@@ -138,6 +138,43 @@ val pools_at_end_of_days :
   t -> measure:string -> pool:coordinate list -> days:string list -> (Z.t, string) result list
 (** {!pool_at_end_of_day} for each day, from one pass over the entries. *)
 
+type past_pace = {
+  remaining_days : int;
+  restated_pool : Z.t;  (** {!pool_at_end_of_day}. *)
+  protected : (string * Z.t) list;  (** Plan ID and the drain set aside, in book order. *)
+  available : Z.t;
+  pace : Z.t;  (** [available / remaining_days], floored. *)
+}
+
+val past_paces :
+  t ->
+  measure:string ->
+  pool:coordinate list ->
+  days:(string * string) list ->
+  (past_pace, string) result list
+(** The guide at the end of each (day, exclusive end), in the order asked, restated from current truth
+    (test/scheduled, [PAST]). Like {!daily_pace}, it protects plans due before the end
+    that drain the pool, overdue ones included; a cancelled plan is never protected,
+    even before it was cancelled. Unlike today, a paid plan stays protected until the
+    day of its payment, because the restated pool holds only payments made by then.
+    Refuses with {!pool_at_end_of_day}'s reason or a non-positive horizon. *)
+
+type day_activity = {
+  discretionary_outflow : Z.t;
+  discretionary_inflow : Z.t;
+  scheduled_settled_outflow : Z.t;  (** Paid for a plan, or a reversal of such a payment. *)
+  scheduled_settled_inflow : Z.t;
+  scheduled_reserved_outflow : Z.t;  (** Drains released by the plans paid that day. *)
+}
+
+val quiet_day : day_activity
+
+val day_activities : t -> measure:string -> pool:coordinate list -> (string * day_activity) list
+(** The days on which the pool moved, in day order (test/scheduled, [ACTIVITY]). Each
+    entry counts by its net pool effect, so moves inside the pool are quiet; one that
+    pays a plan or reverses such a payment is Scheduled, others discretionary; a
+    reversal on its target's day cancels both out. Reads no clock. *)
+
 (** {1 Changes}
 
     Each refuses with a reason and leaves the book as it was. *)

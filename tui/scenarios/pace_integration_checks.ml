@@ -1035,7 +1035,7 @@ let daily_pace_graph_render_checks ~width_of () =
       deductions = Z.zero;
       remaining_days = 1;
       end_exclusive = stop;
-      activity = Some Trend.zero_activity;
+      activity = Some B.quiet_day;
       unavailable = None;
     }
   in
@@ -1183,7 +1183,7 @@ let daily_pace_graph_render_checks ~width_of () =
         {
           (List.nth huge_samples 4) with
           Trend.pace_quanta = Some (Z.neg huge_digit);
-          activity = Some { Trend.zero_activity with scheduled_settled_inflow = Z.of_int 400 };
+          activity = Some { B.quiet_day with scheduled_settled_inflow = Z.of_int 400 };
         }
       in
       let rows =
@@ -1313,7 +1313,7 @@ let daily_pace_graph_render_checks ~width_of () =
       activity =
         Some
           {
-            Trend.zero_activity with
+            B.quiet_day with
             discretionary_inflow = Z.of_int 250;
             scheduled_settled_outflow = Z.of_int 1000;
             scheduled_reserved_outflow = Z.of_int 900;
@@ -1473,7 +1473,7 @@ let daily_pace_graph_render_checks ~width_of () =
              rows)
         "pace-partial-history-value-column-and-detail-focus-marker")
     [ false; true ];
-  let spent = { Trend.zero_activity with discretionary_outflow = Z.of_int 1000 } in
+  let spent = { B.quiet_day with discretionary_outflow = Z.of_int 1000 } in
   let current = { (sample ~day:"2026-10-19" ()) with activity = Some spent } in
   let history = [ sample ~day:"2026-10-18" ~q:4233 (); current ] in
   let painted_history width height =
