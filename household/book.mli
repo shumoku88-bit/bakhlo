@@ -144,8 +144,10 @@ val pools_at_end_of_days :
 
 val put_entry : t -> replace:bool -> entry -> plan:string option -> (t, string) result
 (** A new entry at the end, or the entry with this ID in its place. Its Loci must be
-    offered for new entries; [plan] pays an open plan (new entries only); a classified
-    Merchant cannot be replaced. An empty memo is no memo. *)
+    offered for new entries, except the Loci a replaced entry already had or, for a
+    reversal, the Loci of its target (HIDDEN does not block corrections or refunds);
+    [plan] pays an open plan (new entries only); a classified Merchant cannot be
+    replaced. An empty memo is no memo. *)
 
 val correct_entry_date : t -> id:string -> day:string -> (t, string) result
 (** Only the date; a Locus no longer offered may stay. *)

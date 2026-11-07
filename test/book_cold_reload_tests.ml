@@ -393,7 +393,7 @@ let%expect_test "every mutation agrees with its book.txt cold-loaded twin" =
 
 let result_text = function Ok _ -> "ok" | Error why -> why
 
-let%expect_test "date and Merchant-only changes accept retained unapproved Loci" =
+let%expect_test "HIDDEN Loci stay in corrections, refunds, dates and Merchant, never in new flows" =
   let base = get (B.read hidden_fixture) in
   let initial = Option.value_exn (B.find_entry base "init") in
   let dated = B.correct_entry_date base ~id:"init" ~day:"2026-10-02" in
@@ -419,6 +419,19 @@ let%expect_test "date and Merchant-only changes accept retained unapproved Loci"
   Stdio.printf "new entry: %s\n" (result_text (B.put_entry base ~replace:false fresh ~plan:None));
   Stdio.printf "new reversal: %s\n"
     (result_text (B.put_entry base ~replace:false reversal ~plan:None));
+  let lunch =
+    {
+      fresh with
+      id = "lunch";
+      effects = [ posting "food" "jpy" (-800); posting "expense" "jpy" 800 ];
+    }
+  in
+  let with_lunch = get (B.put_entry base ~replace:false lunch ~plan:None) in
+  Stdio.printf "correction into a HIDDEN Locus it did not have: %s\n"
+    (result_text
+       (B.put_entry with_lunch ~replace:true
+          { lunch with effects = [ posting "wallet" "jpy" (-800); posting "expense" "jpy" 800 ] }
+          ~plan:None));
   Stdio.printf "invalid date: %s\n"
     (result_text (B.correct_entry_date base ~id:"init" ~day:"2026-02-30"));
   Stdio.printf "invalid id: %s\n" (result_text (B.correct_entry_date base ~id:"" ~day:"2026-10-02"));
@@ -435,9 +448,10 @@ let%expect_test "date and Merchant-only changes accept retained unapproved Loci"
     {|
     date succeeds and changes only date: true
     Merchant succeeds and changes only Merchant: true
-    generic correction: locus-unapproved
+    generic correction: ok
     new entry: locus-unapproved
-    new reversal: locus-unapproved
+    new reversal: ok
+    correction into a HIDDEN Locus it did not have: locus-unapproved
     invalid date: invalid-date
     invalid id: invalid-entry-id
     unknown date target: unknown-entry

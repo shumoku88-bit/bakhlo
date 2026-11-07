@@ -199,4 +199,4 @@ let%expect_test "every Scheduled sample gives its listed answer" =
     (List.tl (lines (read "cases.tsv")));
   Printf.printf "%d applied, %d refused, %d pace answers, %d failures\n" !accepted !refused !paces
     !failures;
-  [%expect {| 10 applied, 12 refused, 11 pace answers, 0 failures |}]
+  [%expect {| 12 applied, 14 refused, 11 pace answers, 0 failures |}]

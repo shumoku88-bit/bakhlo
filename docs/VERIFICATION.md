@@ -21,6 +21,16 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 - `./tools/check`, `./tools/tui --self-check` and `./tools/format --check`: exit 0.
 - Not covered: the past-day Pace (History) treatment of paid, reversed and
   cancelled plans still lives in `tui/screens/pace/daily_pace_trend.ml`.
+- Follow-up, user decision A: `COMMON_FORMAT` said HIDDEN never refuses
+  corrections or refunds, but `Book.put_entry` refused them. Now a correction may
+  keep its entry's own Loci and a reversal may use its target's; any other HIDDEN
+  Locus is still `locus-unapproved`. Four hand-written samples were added
+  (12 applied, 14 refused, 11 Pace answers, 0 failures). `book_cold_reload_tests`
+  now expects the correction and refund to save and a correction into a new HIDDEN
+  Locus to refuse; the Actual scenario reaches the correction Preview and saves
+  the refund on its own copy, keeping the plan paid. LOAM still refuses both;
+  this is recorded as an intentional difference. Real-data comparison of this
+  change **not executed**.
 
 ## Record and Preview typography (2026-11-07)
 

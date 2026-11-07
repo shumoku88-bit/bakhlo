@@ -1083,9 +1083,10 @@ let date_correction_checks ~width_of ~directory home =
         "date-target-cannot-inject-terminal-controls")
     [ unsafe; update unsafe `Enter ];
 
-  (* A retained Actual may refer to a Locus that is no longer admitted for new
-     publication. Date and Merchant are independent metadata mutations; ordinary
-     correction and reversal remain new Movement publications and stay refused. *)
+  (* A retained Actual may refer to a Locus that is no longer offered for new
+     entries (HIDDEN). That only keeps it out of new money flows: correction keeps
+     the entry's own Loci, a refund returns to them, and date and Merchant change
+     only their field. *)
   let retained_plan : B.plan =
     {
       id = "retained-locus-plan";
@@ -1136,27 +1137,43 @@ let date_correction_checks ~width_of ~directory home =
 
   let correction = key ~width_of (retained_initial ()) (`ASCII 'c') in
   require correction.record_visible "retained-locus-correction-opens";
-  let correction_refused = C.submit correction in
+  let correction_preview = C.submit correction in
   let correction_rows =
-    S.screen ~book:correction_refused.session.book ~dimensions:(72, 20) ~width_of
-      (Option.get correction_refused.record)
+    S.screen ~book:correction_preview.session.book ~dimensions:(72, 20) ~width_of
+      (Option.get correction_preview.record)
+  in
+  let shows needle =
+    List.exists (fun (_, line) -> Base.String.is_substring line ~substring:needle) correction_rows
   in
   require
-    (correction_refused.record_visible
+    (correction_preview.record_visible
     && F.read retained_path = original_bytes
-    && List.exists
-         (fun (_, line) -> Base.String.is_substring line ~substring:"A Locus is not admitted")
-         correction_rows)
-    "retained-locus-ordinary-correction-remains-refused";
+    && shows "Correct Actual (same ID)"
+    && not (shows "A Locus is not admitted"))
+    "retained-locus-correction-reaches-preview";
 
-  let reversing = key ~width_of (retained_initial ()) (`ASCII 'x') in
+  (* The refund is saved on its own copy so the date and Merchant checks below
+     still start from the unrefunded book. *)
+  let refund_path = directory ^ "/retained-locus-refund.txt" in
+  F.write_new refund_path retained_bytes;
+  let reversing =
+    key ~width_of
+      (C.open_route (C.initial ~config_home:directory (F.load refund_path)) W.Actual)
+      (`ASCII 'x')
+  in
   let reversal_review = key ~width_of reversing `Enter in
-  let reversal_refused = key ~width_of reversal_review `Enter in
+  let reversal_saved = key ~width_of reversal_review `Enter in
+  let refunded = F.load refund_path in
   require
-    (is_reversal reversal_refused
-    && F.read retained_path = original_bytes
-    && Base.String.is_substring reversal_refused.message ~substring:"locus-unapproved")
-    "retained-locus-reversal-remains-refused";
+    (is_reversal reversing && no_modal reversal_saved
+    && List.exists
+         (fun (e : B.entry) -> e.reversal_of = Some retained_target.id)
+         (B.entries refunded.book)
+    && B.find_entry refunded.book retained_target.id = Some retained_target
+    && B.plans refunded.book = B.plans retained_book
+    && B.approved_loci refunded.book = Some [ "wallet"; "bank" ]
+    && F.read retained_path = original_bytes)
+    "retained-locus-refund-saves-and-keeps-the-plan-paid";
 
   let dating = key ~width_of (retained_initial ()) (`ASCII 'd') in
   let date_review = date dating "2026-10-09" |> fun s -> key ~width_of s `Enter in
@@ -1193,8 +1210,8 @@ let date_correction_checks ~width_of ~directory home =
     "retained-locus-merchant-cold-preserves-identity-effects-link-original-amount";
   print_endline
     "PASS: date-only correction validates dates, reviews target, refuses tiny/stale, preserves \
-     drafts, keys and completed plans; retained unapproved-Locus Actuals allow dedicated \
-     date/Merchant metadata while correction/reversal remain refused."
+     drafts, keys and completed plans; Actuals with a HIDDEN Locus can be corrected, refunded, \
+     re-dated and classified."
 
 let original_amount_integration_checks ~width_of ~directory () =
   let dir = directory ^ "/original-amount-integration" in

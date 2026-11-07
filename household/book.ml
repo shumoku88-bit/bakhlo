@@ -413,9 +413,6 @@ let approve_loci t loci =
   let ids = offered t in
   List.iter (fun locus -> require (List.mem locus ids) "locus-unapproved") loci
 
-let approve_effects t (effects : posting list) =
-  approve_loci t (List.map (fun (p : posting) -> p.locus) effects)
-
 let find_plan t id =
   match List.find_opt (fun (p : plan) -> p.id = id) (plans t) with
   | Some p -> p
@@ -438,10 +435,28 @@ let check_entry t (e : entry) =
   Option.iter (fun (m, _) -> known_measure t m) e.original_amount;
   require (T.valid_date e.day) "entry-admission"
 
+(* HIDDEN only keeps a Locus out of new money flows. A correction may keep the Loci
+   its entry already had, and a refund may return money to the Loci of the entry it
+   reverses; any other Locus must still be offered. *)
+let approve_entry_loci t ~replace (e : entry) =
+  let loci_of id =
+    match find_entry t id with
+    | Some old -> List.map (fun (p : posting) -> p.locus) old.effects
+    | None -> []
+  in
+  let kept =
+    (if replace then loci_of e.id else [])
+    @ match e.reversal_of with Some id -> loci_of id | None -> []
+  in
+  approve_loci t
+    (List.filter_map
+       (fun (p : posting) -> if List.mem p.locus kept then None else Some p.locus)
+       e.effects)
+
 let put_entry t ~replace (e : entry) ~plan =
   protect (fun () ->
       let e = no_empty_memo e in
-      approve_effects t e.effects;
+      approve_entry_loci t ~replace e;
       require (mem_entry t e.id = replace) (if replace then "unknown-entry" else "duplicate-entry");
       (if replace then
          match (Option.get (find_entry t e.id)).merchant with

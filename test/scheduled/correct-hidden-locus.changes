@@ -1,0 +1,5 @@
+PUT-ENTRY	REPLACE	-
+TX	tx-0003	2027-01-10	DESC	last gym month
+EFFECT	bank	jpy	-5500
+EFFECT	gym	jpy	5500
+ENDTX

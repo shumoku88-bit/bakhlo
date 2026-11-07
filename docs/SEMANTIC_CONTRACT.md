@@ -11,7 +11,9 @@ balance is answered; `Book_txt.change` admits a change by exactly those rules. O
 them, Bakhlo applies its own write policies (`household/book.ml`):
 
 - new entries, plans and counts use only Loci offered for new entries (not `HIDDEN`);
-  a date-only or Merchant-only change keeps a Locus that is no longer offered;
+  a correction keeps its entry's own Loci and a refund (reversal) may return to its
+  target's Loci even when they are `HIDDEN` (user decision 2026-11-08); date-only and
+  Merchant-only changes keep them too;
 - only an open plan can be paid, replaced or cancelled; payment and cancellation are final;
 - a Merchant, once classified, is not replaced (user decision 2026-10-24 allows changing
   it later; not yet implemented);

@@ -21,3 +21,7 @@ refuse-duplicate-plan	base.txt	duplicate-plan	同じIDの予定を新しく作�
 refuse-pay-then-cancel	base.txt	plan-already-paid	変更はまとめて全部か何もしないか。払ったあと同じ予定を取り消すと、支払いも残らない
 new-plan-deficit	base.txt	ok	新しい予定は末尾に足す。足りなければ1日あたりはマイナスで、端数は小さいほうへ
 pace-rules	base.txt	ok	変更なし。今日の目安の決まり：期限切れも差し引く、プール内の移動と予定の入金は0、終わりの日以降・取消・払い済みは数えない、根拠のない残高と0日の期間は拒否
+refund-hidden-locus	base.txt	ok	使わなくなった科目（HIDDEN）への支払いも返金できる。返金は元の記録の科目へ戻すだけ
+correct-hidden-locus	base.txt	ok	HIDDENの科目を含む実績も、もともと入っていた科目のまま訂正できる
+refuse-new-entry-hidden-locus	base.txt	locus-unapproved	HIDDENの科目へ新しくお金を流す実績は作れない
+refuse-correction-into-hidden-locus	base.txt	locus-unapproved	訂正でも、元の記録になかったHIDDENの科目は使えない
