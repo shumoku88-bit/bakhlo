@@ -11,6 +11,33 @@ From 2026-11-09 (user decision) an entry names its commit (or comes in it) and s
 result, keeping synthetic checks, CI, latest-data paired comparison, physical terminal/IME,
 human acceptance and P7/power loss apart. What changed and why is that commit's message.
 
+## Where a save's time goes (2026-11-09)
+
+- A throwaway program in ignored scratch repeated `Book_file.publish`'s steps on synthetic
+  books from `startup_probe gen` (macOS x86_64, OCaml 5.4.1, median of 21 saves, ms):
+
+  | step | 1,000 (0.1 MiB) | 36,500 (3.6 MiB) | 109,500 (11.0 MiB) |
+  |---|---:|---:|---:|
+  | admit (`Book.apply`) | 0.1 | 0.4 | 3.2 |
+  | print (`Book_txt.print`) | 0.3 | 8.4 | 22.7 |
+  | digest of the new bytes | 0.3 | 7.3 | 20.9 |
+  | unchanged check (read + digest) | 0.5 | 9.8 | 31.9 |
+  | create and write the temporary file | 0.3 | 2.0 | 7.9 |
+  | full sync of the file | 20.8 | 23.9 | 27.0 |
+  | read back the temporary file | 0.2 | 4.3 | 15.4 |
+  | link `.prev`, rename | 2.0 | 1.9 | 2.7 |
+  | full sync of the directory | 20.5 | 20.3 | 20.6 |
+  | read back book.txt | 0.3 | 4.6 | 13.9 |
+  | sum | 45.3 | 82.8 | 166.1 |
+
+- At 109,500 entries the live book is 94.9 MiB; `startup_probe detail` there gives a
+  163.1 ms save, matching the sum.
+- qemacs's save (read in `buffer.c`): renames the old file to `file~`, writes in place,
+  requests no flush and detects outside changes by mtime and size only. None of it is
+  adopted: Bakhlo's flushes and content checks are user decisions or intentional.
+- Not executed: a save on a copy of the household book (a write flow); its size is
+  close to the 1,000-entry book.
+
 ## Display widths against Unicode 16.0 (2026-11-09)
 
 - Compared `Width.cells` with widths from Unicode 16.0.0 `EastAsianWidth.txt` (SHA-256
