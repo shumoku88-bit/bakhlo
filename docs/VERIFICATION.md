@@ -14,8 +14,10 @@ Solo5-SPT engine boot) at `90a5867:docs/VERIFICATION.md`.
   `bk month [period]` income/expense by month (`Income_expense`), `bk report ie` one
   window by account (default the current cycle), `bk day [date]` records and due plans.
   `Query.days` exposes period words. Tried on synthetic books; `./tools/check` exited 0
-  (the every-command check runs each). Hand-built expected lines for these views are
-  not yet in the self-check.
+  (the every-command check runs each).
+- Follow-up: hand-built expected lines for all four views on a book with roles (a
+  supported and an unknown day-end balance, a month, a window by account, a day with
+  an overdue plan) passed on the first run; a wrong balance made the check fail.
 
 ## bk todo (2026-11-08)
 

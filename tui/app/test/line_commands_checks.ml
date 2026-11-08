@@ -489,6 +489,81 @@ let run_all () =
     "bk-todo-lists-open-matters";
   ignore (todo `Done [ "2"; "" ]);
   require (todo `List [] = "  1  due 2026-11-30  Renewal\n") "bk-todo-done-closes-a-matter";
+  (* The views, on a book with roles: salary 300,000 into the bank on 10-25, 10,000 from
+     the bank to the wallet on 11-01, lunch 900 and a snack 300 from the wallet on 11-02,
+     and a plan of 500 due 11-02 still open. Only the wallet starts at zero. Every line
+     below is built by hand from the column widths. *)
+  Unix.mkdir "scratch/bk-views" 0o700;
+  write "scratch/bk-views/book.txt"
+    (String.concat "\n"
+       [
+         "BOOK\t1";
+         "MEASURE\tjpy\t0";
+         "LOCUS\twallet\tWallet\t";
+         "LOCUS\tfood\tFood\t";
+         "LOCUS\tsalary\tSalary\t";
+         "LOCUS\tbank\tBank\t";
+         "ROLE\twallet\tASSET";
+         "ROLE\tfood\tEXPENSE";
+         "ROLE\tsalary\tINCOME";
+         "ROLE\tbank\tASSET";
+         "TX\ta\t2026-10-25\tDESC\tpay";
+         "EFFECT\tsalary\tjpy\t-300000";
+         "EFFECT\tbank\tjpy\t300000";
+         "ENDTX";
+         "TX\tb\t2026-11-01\tDESC\tATM";
+         "EFFECT\tbank\tjpy\t-10000";
+         "EFFECT\twallet\tjpy\t10000";
+         "ENDTX";
+         "TX\tc\t2026-11-02\tDESC\tlunch";
+         "EFFECT\twallet\tjpy\t-900";
+         "EFFECT\tfood\tjpy\t900";
+         "ENDTX";
+         "TX\td\t2026-11-02\tDESC\tsnack";
+         "EFFECT\twallet\tjpy\t-300";
+         "EFFECT\tfood\tjpy\t300";
+         "ENDTX";
+         "PLAN\tp1\t2026-11-02\tjpy";
+         "CHANGE\tbank\t-500";
+         "CHANGE\tfood\t500";
+         "ENDPLAN";
+         "ZERO-ORIGIN\twallet\tjpy";
+         "END";
+         "";
+       ]);
+  let view command =
+    let io, out = script [] in
+    ignore (L.run io command (F.load "scratch/bk-views/book.txt") ~today:"2026-11-08");
+    Buffer.contents out
+  in
+  (* The wallet: 10,000 after 11-01, 8,800 after 11-02 (on that day's last row). *)
+  require
+    (view (`Register [ "wallet" ])
+    = String.make 28 ' ' ^ "change  balance\n"
+      ^ "  2026-11-01  ATM    Bank  +10,000   10,000  jpy\n"
+      ^ "  2026-11-02  lunch  Food     -900           jpy\n"
+      ^ "  2026-11-02  snack  Food     -300    8,800  jpy\n")
+    "bk-reg-shows-supported-day-end-balances";
+  (* The bank has no supported balance: ? rather than a number. *)
+  require (contains (view (`Register [ "bank" ])) "  ?  jpy\n") "bk-reg-marks-an-unknown-balance";
+  (* November: no income, 1,200 of food, none of it paid a plan. *)
+  require
+    (view (`Month [ "2026-11" ])
+    = "           income  expense  plans  other     net\n"
+      ^ "  2026-11       0    1,200      0  1,200  -1,200  jpy\n")
+    "bk-month-shows-a-month";
+  let ie = view (`Report_ie [ "2026-11" ]) in
+  require
+    (contains ie "Income and expense 2026-11-01 .. 2026-12-01 (end excluded)\n"
+    && contains ie ("    Food" ^ String.make 18 ' ' ^ "1,200  jpy\n")
+    && contains ie ("  Net" ^ String.make 20 ' ' ^ "-1,200  jpy\n"))
+    "bk-report-ie-shows-a-window";
+  require
+    (view (`Day [ "2026-11-02" ])
+    = "2026-11-02\n" ^ "  2026-11-02  lunch  Wallet  -900 jpy  Food  +900 jpy\n"
+      ^ "  2026-11-02  snack  Wallet  -300 jpy  Food  +300 jpy\n" ^ "Plans due\n"
+      ^ "  2026-11-02  Bank  -500  Food  +500  jpy  overdue\n")
+    "bk-day-shows-records-and-due-plans";
   (* bk help lists every command, and every listed command runs: with no answers
      it stops and writes nothing. *)
   List.iter
