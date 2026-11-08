@@ -35,7 +35,7 @@
 
 `./tools/check`、`./tools/tui --self-check`、`./tools/format --check`成功。
 実データ・LOAM対照・端末/IME・電源断は対象外で未実施。コード変更・commit・pushなし。
-詳細な実行範囲は[検証記録](../docs/VERIFICATION.md#code-quality-review-2026-10-27)。
+詳細な実行範囲は[検証記録](https://github.com/shumoku88-bit/bakhlo/blob/5b48008/docs/VERIFICATION.md#code-quality-review-2026-10-27)。
 
 ## コードを磨く（2026-10-27、moko承認）
 
@@ -90,7 +90,7 @@ PTY入力/resize/非保存検査がすべて成功。後続の完了記録は文
   裏のフォームに入っていた不具合も解消。
 
 - [x] macOSでCtrl-Oが端末ドライバ（VDISCARD）に取られ原額入力が開かなかった：起動中だけ外し、終了時に元へ戻す。
-[検証記録](../docs/VERIFICATION.md#old-names-removed-from-the-household-book-and-shell-2026-10-27)。
+[検証記録](https://github.com/shumoku88-bit/bakhlo/blob/5b48008/docs/VERIFICATION.md#old-names-removed-from-the-household-book-and-shell-2026-10-27)。
 
 ### 次の候補（未着手、急ぎなし）
 
@@ -133,7 +133,7 @@ PTY入力/resize/非保存検査がすべて成功。後続の完了記録は文
   隣り合う文字列だった`parse_amount`/`parse_signed_amount`の通貨をラベル`~measure`に（`ff0f7b3`）。`format`が知らない
   通貨で例外を出す経路は、現状の呼び出し元を調べた限りない（通貨はすべて帳簿由来か、外部入力は手前で拒否）。
   再挑戦するなら「手で組む値」と「受理済みの帳簿」の型を分ける設計から。手順・基準・設計案は
-  [受理済みの型の調査書](../docs/ADMITTED_TYPES_STUDY.ja.md)（人でも別のAIでも、そこから始められるように書いた）。
+  受理済みの型の調査書（Gitの `5b48008:docs/ADMITTED_TYPES_STUDY.ja.md`）（人でも別のAIでも、そこから始められるように書いた）。
 - [x] 精算画面の金額を通貨の桁数で表示（`b78c1f2`）：1,050.00 EURが「105000 eur」と出て、残額の初期値「105000」は
   105000.00として読まれ拒否されていた。帳簿に無い通貨は最小単位に「?」を付け、詳細欄で説明する。
 - [x] 精算画面の詳細欄（Actions）が単語の途中で折り返していた（`Settl`/`e`、`commi`/`tment`）。Loci画面の
@@ -164,12 +164,12 @@ PTY入力/resize/非保存検査がすべて成功。後続の完了記録は文
 ## 要判断
 
 - [ ] LOAMのComplete Since（履歴の完全性の記録）をパリティ一覧に入れるか（Daily Paceの過去日に関わる）。
-- [ ] パフォーマンス最適化の追加着手時期（[調査書](../docs/PERFORMANCE_AND_GADT_STUDY.ja.md)）。金額列幅の早期終了・キー内の重複解決削減・可視行だけの文字列化は `7a7dc9e` で実装済み。残る全件走査・sort の費用を分解してから次を判断する。日付インデックスは範囲抽出費用が支配する場合に検討。追加GADT化は推奨せず、起動最適化の保留を維持。
+- [ ] パフォーマンス最適化の追加着手時期（調査書はGitの `5b48008:docs/PERFORMANCE_AND_GADT_STUDY.ja.md`）。金額列幅の早期終了・キー内の重複解決削減・可視行だけの文字列化は `7a7dc9e` で実装済み。残る全件走査・sort の費用を分解してから次を判断する。日付インデックスは範囲抽出費用が支配する場合に検討。追加GADT化は推奨せず、起動最適化の保留を維持。
 
 ## 未完了
 
 - [ ] j/kの動きをnvimのように滑らかに（moko、2026-10-30「今後の課題」）。済：同期出力と、変わった行だけを
-  送る描画（`3e9f632`、[記録](../docs/VERIFICATION.md#only-changed-rows-are-sent-to-the-terminal-2026-10-30)）。
+  送る描画（`3e9f632`、[記録](https://github.com/shumoku88-bit/bakhlo/blob/5b48008/docs/VERIFICATION.md#only-changed-rows-are-sent-to-the-terminal-2026-10-30)）。
   残る差：左右分割の画面は選択に合わせて詳細ペインが変わり、1キーで約20行を送る。一覧がずれるときは見えている行を
   全部書き直す（nvimは端末のスクロール領域で1行だけ送る）。WezTermが1キーを表示するまでの時間は未計測。
   次は測ってから選ぶ：WezTermでの表示までの時間、スクロール領域、行の中の変わった部分だけを送ること。

@@ -8,390 +8,58 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
 
 ## Where things stand (2026-11-08)
 
-- 2026-11-08: all six sample folders share one answer-file format and one reader
-  (`test/README.md`, `test/samples.ml`); no `cases.tsv` or per-sample change files remain.
-  Record questions are `OPEN` and `FORM`.
-  [Evidence](VERIFICATION.md#one-sample-format-and-reader-2026-11-08).
+The dated log of earlier passes is in Git at `5b48008:docs/HANDOFF.md`; evidence is in
+[VERIFICATION](VERIFICATION.md) (older entries at the commits it names).
 
-- 2026-11-08: Actual's language-neutral samples now cover 54 Book changes,
-  78 typed amount answers and 56 Record questions. Pure form rules moved to
-  `household/record.ml`; screen wording and save bytes stay unchanged. One runner
-  serves Scheduled and Actual; covered old assertions were removed, not re-pinned.
-  [Evidence](VERIFICATION.md#actual-recording-answer-samples-2026-11-08).
-
-- 2026-11-08: the remaining report calculation checks now live in language-neutral
-  samples: `test/reports/` has 102 questions, `test/periods/` has 73 lines, including
-  `TREND-CATALOG`, `ELAPSED` and `SAME-AGE`. I&E comparison windows are owned by
-  `Period`; old report checks retain UI/formatting/cache/no-write/cold-reload
-  assertions, with every test module and dune stanza kept.
-  [Evidence](VERIFICATION.md#remaining-report-calculation-samples-2026-11-08).
-
-- 2026-11-08: answer samples for the Zig rewrite start with Scheduled:
-  `test/scheduled/` (28 hand-written samples with 27 Daily Pace questions, README)
-  passes through `test/scheduled_tests.ml`. History's plan rules now live in the
-  core (`Book.past_paces`, `Book.day_activities`) and are sampled as `PAST` and
-  `ACTIVITY`; the screen only formats them. Periods followed: `household/period.ml`
-  (with `Day` moved into the core) owns boundary-presets.tsv, cycles, calendar
-  windows and History ranges, pinned by `test/periods/`. Actual and the reports
-  now refuse a day two presets cover, as Daily Pace already did. User decision (2026-11-08):
-  HIDDEN only blocks new money flows, so a correction keeping its Loci and a refund
-  to its target's Loci are saved (an intentional difference from LOAM).
-  Reports followed: `test/reports/` (one synthetic book, 29 hand-written questions)
-  pins Income & Expense, Transactions Flow, Stock–Flow, Trend / Locus, Liquidity,
-  Multicurrency and Actual's day and period EXPENSE totals, run by
-  `tui/app/test/report_answers.ml`. User decision (2026-11-08): the refund of a
-  plan's payment counts with the plan in Income & Expense too, as in History
-  (`Book.settles_plan` owns the rule).
-  Then every report calculation and Actual's EXPENSE totals moved into the core
-  (`household/income_expense.ml`, `transactions_flow.ml`, `stock_flow.ml`, `trend.ml`,
-  `liquidity.ml`, `multicurrency_spend.ml`); the screens only name and format, and
-  `test/reports_tests.ml` checks the samples against the core alone.
-  Report refusals are codes in the samples (`overdue:<plan>`, `no-cycle:<day>`, …);
-  the screens keep their sentences.
-  [Evidence](VERIFICATION.md#scheduled-answer-samples-2026-11-08).
-
-- 2026-11-07: Record/Preview typography finishes the series' next step: exact
-  quantities, dates and Balanced total lead (Heading), the Effects heading, ID
-  and Measure recede (Chrome), prose stays Plain; a filled inactive Record Amount
-  is strong. Styles come from book fields, never from parsing text; detail text
-  and geometry are unchanged. Checks pass; synthetic four-size and latest-copy
-  two-size before/after plaintext match, LOAM Preview reached. Pushed as `4473f91`
-  with the Daily Pace commit; matching CI succeeded. A follow-up PTY pass covers
-  Scheduled Edit/Complete Previews (New is a separate, unchanged editor) with the
-  same text before/after. Font/IME/human acceptance remain separate.
-  [Evidence](VERIFICATION.md#record-and-preview-typography-2026-11-07).
-
-- 2026-11-07: user approved committing the Daily Pace typography and continuing to
-  Record/Preview. The combined History/Selected day slice is qualified for a local
-  commit: fresh full/TUI/format/privacy-all checks pass, prior scoped reviews and
-  copy comparisons remain the evidence. No push requested; daily `bk` stays on
-  pushed `origin/main`. Favorable user feedback is not full font/IME/P7 acceptance.
-  [Evidence](VERIFICATION.md#daily-pace-local-commit-qualification-2026-11-07).
-
-- 2026-11-07: after favorable History feedback, Selected day gets a small typography
-  follow-up: strong Selected/Pace/Spent lines, ordinary supporting-money rows,
-  quiet period/provenance, strong unknown reasons and unavailable breakdown.
-  It reuses whole-line styles, preserving all text/wrapping/geometry; prior History
-  remains intact. Focused/full/TUI/format checks pass; four synthetic and two fresh
-  latest-copy sizes retain complete text, and same-generation LOAM Trend/detail
-  is reached. Original/copy/synthetic bytes unchanged; owned sessions closed and
-  copies cleaned. Local/uncommitted/unpushed; daily `bk`, physical/font/IME and
-  Selected day human acceptance remain separate.
-  [Evidence](VERIFICATION.md#daily-pace-selected-day-typography-trial-2026-11-07).
-
-- 2026-11-07: typography continues with Daily Pace History only: strong dates and
-  exact Pace/Spent/diff cells, quiet `current`/absent-activity dashes, strong
-  unknown/overflow. Whole-row Active selection and partial fallback focus remain.
-  Text, geometry, chart/detail, keys, calculations and saves stay unchanged.
-  Focused/full/TUI/format checks pass; synthetic four-size and fresh-copy two-size
-  before/after captures retain complete text, with same-generation LOAM Trend/detail
-  reached. Original/copy/synthetic bytes unchanged, owned sessions closed, old
-  copies cleaned. This is a local uncommitted trial, not daily `bk` deployment or
-  physical/font/IME/human acceptance.
-  [Evidence](VERIFICATION.md#daily-pace-history-typography-trial-2026-11-07).
-
-- 2026-11-04: publication `d147b90` passed Linux build/unit checks and the local
-  synthetic `bk` launch, but its Linux PTY lane still waited for the removed
-  `Balances [active]` decoration. Both readiness checks now use Current's unique
-  `Selected Locus` context, keeping all amount/key/resize/startup/non-writing gates.
-  The full local Expect matrix passes, including startup type-ahead and narrow
-  Preview refusal. This follow-up changes only the smoke and evidence, not the
-  product. Matching-SHA Linux CI remains separate from that local qualification.
-  [Evidence](VERIFICATION.md#pty-readiness-after-quiet-balance-titles-2026-11-04).
-
-- 2026-11-04: the user approved publishing the remaining typography series and
-  closing this pass: Balances pilot `a0b7e6e`, full-row selection `9521d44`, and
-  Scheduled List `3f47bec`, with the policy/evidence slice following. Fresh focused,
-  full and TUI checks pass; static review found no publication blocker. `bk` keeps
-  its pushed-only `origin/main` policy and ordinary backup behavior. Matching-SHA
-  CI and the synthetic launcher check are separate post-publication evidence,
-  never inferred from local green. Physical/font/IME acceptance remains separate.
-  [Evidence](VERIFICATION.md#typography-series-publication-qualification-2026-11-04).
-
-- 2026-11-04: Balances pilot initially committed locally as `a0b7e6e` at the user's request.
-  The user then preferred whole-row selection over marker-only. Current follow-up
-  restores focused full-row highlighting in Actual and Balances Current, including
-  padding but not borders; inactive markers and field hierarchy remain. Scheduled
-  List keeps full-row selection and gains strong dates/quantities, ordinary Shape
-  and quiet headers. Other Scheduled views/details, keys, geometry and saves stay.
-  Focused/full/TUI checks pass. Four synthetic sizes and latest-copy comparisons
-  at two sizes retain complete text; original/copy book/config match after closing
-  owned processes. Full-row reference is confirmed in LOAM, not full parity or
-  physical/IME acceptance. These follow-ups are included in the closing publication
-  above. [Evidence](VERIFICATION.md#full-row-selection-and-scheduled-list-typography-2026-11-04).
-
-- 2026-11-04: Balances Current typography trial: exact list amounts lead, names
-  stay ordinary, units/exact-state metadata stay quiet, selection uses only its
-  marker, and Current titles omit `[active]`. Detail Amount includes its unit;
-  unsupported evidence and overflow placeholders stay strong. No changes to
-  Accounting, geometry, footer, quantities or save/Observe/Print semantics.
-  Focused/full/TUI checks pass; four synthetic sizes and latest-copy before/after
-  at two sizes keep body text unchanged. Corrected same-generation LOAM Current
-  captures retain intentional styling differences, not a full parity claim.
-  Committed as `a0b7e6e` after favorable feedback; included in the closing publication.
-  The later whole-row selection request above supersedes the marker-only treatment.
-  [Evidence](VERIFICATION.md#balances-current-typography-trial-2026-11-04).
-
-- 2026-11-04: the user-approved reading/Actual series was published as five scoped
-  commits through `2b03863`. Matching CI succeeded, including Linux PTY checks.
-  The real `bk` wrapper fetched/built that revision and showed the updated Actual
-  using an isolated synthetic Git household and local backup remote; exit 0,
-  synthetic book unchanged. Installed stamp, run worktree and origin/main matched.
-  No launcher policy change or operational-household TUI session in that deployment.
-  [Evidence](VERIFICATION.md#bk-publication-preparation-2026-11-04).
-
-- 2026-11-03: Actual's follow-up typography trial shortens redundant pane titles
-  and chooses whole two-row browse/detail/search legends by width. Warnings lead
-  with their cause while reserving the retained-draft badge. Narrow legends are
-  prioritized hints, not a full key reference; all bindings and body geometry stay.
-  Regression/full/TUI/format checks pass; earlier work remains uncommitted.
-  [Evidence](VERIFICATION.md#actual-headings-and-width-fitted-help-2026-11-03).
-
-- 2026-11-03: Actual typography pilot uses existing spans/styles only: date and
-  money emphasis, ordinary-weight descriptions/counts and marker-only selection;
-  window warnings stay strong. Same text/geometry before and after at four synthetic
-  PTY sizes and in latest-copy Actual/Details at two sizes. Full checks, TUI self-check
-  and formatting pass. Font/IME/human acceptance remains separate; prior reading
-  edits are preserved, no commit or push.
-  [Evidence](VERIFICATION.md#actual-typography-pilot-2026-11-03).
-
-- 2026-11-03: `tui/shell/publication.ml` and `.mli` are the next reading chapter:
-  reviewed base, current session and disk contents explain the two conflict gates;
-  uncertain evidence explains pending-first, read-only reload. An added scenario
-  exercises those distinctions with a real writer checkpoint. Production changes
-  are comments only; focused app checks, full checks, TUI self-check and corrected
-  formatting pass. Prior reading edits remain intact; no commit or push.
-  [Evidence](VERIFICATION.md#publication-as-a-readable-review-boundary-2026-11-03).
-
-- 2026-11-03: the next literate-style chapter is `store/book_file.ml` and `.mli`:
-  an interrupted replacement explains why uncertain saves are reloaded, not retried;
-  the reading path covers file evidence, preparation, conflicts, replacement and copies.
-  One added synthetic test exercises the opening example. Production changes are
-  comments only; full checks, TUI self-check and corrected formatting pass.
-  The approved reading style is retained in AGENTS; no commit or push.
-  [Evidence](VERIFICATION.md#book-file-as-a-readable-save-story-2026-11-03).
-
-- 2026-11-03: first small literate-style reading pass in `household/amount.ml`
-  and `.mli`: receipt examples explain exact arithmetic, notation and precision;
-  two synthetic expect tests keep the examples executable. Production changes
-  are comments only; Core, full checks, TUI self-check and formatting pass.
-  No commit or push.
-  [Evidence](VERIFICATION.md#amount-as-a-small-readable-chapter-2026-11-03).
-
-- 2026-11-02: bounded readability edits name Daily Pace Pool's support groups,
-  explain order preservation, remove a duplicate comment and fix terminal layout.
-  Report scenarios now follow the real current month rather than assuming October;
-  full checks and formatting pass; pushed with matching CI green. No household
-  access.
-  [Evidence](VERIFICATION.md#readability-named-balance-groups-and-comments-2026-11-02).
-
-- 2026-10-31: Record's one-line quick capture now supports Left/Right, Home/End,
-  Backspace and typing/paste at the caret without switching to the full form.
-  Synthetic checks and visible Japanese correction/narrow scrolling passed.
-  No household access or IME acceptance claim.
-  [Evidence](VERIFICATION.md#quick-capture-edits-at-the-caret-2026-10-31).
-
-- 2026-10-31: queued terminal input is discarded before the first TUI paint, so
-  Enter typed during launch no longer skips Home. Synthetic failing-before/passing-after
-  PTY regression, full checks and visible Home smoke passed; real household untouched.
-  Daily `bk` picks up this fix on its next successful `origin/main` update/build.
-  [Evidence](VERIFICATION.md#queued-launch-input-does-not-skip-home-2026-10-31).
-
-- 2026-10-28, latest: the typed Effect layer (`lib/`) is removed. An entry holds book.txt
-  postings, book.txt admission is the one owner of movement rules, and loading is faster
-  (`Book.of_txt` −23% at 109,500 synthetic entries).
-  [Evidence](VERIFICATION.md#the-typed-effect-layer-is-removed-entries-are-booktxt-postings-2026-10-28).
-  moko used the household with the day's last build (`42b01fa`) and reported it fine
-  ([report](VERIFICATION.md#user-use-of-todays-build-2026-10-28)).
-  A latest-data comparison of the Bakhlo before and after the day's rework found 41 of 42
-  frames identical (the 42nd is the intended settlement word wrap)
-  ([evidence](VERIFICATION.md#latest-data-before-and-after-comparison-2026-10-28)).
-
-- 2026-10-28, later: modules are named for what they are: `Book`, `Book_file`, `Draft`,
-  `Publication`, `Day`, `Line_edit`, `Command_line`, `Book_display`; date rules have one owner
-  (`Day`). [Evidence](VERIFICATION.md#modules-named-for-what-they-are-2026-10-28).
-  Roles and Attention are now typed book changes (`Set_roles` / `Set_attention`) and
-  `Daily_txt` is removed; same bytes as before on synthetic copies.
-  [Evidence](VERIFICATION.md#roles-and-attention-are-typed-book-changes-daily_txt-is-removed-2026-10-28).
-  Screens now take roles and Attention as plain book values (no "unavailable" branches).
-  [Evidence](VERIFICATION.md#screens-take-roles-and-attention-as-plain-book-values-2026-10-28).
-
-- 2026-10-28: `Daily_overlays` is `Book_display` (with a `.mli`; book values only, no
-  `include Ui_render`). The I&E comparison stays as two bars per Locus (moko).
-  [Evidence](VERIFICATION.md#book-values-have-one-display-module-2026-10-28).
-
-- 2026-10-27, later: Income & Expense keeps the comparison in the bar graph (each
-  Locus has the compared window's `░` bar under its `█` bar; `c` chooses the window from
-  a list, `t` is the old side-by-side table); the Record is in one `phase` at a time
-  (Quick | Form | Original | Enabling | Review), which also stopped a paste during the
-  suspense confirmation reaching the hidden form; Ctrl-O now reaches Bakhlo on macOS
-  (the session unsets the terminal's `discard` and restores it). Next candidates are
-  in `tasks/todo.md` (次の候補).
-  [Evidence](VERIFICATION.md#record-is-in-one-phase-at-a-time-2026-10-27).
-
-- Naming pass (2026-10-27): `sexp/` is now `household/` (`bakhlo_household`);
-  `Daily_book` owns its entry/plan types and the published `change`s (`Records`,
-  `Book_log` removed). No behaviour change.
-  [Evidence](VERIFICATION.md#old-names-removed-from-the-household-book-and-shell-2026-10-27).
-
-- Code-quality pass (2026-10-27): exact amount text has one pure owner; Scheduled
-  Ctrl-U shares Preview's parsing and preserves balanced rows; Record choices use
-  named variants. Store sessions are private records, auxiliary writers share only
-  file replacement, and Observe/roles/Attention retain uncertain revision evidence
-  for reload confirmation. Full checks and fault-injection regressions pass; latest
-  copies at 120×36/80×24 preserve the inspected Bakhlo frames except candidate IDs.
-  [Evidence and limits](VERIFICATION.md#book-publications-retain-one-kind-of-recovery-evidence-2026-10-27).
-
-- Common format with LOAM (user decision 2026-10-24): spec `docs/COMMON_FORMAT.ja.md`,
-  fixtures `test/common_format/`, reader/printer `book_txt/` (stage 3, 2026-10-25,
-  [evidence](VERIFICATION.md#common-format-reader-and-printer-against-the-conformance-fixtures-2026-10-25)).
-  Stage 4a done (2026-10-25): `migrate/daily_to_book_txt` and `./tools/book-txt trial`
-  convert a copy of the household and compare every entry, plan and current quantity
-  ([evidence](VERIFICATION.md#household-copy-converts-to-booktxt-with-every-answer-equal-2026-10-25)).
-  Stage 4b (2026-10-25, user-approved): `Daily_txt` converts both ways, `Daily_file` reads and
-  rewrites `book.txt` whole, roles and Attention are sections of the book, and the tools,
-  example and docs use `book.txt`
-  ([evidence](VERIFICATION.md#the-store-reads-and-rewrites-booktxt-stage-4b-2026-10-25)).
-  The household was migrated the same day (`./tools/book-txt migrate`,
-  [evidence](VERIFICATION.md#household-migrated-to-booktxt-2026-10-25)): `../bakhlo-data` is
-  now `book.txt`; the last S-expression book is its parent commit. The user opened it and
-  reported the screens look fine (2026-10-25). Core A, step 1 (2026-10-25): a save checks and
-  prints only what it changes (`Book_txt.change`); 90 ms at 45,000 synthetic entries,
-  164 ms at 109,500 (over the target there; I/O-bound)
-  ([evidence](VERIFICATION.md#a-save-checks-and-prints-only-what-it-changes-core-a-step-1-2026-10-25)).
-  Old layers removed the same day: the book.txt migration tool and append log, the LOAM
-  import comparison (both UIs now open copies of the household `book.txt`,
-  `tools/compare`) and the S-expression book format
-  ([evidence](VERIFICATION.md#the-s-expression-book-format-is-removed-core-a-2026-10-25)).
-  Presence evidence (nonzero, amount unknown) was removed the same day: `book.txt` cannot
-  hold it and the household never used it. `Daily_book` now runs on book.txt itself (an
-  admitted `Book_txt.book`, changes through `Book_txt.change`, balances from the totals it
-  keeps); its answers equal the previous core on random operations and on a household
-  copy, and a cold load is about 40% faster
-  ([evidence](VERIFICATION.md#daily-book-runs-on-booktxt-core-a-2026-10-25)). Next in A:
-  the application layer's correction/lineage machinery was then removed
-  ([evidence](VERIFICATION.md#the-application-layer-is-removed-core-a-2026-10-25)).
-- Cut over on 2026-10-21 (user decision): the household is `../bakhlo-data`, recorded
-  only by the user through `./tools/household` (TUI, then commit and push to the private
-  GitHub backup).
-  `../loam-data` is the frozen LOAM record. Saves flush with `F_FULLFSYNC` (~21 ms);
-  a physical power-loss test was not run.
-- `tools/household` now stops and reports backup failures (including missing upstream
-  and pending-log errors), preserving Git's reason and any nonzero TUI exit status.
-  Synthetic local-Git tests cover failed commit/push, no-edit retry and config backup;
-  restoring the private off-site backup was drilled on 2026-10-23 (see below).
-- `tools/household` runs pushed code only (user decision 2026-10-22): it fetches
-  `origin/main`, builds it in an ignored worktree at `.run/src` and installs the built
-  binary at `.run/bakhlo_tui.exe` (copied to a temporary name and renamed), never the
-  shared tree; it names the commit it runs, prints the build it starts, keeps the last
-  installed binary when offline or the build fails, and refuses without any binary.
-  The launcher script itself runs from the working tree; only the TUI binary is pinned
-  to `origin/main`.
-- Calendar removed (user decision 2026-10-22): the bonsai Home opens Actual, whose period
-  windows (Cycle / Month / Year) are where periods are browsed and chosen; `g`, the
-  Calendar route, `Screen.env.calendar` and the ambient Calendar input are gone. The Shell
-  keeps one `focus_day` (session start) for new Records and plans. Actual now has a
-  period bar and an `f` period picker (every window with its count and EXPENSE total,
-  user choice 2026-10-22); at 109.5k synthetic entries moving in it takes 11 ms, opening
-  or switching 60–166 ms. Verification: [Calendar removed](VERIFICATION.md#calendar-removed-2026-10-22),
-  [period bar and picker](VERIFICATION.md#actual-period-bar-and-picker-2026-10-22).
-- Terminal-theme chart series are blue, magenta, yellow, then cyan (user choices
-  2026-10-24: cyan was too close to blue, red too loud).
-- Trend / Locus is painted like LOAM's full-screen Trend (user report 2026-10-24: it looked
-  and scrolled nothing like it): no frame, two-row series rack, source and Selected lines,
-  one coloured value row per series, LOAM's period axis and compact layout; the selected
-  markers sit over the line (`◎` when two share a cell) and the Day window moves only when
-  the selection leaves it. The owner keeps its projection while the book value and config
-  are the same, and the renderer measures each span once per row: `←` in Day takes 13.7 /
-  7.0 ms at 120×36 / 80×24 (was 36.0 / 25.9; LOAM 17.9 / 7.9). Opening or changing grain
-  still projects once (~0.15–0.36 s at 109,500 synthetic entries). Pointer scrub remains
-  absent. Verification: [Trend like LOAM](VERIFICATION.md#trend-looks-and-scrolls-like-loam-2026-10-24).
-- Stock–Flow leaves the whole opening entry out of the window's flows: the counterpart
-  posting (e.g. opening equity) is not a decrease any more, so the tracked increases
-  and decreases cancel again. Start and End still carry that entry, so the motion is
-  unknown: the Net cell of every affected row, of the Total row and of the "Net
-  change in tracked balance" line stays `—`, and the note names each excluded entry
-  and says that Start and End include it while `+In` and `-Out` do not. The
-  exclusion is keyed by (Measure, entry). Synthetic checks cover each rule and fail
-  against the previous code; `check` and `--self-check` passed. No household access.
-- Paired speed on the latest data (2026-10-23): Bakhlo reaches Home in ~51 ms against
-  LOAM's ~242 ms and opens Balances and Daily Pace several times faster; moving in
-  Actual's All view was slower (18 / 16 ms against 11 / 8 ms at 120×36 / 80×24) and
-  at or above the 16 ms target until the change below; the Cycle view was under it.
-  [Evidence](VERIFICATION.md#paired-speed-bakhlo-and-loam-on-the-latest-data-2026-10-23).
-- Actual All view moves (2026-10-23): day totals and row text are built only for
-  shown rows, one key resolves the list once and the amount scan stops at its cap.
-  On the latest data `j` in All fell to 8.8 / 7.3 ms (LOAM 12.6 / 8.3 ms); output
-  is unchanged over a 3,540-state sweep. Synthetic 109.5k All is still ~0.3 s.
-  [Evidence](VERIFICATION.md#actual-all-view-faster-list-moves-2026-10-23).
-- Daily Pace opens faster (2026-10-23): one view computes today's pace and the
-  samples once (the Workspace layout paints no subtitle, which no longer
-  recomputes them), past pools for all sample days come from one pass
-  (`Daily_book.pools_at_end_of_days`) and paid plans use `find_entry`. On the
-  latest data `d` fell from 23.7 / 21.7 ms to 9.5 / 6.6 ms (LOAM ~130 ms); output
-  is unchanged over a 200-step sweep.
-  [Evidence](VERIFICATION.md#daily-pace-opens-faster-2026-10-23).
-- Trial saves and restore drill (2026-10-23): on a byte-identical copy of the
-  household, a memo correction, a date-only correction, a Merchant classification,
-  a new entry and compaction through the single writer each matched cold reload
-  and `Full`. A fresh clone of the private backup restored a byte-identical book;
-  every backed-up version passes `--check`.
-  [Evidence](VERIFICATION.md#household-trial-saves-and-backup-restore-drill-2026-10-23).
-- Actual now reuses scoped/filtered rows within a render; common empty-query search
-  skips text construction. The 1,440-state synthetic frame comparison is unchanged.
-  At 109.5k synthetic entries, native Actual Down+paint fell 466→235 ms (80×24);
-  the 16 ms goal is still unmet. No persistent cache or household access was added.
-- Goal: reproduce LOAM's non-budget functionality and interaction (see AGENTS.md
-  Product). English Notty TUI: bonsai Home, hierarchical Commands,
-  Record/Preview, Actual, Scheduled (Series Calendar, Months, List, create/edit/cancel/
-  complete, batch, generation), Selected Day, Balances/Observe, Daily Pace (current,
-  What-if, Pool, Trend), Manage Loci/roles, Exchange, Attention, limited settlements,
-  reports. Remaining gaps and acceptance state live in the UI gap ledger.
-- Record quick capture now uses LOAM's bounded frame with its footer inside.
-  Synthetic terminal comparison covered 80×24 / 120×36 and compact 48×14 / 32×9;
-  resize, Tab, Esc and long Japanese drafts retain input. Household warnings take
-  priority over the frame. Core, native self-check and the PTY matrix passed.
-  This slice did not access household data or repeat the latest-data comparison.
-- Storage (2026-10-25): one `book.txt`, rewritten whole on every save; the session keeps
-  the admitted book, so a save checks and prints only what it changes. Every
-  `Daily_book` mutation is in place except corrections that change a Reversal link or
-  touch an opening witness. Synthetic save 48 ms at 1,000 entries, 90 ms at 45,000,
-  164 ms at 109,500 (over the target there); cold load 168 ms at 10,950 and 1.9 s at
-  109,500 (deferred by the user). Entries whose Loci are hidden keep dedicated date
-  (`d`) and Merchant (`m`) operations; correction and reversal refuse, as in LOAM.
-  Earlier storage designs and their checks: VERIFICATION entries up to 2026-10-25.
-- TUI terminal: Notty since 2026-10-21 (user decision; Bonsai_term and its OxCaml switch
-  removed, Bonsai is explored outside Bakhlo). The TUI is part of the main Dune build, so
-  `./tools/check` and the single CI workflow cover it. The user ran it on a household copy
-  and reported it works; IME and paste were not reported separately.
-- Unqualified: P7 (persistent post-save acknowledgement), power loss, real macOS IME,
-  human acceptance.
+- **Daily use.** The household is `../bakhlo-data` since the 2026-10-21 cutover, recorded
+  only by the user through `./tools/household`, which runs the pushed `origin/main` (built
+  in `.run/src`, binary `.run/bakhlo_tui.exe`, the last good binary kept when offline) and
+  then commits and pushes the book to the private backup, reporting any backup failure.
+  Restoring that backup was drilled on 2026-10-23. `../loam-data` is the frozen LOAM record.
+- **Storage.** One `book.txt` in the common format with LOAM (`docs/COMMON_FORMAT.ja.md`,
+  reader/printer `book_txt/`), rewritten whole on every save after `Book_txt.change` admits
+  only what changed; saves flush with `F_FULLFSYNC` (~21 ms). Synthetic save 48 ms at
+  1,000 entries, 90 ms at 45,000, 164 ms at 109,500 (over the 100 ms target there); cold
+  load 1.9 s at 109,500 (startup work deferred by the user).
+- **Household core.** `household/` owns every household rule: `Book` (entries, plans,
+  balances, Daily Pace, past paces), `Record` (the Record form), `Amount`, `Day`, `Period`
+  and the reports (`Income_expense`, `Transactions_flow`, `Stock_flow`, `Trend`,
+  `Liquidity`, `Multicurrency_spend`). Refusals are codes; screens only word and format.
+  User decisions (2026-11-08): HIDDEN only blocks new money flows (a correction keeping
+  its Loci and a refund to its target's Loci are saved, unlike LOAM), and the refund of
+  a plan's payment counts with the plan in History and Income & Expense.
+- **Specification for the rewrite.** `test/` holds language-neutral, hand-written answer
+  samples in one format (`test/README.md`): `amounts`, `common_format`, `periods`,
+  `reports`, `records`, `scheduled`. A rewrite in another language is done when it
+  passes them; `test/samples.ml` is the one reader.
+- **TUI.** English Notty TUI (user decision 2026-10-21) in the main Dune build, covered by
+  `./tools/check` and CI: bonsai Home, hierarchical Commands, Record/Preview, Actual with
+  period windows, Scheduled, Selected Day, Balances/Observe, Daily Pace, Manage Loci,
+  Exchange, Attention, settlements and reports. The typography series (Actual, Balances,
+  Scheduled List, Daily Pace, Record/Preview) is published. Remaining gaps and acceptance
+  are in the [UI gap ledger](LOAM_UI_GAP_LEDGER.ja.md). Latest-data speed (2026-10-23):
+  Home ~51 ms (LOAM ~242), Actual All `j` 8.8 / 7.3 ms, Daily Pace `d` 9.5 / 6.6 ms;
+  synthetic 109.5k Actual Down+paint is still ~235 ms.
+- **Unqualified:** P7 (persistent post-save acknowledgement), power loss, real macOS
+  IME, human acceptance.
 
 ## Code map
 
-- Removed 2026-10-28 (in Git at `57d1fdc`): `lib/` (typed identifiers, Effects, Events,
-  Movements). An entry holds book.txt postings and book.txt admission owns their rules. The
-  former `application/` (correction frontier, cuts, sources, relations) is in Git up to `42ce0fc`.
-- `household/book.ml(i)`: the household book on book.txt (an admitted `Book_txt.book`
-  and its TXs as entries; changes, balances, Daily Pace, past-day pools, the changes the Shell
-  publishes, roles and Attention included; its book.txt text with `read` and `print`).
+- `household/`: every household rule (see above); `book.ml(i)` is the book on book.txt
+  (an admitted `Book_txt.book` and its TXs as entries, the changes the Shell publishes,
+  roles and Attention; `read` and `print`).
 - `book_txt/book_txt.ml(i)`: the common `book.txt` format (read, admit, print, balance).
 - `store/book_file.ml`: the single writer of `book.txt` (load, whole-file publish,
   conflict and uncertain outcomes, copies).
 - `tui/`: `shell/` (state, dispatch, publication, files), `screens/<screen>/` (per-screen
-  state, input, painting), `book/` (pure UI data), `protocol/screen.mli` (Shell ↔ screen
-  contract), `app/` (Notty terminal + CLI entry), `scenarios/` (cross-screen checks).
-  Keys, recovery commands and UI rules: [tui/README](../tui/README.md).
-- Removed 2026-10-25 (in Git at `502d570`): `loam_read/`, `migrate/` and the LOAM import
-  comparison (`tools/compare_capture.ml`); `tools/compare` now copies the household
-  `book.txt` for both UIs. The book.txt migration tool is in Git at `6a22ba6`.
-- Removed 2026-10-21 (in Git at `dfd03d1`): old CLI (`cli/`, `bin/`, `presentation/`,
-  `text/`, `sexp/book.ml`), `tools/import-loam`, `experiments/`, `formal/`.
-- Docs removed 2026-10-21 (in Git at `90a5867`): `docs/archive/`, storage and geometry
-  research, capability ledger, LOAM core inventory, references, ADR 0003, and
-  VERIFICATION entries before 2026-10-20. Links to them are permalinks at that commit.
-- Tests: `test/` (Core; `book_cold_reload_tests.ml`, `book_txt_tests.ml`,
-  `book_file_tests.ml` guard the storage work) and the TUI self-check.
+  state, input, painting), `book/` (screen wording and display data), `protocol/screen.mli`
+  (Shell ↔ screen contract), `app/` (Notty terminal + CLI entry), `scenarios/`
+  (cross-screen checks). Keys, recovery commands and UI rules: [tui/README](../tui/README.md).
+- `test/`: the answer samples, and Core tests (`book_cold_reload_tests.ml`,
+  `book_txt_tests.ml`, `book_file_tests.ml` guard storage); the TUI self-check.
+- Removed code and docs (old CLI, typed Effect layer, application layer, LOAM import,
+  migration tools, studies) are listed with their last commits in Git at
+  `5b48008:docs/HANDOFF.md` (Code map).
 
 ## Verify and continue
 
@@ -409,19 +77,13 @@ After pushing, check CI for the matching commit SHA.
 
 ## Next candidates
 
-- Re-attempting admitted Measure / Locus types (stopped at design on 2026-10-28): start from the
-  [study](ADMITTED_TYPES_STUDY.ja.md), which states the constraint, the options, the success and
-  stop criteria and how to verify.
-1. Daily-use parity in the five areas of the cutover diff ledger, ordered by
+1. The TUI is about 43,000 lines against a ~5,300-line core: shrink it in OCaml, or build
+   small screens in the Zig rewrite (the user's decision, pending).
+2. Daily-use parity in the five areas of the cutover diff ledger, ordered by
    `tasks/todo.md`.
-2. Startup snapshot only when startup is felt slow.
-3. Performance optimization, memory tuning, and GADT investigation updated
-   2026-10-23: [study](PERFORMANCE_AND_GADT_STUDY.ja.md) and
-   [pre-optimization Actual CPU evidence](VERIFICATION.md#actual-cpu-baseline-and-bounded-width-experiment-2026-10-23).
-   The entry-map change shortens mutations, but the first list materialization
-   remains linear. Bounded amount-width scanning, one resolution per key and
-   visible-row formatting shipped in `7a7dc9e`; see the
-   [integrated measurements](VERIFICATION.md#actual-all-view-faster-list-moves-2026-10-23).
-   Further work starts with profiling the remaining scan/sort costs; range indexing
-   remains conditional. GADT expansion has no demonstrated benefit. String sharing
-   needs a heap breakdown; startup optimization stays deferred.
+3. Startup snapshot only when startup is felt slow.
+4. Performance: profile the remaining Actual scan/sort costs before indexing; GADT
+   expansion showed no benefit (study in Git at
+   `5b48008:docs/PERFORMANCE_AND_GADT_STUDY.ja.md`).
+5. Admitted Measure / Locus types (stopped at design on 2026-10-28): restart from the
+   study in Git at `5b48008:docs/ADMITTED_TYPES_STUDY.ja.md`.

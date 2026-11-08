@@ -312,13 +312,9 @@ Homeで`d`を押すと、今日の目安（Daily Pace）画面が開き、過去
 
 - `1`〜`5`でMonth／Cycle／Previous Cycle／Year／All Timeを選び、`[`／`]`で期間を移動する。
 - 対象は明示された`balance-view.tsv`の座標。空選択、重複、要求Measureと異なる座標を含む選択は拒否し、混在選択をMeasureで絞り込まない。通貨／Measureの切替はない。
-- 選択座標の現行量が正確に支持され、かつ独立した過去Event証拠がある場合に限り表示する。過去残高はゼロ起点のEvent履歴から復元する。証拠不足、現行量不明、未対応座標は拒否し、archival snapshotや過去時点の独立保存残高とは扱わない。
-- 始期／終期復元量、期間内の増加・減少・純変化、座標別内訳、現在の追跡量を表示する。これはIncome & Expenseとの照合でも、残高の正しさの証明でもない。
+- 始めと終わりの残高、期間内の増加・減少・純変化を座標ごとに表示する。根拠のない座標・期間の
+  答え方は `test/reports/` の見本（Stock–Flow）が決める。収支との照合や残高の正しさの証明ではない。
 - `p`で画面内プレビュー、`Tab`で詳細表示を切替。
-
-旧記録のsmoke出力には複数通貨とNet Savingsとの「Balanced」照合が記載されていたが、
-その出力は無効な財務正確性証拠として撤回済みである。現行検証成功や財務正確性認定は主張しない。
-LOAMとの完全一致も未認定。
 
 ## トレンド／科目比較（Trend / Locus comparison）
 
@@ -406,28 +402,9 @@ Homeで`b`を押すと、LOAM準拠の**Balances / Current**（現在の各口�
 
 ## 対応範囲と差分
 
-新UIは盆栽Home、階層Commands、英語Record、Actual / Scheduled / Selected Dayの閲覧と詳細、
-既存検査・保存への接続を対象にする。LOAMの全会計機能を再実装したものではない。
-完全なSeries／coverage管理・定期補充／監視、履歴Trend、原額・Merchant、
-実取引への配分を伴う精算・後日カード決済、広いレポート群は未対応。
-単一S式の予定作成（Scheduled `n`）・変更（`e`）・取消（`x`）・支払い（`c`）は接続済み。
-Actual `x`は元明細を残す正確な反転の新規記帳。
-CommandsからExchange（入力→全文Preview→確定）、Manage Loci／役割設定／表示名（`l`またはHousehold setup `Account / category display names`→Review→保存）、Attention、限定commitment精算へ進める。
-Home／Balances `o`はObserve。これらの存在は全LOAM互換を意味しない。
-Balancesは既存照会で通貨別に表示し、不明・存在あり量不明・ゼロを区別する。
-Daily Paceは明示pool・Measure・今日・期間末の既存計算を表示する。
-`daily-pace.tsv`／`boundary-presets.tsv`がなければ未設定とし、条件を推測しない。
-`w`は読み取り専用What-if、`c`はPool編集。未設定・不正・重複・混合Measureは計算しない。
-明示された実日付・昇順境界を持つpresetが今日を含むものとして一意でなければ拒否する。
-月末・Asset分類・全許可Locusから条件を補完せず、What-ifの負数もゼロに丸めない。
-Pool編集は取得時点の旧設定と新設定をReviewし、選択ファイルのbytesを再確認して`daily-pace.tsv`だけを更新する。
-別Measureを含む設定、不正／読めない既存設定は置換しない。書込み前の失敗・競合時は設定と下書きを保全する。
-rename後の結果不明は保存成功とせず、現ファイルを確認する。自動rollbackや新しい保存形式は導入していない。
-下書きはプロセス内のみ。競合後も取得時の旧bytesは自動更新しないため、新しい設定からやり直すには再起動が必要（下書きは消える）。
-`boundary-presets.tsv`の他期間・過去境界は変更せず、この画面で期間末を編集しない。
-Trendは現在台帳からの限定的な再構成表示で、ゼロ起点で裏付けられない過去日はUnavailableとなる。LOAMのdated bounded-history支持、支払済み／取消済み予定を含む全履歴の一致は未認定。期間比較は未対応。
-Bookはbook.txtだけを読み書きする（S式の帳簿は読み込み時に拒否し、変換しない）。予算APIは非対応。
-通常Bookのrecord / exchange CLIとは混用せず、未知フィールドを飛ばして保存しない。
+画面ごとのLOAMとの差と受入の状態は [UI gap ledger](../docs/LOAM_UI_GAP_LEDGER.ja.md)、
+日々使う5つの領域のまとめは [cutover diff ledger](../docs/CUTOVER_DIFF_LEDGER.ja.md) が持つ。
+計算の規則は `test/` の見本（`test/README.md`）が持つ。
 
 ## テーマと実装
 
@@ -447,7 +424,7 @@ Esc／qは変更前の配色と元のCommands選択へ戻す。選択日・一�
 `$HOME/.config/bakhlo/ui-theme`の順。次回起動でも選択を復元し、設定不備ではTerminalへ戻る。
 設定を保存できない場合はそのセッションだけ変更し、保存できなかったことを通知する。
 
-- day / ui_workspace / ui_commands：純粋な日付計算・画面・階層ナビ。
+- ui_workspace / ui_commands：画面・階層ナビ（日付の計算は `household/day.ml`）。
 - record_session / ui_input：一つの下書き・Previewと入力型。
 - reversal_session：反転の日付と固定snapshotの元／逆Posting確認。ID割当・永続inverse構築・I/Oは持たない。
 - shell_state：Shell state、初期化、route入場・同期、Record下書き保持とpublication結果処理。
@@ -465,27 +442,6 @@ Esc／qは変更前の配色と元のCommands選択へ戻す。選択日・一�
 - notty_render / notty_terminal：実描画と入力adapter。会計計算は持たない。
   イベントごとに端末寸法を読み直すので、resizeとキーが古い寸法を使わない。
 
-### 共通化の境界（KEEP / 統合 / LOCAL）
-
-責務・API契約・全利用元・移行順・横断受入の所有文書は
-[TUI共有部品の責務設計と移行順序](https://github.com/shumoku88-bit/bakhlo/blob/90a5867/docs/TUI_LAYOUT_STABILITY_ROADMAP.ja.md)。
-現在は共有inputの純粋機構だけ実装・検査済み。以下の画面cutoverは未実行で、全画面対応済みではない。
-
-- **KEEP**：`line_edit`のUTF-8 scalar編集とbyte-offset、`ui_render`の幅／clip／tail、`book_display`のLocus prefix候補、
-  `ui_panel`の枠・capacity/window/move、Nottyの合成・実幅・fit・cursor。
-- **統合／切替**：`ui_render`に`input_text`／`input_cell`／`cursor_in_rows`を実装済み。
-  value窓と1cell caretを一緒に計算し、再帰Columnsの子座標を親へ変換する。現行画面の利用元はまだ切り替えていない。
-  `ui_form`の寸法なしpaint＋独立cursorをbounded styled rowsへ切り替え、`ui_panel`の既存geometryへ接続する。
-  Modal_form・Jump・Search・Reversal Dateの全利用元を同時移行し、次にRecordのColumns＋recursive caretと
-  Scheduledの入力・UTF-8移動・focus-following・notice予約を接続する。既存string-list一覧APIは維持する。
-- **LOCAL**：field、ID、選択・query・sort、draft、候補確定・focus、戻り先、review lifecycle、
-  発行意図・拒否後復帰は各session/workspaceに残す。Preview全文／末尾・狭小確定拒否を共通枠へ移さない。
-  `Ui_workspace`と`Actual_workspace`のstateも統合しない。
-
-controllerは寸法・surface配置・local→terminal変換、frontendは描画を所有する。
-独自renderer／Unicode幅表、raw ANSIの二重管理、汎用scene engine・状態framework、新依存や保存経路は作らない。
-Record/Scheduled接続後もlist/detailのpaint/navigation capacityとcontroller経由の復帰を受入し、
-Actual長文検索の限定成功を全画面合格やIME受入へ拡張しない。
 
 ## 保存と復旧の限界
 

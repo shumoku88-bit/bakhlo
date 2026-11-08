@@ -71,7 +71,7 @@ LOAMの本番データや記帳先の切替は別の判断であり、この方�
   Scheduled Listの選択occurrence／Locus行が対象。paddingも含め、枠の表現は別に保つ。
   これは以前のマークだけを強調する試置きに優先する。非active側の選択印とフィールドの強弱は保ち、
   口座状態とは別の本来の設定エラーは`Status`のままにする。
-  [今回の変更と検証範囲](VERIFICATION.md#full-row-selection-and-scheduled-list-typography-2026-11-04)を参照する。
+  [今回の変更と検証範囲](https://github.com/shumoku88-bit/bakhlo/blob/5b48008/docs/VERIFICATION.md#full-row-selection-and-scheduled-list-typography-2026-11-04)を参照する。
 - Actualの文字組みは段階的に試す（本人依頼 2026-11-03）：日見出しの日付と金額を強くし、
   件数・期間・列見出しは補助として扱う。説明文は通常の太さ。選択の強調をマークへ絞った試置きは
   上記2026-11-04の本人指定で置き換える。金額順の行内日付は文脈として控えめにする。
