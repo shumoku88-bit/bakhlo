@@ -111,15 +111,13 @@ let submit_editing (env : Screen.env) submitted =
         refuse (tr "Source Measure must be a nonempty single-line token.")
       else if not (valid_token dst_measure) then
         refuse (tr "Destination Measure must be a nonempty single-line token.")
-      else if String.equal src_measure dst_measure then
-        refuse (tr "Source and destination Measures must differ.")
       else
         match B.parse_amount env.book ~measure:src_measure (text "source_amount") with
         | Error why -> refuse (amount_refusal "Source" src_measure why)
         | Ok src_quanta -> (
             match B.parse_amount env.book ~measure:dst_measure (text "destination_amount") with
             | Error why -> refuse (amount_refusal "Destination" dst_measure why)
-            | Ok dst_quanta ->
+            | Ok dst_quanta -> (
                 let unapproved =
                   match B.approved_loci env.book with
                   | None -> []
@@ -130,43 +128,34 @@ let submit_editing (env : Screen.env) submitted =
                   refuse
                     (Printf.sprintf "Locus '%s' is not admitted." (String.concat ", " unapproved))
                 else
-                  let leg key locus measure amount = { B.key = Some key; locus; measure; amount } in
                   let memo = match text "memo" with "" -> None | m -> Some m in
-                  let entry =
-                    {
-                      B.id = env.new_id ();
-                      day = canon_day;
-                      memo;
-                      effects =
-                        [
-                          leg "exchange-source" src_locus src_measure (Z.neg src_quanta);
-                          leg "exchange-destination" dst_locus dst_measure dst_quanta;
-                        ];
-                      reversal_of = None;
-                      exchange = Some ("exchange-source", "exchange-destination");
-                      original_amount = None;
-                      merchant = None;
-                    }
-                  in
-                  let form =
-                    review_form ~canon_day ~memo ~src_locus ~src_measure
-                      ~src_quanta_str:(B.format env.book src_measure src_quanta)
-                      ~dst_locus ~dst_measure
-                      ~dst_quanta_str:(B.format env.book dst_measure dst_quanta)
-                  in
-                  ( {
-                      editor =
-                        Some
-                          (Review
-                             {
-                               form;
-                               editing = submitted;
-                               base = env.revision;
-                               transaction =
-                                 { Bakhlo_household.Record.entry; replace = false; plan = None };
-                             });
-                    },
-                    Screen.Stay )))
+                  match
+                    Bakhlo_household.Record.exchange ~new_id:env.new_id ~day:canon_day
+                      ~memo:(text "memo")
+                      ~from:(src_locus, src_measure, src_quanta)
+                      ~into:(dst_locus, dst_measure, dst_quanta)
+                  with
+                  | Error _ -> refuse (tr "Source and destination Measures must differ.")
+                  | Ok entry ->
+                      let form =
+                        review_form ~canon_day ~memo ~src_locus ~src_measure
+                          ~src_quanta_str:(B.format env.book src_measure src_quanta)
+                          ~dst_locus ~dst_measure
+                          ~dst_quanta_str:(B.format env.book dst_measure dst_quanta)
+                      in
+                      ( {
+                          editor =
+                            Some
+                              (Review
+                                 {
+                                   form;
+                                   editing = submitted;
+                                   base = env.revision;
+                                   transaction =
+                                     { Bakhlo_household.Record.entry; replace = false; plan = None };
+                                 });
+                        },
+                        Screen.Stay ))))
 
 let handle (env : Screen.env) (geometry : Screen.geometry) t input =
   match t.editor with

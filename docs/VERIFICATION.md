@@ -7,6 +7,18 @@ toolchain. This file keeps the last week's entries (from 2026-11-02); entries fr
 2026-10-31 are in Git at `5b48008:docs/VERIFICATION.md`, earlier ones (including the bounded
 Solo5-SPT engine boot) at `90a5867:docs/VERIFICATION.md`.
 
+## bk fx and original amounts (2026-11-08)
+
+- `bk fx` records an exchange; its construction moved from the Exchange screen into
+  `Record.exchange` (keys `exchange-source` / `exchange-destination`, refusals
+  `same-measure` and `non-positive-amount`), which the screen now calls; the screen's
+  own same-Measure check went, the core's refusal keeps its wording. `o` at Save in
+  `bk r` / `bk pay` adds an original amount and reviews the same rows again.
+- Four hand-written FX samples in `test/records/forms.answers` (with and without memo,
+  same Measure, a hidden Locus refused by Book) passed on the first run. CLI checks pin
+  the saved exchange and original amount; a wrong amount failed. The pay Preview check
+  was updated for the longer Save prompt. `./tools/check` exited 0.
+
 ## Daily Pace settings as commands (2026-11-08)
 
 - `bk pace pool` chooses the pool from `Book.pool_candidates` (exact-current balances

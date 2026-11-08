@@ -172,14 +172,41 @@ let preview io book (tx : R.transaction) =
     (List.map
        (fun (p : B.posting) ->
          [ Left (name book p.locus); Right (signed book p.measure p.amount); Left p.measure ])
-       e.effects)
+       e.effects);
+  match e.original_amount with
+  | Some (m, q) -> say io (Printf.sprintf "  original amount %s %s" (money book m q) m)
+  | None -> ()
 
 let save io (session : F.t) (tx : R.transaction) =
   let book = session.book in
   say io "";
   preview io book tx;
   say io "";
-  match String.lowercase_ascii (ask io ~default:"y" "Save? (y / n / e to edit)") with
+  let question =
+    if tx.replace then "Save? (y / n / e to edit)"
+    else "Save? (y / n / e to edit / o for the original amount)"
+  in
+  match String.lowercase_ascii (ask io ~default:"y" question) with
+  | "o" when (not tx.replace) && tx.plan = None -> (
+      let others =
+        List.filter
+          (fun (m, _) -> not (List.exists (fun (p : B.posting) -> p.measure = m) tx.entry.effects))
+          (B.measures book)
+      in
+      let default = match others with (m, _) :: _ -> m | [] -> "" in
+      let measure = ask io ~default "Original Measure (what was paid in)" in
+      match List.assoc_opt measure (B.measures book) with
+      | None ->
+          say io ("The book has no Measure " ^ measure ^ ".");
+          `Edit
+      | Some scale -> (
+          match
+            Bakhlo_household.Amount.parse_positive ~decimals:scale (ask io "Original amount")
+          with
+          | Ok q -> `Original (measure, q)
+          | Error _ ->
+              say io "Enter a positive amount in that Measure.";
+              `Edit))
   | "y" | "yes" -> (
       match
         F.publish session [ B.Put_entry { replace = tx.replace; entry = tx.entry; plan = tx.plan } ]
@@ -203,9 +230,14 @@ let save io (session : F.t) (tx : R.transaction) =
       say io "Nothing was saved.";
       `Stopped
 
+(* Rows are edited, then reviewed: a refusal or `e` edits them again, `o` adds the
+   original amount and reviews the same rows again. *)
 let rec compose io (session : F.t) ~mode ~day ~memo ~original_amount measure rows =
+  let rows = edit_rows io session.book measure rows in
+  review io session ~mode ~day ~memo ~original_amount measure rows
+
+and review io (session : F.t) ~mode ~day ~memo ~original_amount measure rows =
   let book = session.book in
-  let rows = edit_rows io book measure rows in
   let editing = match mode with R.Edit e -> Some e | R.New | R.Pay _ -> None in
   let content = { R.day; memo; draft = R.form ~editing ~measure rows; original_amount } in
   match Draft.build_transaction ~new_id:F.new_id ~book ~mode content with
@@ -215,6 +247,8 @@ let rec compose io (session : F.t) ~mode ~day ~memo ~original_amount measure row
   | Ok tx -> (
       match save io session tx with
       | `Edit -> compose io session ~mode ~day ~memo ~original_amount measure rows
+      | `Original original ->
+          review io session ~mode ~day ~memo ~original_amount:(Some original) measure rows
       | (`Saved _ | `Stopped) as finished -> finished)
 
 (* 4. `bk r`. A memo recorded before offers its earlier rows, newest first. *)
@@ -330,22 +364,11 @@ let pay io (session : F.t) ~today =
           | Error why ->
               say io why;
               `Stopped
-          | Ok draft -> (
+          | Ok draft ->
               let day = ask io ~default:today "Date paid" in
               let memo = ask io "Memo" in
-              let content = { R.day; memo; draft; original_amount = None } in
-              let mode = R.Pay plan.id in
-              match Draft.build_transaction ~new_id:F.new_id ~book ~mode content with
-              | Error error ->
-                  say io error.Draft.message;
-                  compose io session ~mode ~day ~memo ~original_amount:None draft.measure
-                    (as_form_rows book draft)
-              | Ok tx -> (
-                  match save io session tx with
-                  | `Edit ->
-                      compose io session ~mode ~day ~memo ~original_amount:None draft.measure
-                        (as_form_rows book draft)
-                  | (`Saved _ | `Stopped) as finished -> finished))))
+              review io session ~mode:(R.Pay plan.id) ~day ~memo ~original_amount:None draft.measure
+                (as_form_rows book draft)))
 
 (* 6. `bk bal` and `bk pace` print what the Balances screen (Current) and Daily
    Pace's breakdown (`?`) show, from the same configuration files, and exit. *)
@@ -1223,6 +1246,52 @@ let pace_target io (session : F.t) ~today =
           | Ok x -> print_table io [ plan_row x ])));
   `Stopped
 
+(* 14. `bk fx`: one exchange between two Measures (Record.exchange): what left one
+   account and what arrived in another, no rate computed. *)
+let fx io (session : F.t) ~today =
+  let book = session.book in
+  match B.measures book with
+  | [] | [ _ ] ->
+      say io "An exchange needs two Measures in the book.";
+      `Stopped
+  | (first, _) :: (second, _) :: _ -> (
+      let day = ask_day io ~default:today "Date" in
+      let memo = ask io "Memo" in
+      let rec side label ~default =
+        match choose_locus io book (ask io (label ^ " account")) with
+        | None -> side label ~default
+        | Some locus ->
+            let rec measure () =
+              let m = ask io ~default (label ^ " Measure") in
+              if List.mem_assoc m (B.measures book) then m
+              else (
+                say io ("The book has no Measure " ^ m ^ ".");
+                measure ())
+            in
+            let measure = measure () in
+            let rec amount () =
+              match B.parse_amount book ~measure (ask io (label ^ " amount")) with
+              | Ok q -> q
+              | Error _ ->
+                  say io "Enter a positive amount in that Measure.";
+                  amount ()
+            in
+            (locus, measure, amount ())
+      in
+      let ((_, from_measure, _) as from) = side "From" ~default:first in
+      let into = side "Into" ~default:(if from_measure = first then second else first) in
+      match R.exchange ~new_id:F.new_id ~day ~memo ~from ~into with
+      | Error "same-measure" ->
+          say io "An exchange is between two different Measures; nothing was saved.";
+          `Stopped
+      | Error why ->
+          say io why;
+          `Stopped
+      | Ok e ->
+          publish_changes io session ~title:"Exchange"
+            [ B.Put_entry { replace = false; entry = e; plan = None } ]
+            [ entry_cells book e ])
+
 (* 8. After a saved record or payment, another one may follow on the saved book. *)
 let rec again io (session : F.t) ~today ~saved ~question step =
   match
@@ -1258,6 +1327,7 @@ let run io command (session : F.t) ~today =
     | `Pace_cycle -> pace_cycle io session ~today
     | `Pace_if words -> pace_if io session ~today words
     | `Pace_target -> pace_target io session ~today
+    | `Fx -> fx io session ~today
   with Quit ->
     say io "Nothing was saved.";
     `Stopped

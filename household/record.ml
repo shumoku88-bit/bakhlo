@@ -212,3 +212,28 @@ let refund ~book ~new_id ~id ~day =
             original_amount = None;
             merchant = None;
           }
+
+(* An exchange is one record of two rows in different Measures, linked by their
+   keys: what left one account and what arrived in another. No rate is computed or
+   stored; Book admits the pair. *)
+let exchange ~new_id ~day ~memo ~from:(src_locus, src_measure, src)
+    ~into:(dst_locus, dst_measure, dst) =
+  if src_measure = dst_measure then Error "same-measure"
+  else if Z.sign src <= 0 || Z.sign dst <= 0 then Error "non-positive-amount"
+  else
+    let leg key locus measure amount = { B.key = Some key; locus; measure; amount } in
+    Ok
+      {
+        B.id = new_id ();
+        day;
+        memo = (match memo with "" -> None | m -> Some m);
+        effects =
+          [
+            leg "exchange-source" src_locus src_measure (Z.neg src);
+            leg "exchange-destination" dst_locus dst_measure dst;
+          ];
+        reversal_of = None;
+        exchange = Some ("exchange-source", "exchange-destination");
+        original_amount = None;
+        merchant = None;
+      }

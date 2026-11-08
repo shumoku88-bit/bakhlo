@@ -297,3 +297,36 @@ ENDREFUND
 REFUND	refund	2027-01-13	r3
 REFUSED	already-refund
 ENDREFUND
+# 両替：出た口座と入った口座が別のMeasureの2行を、固定の鍵でつないだ1つの記録。レートは計算も保存もしない。
+# 答えはその記録と、帳簿が受け入れるか（ADMITTEDか帳簿の拒否）。
+USE	BOOK	base.txt
+FX	2027-01-12	fx1	travel	bank	jpy	15000	bank	usd	10000
+TX	fx1	2027-01-12	DESC	travel
+EFFECT	bank	jpy	-15000	exchange-source
+EFFECT	bank	usd	10000	exchange-destination
+EXCHANGE	exchange-source	exchange-destination
+ENDTX
+ADMITTED
+ENDFX
+# メモがなければDESCなし
+FX	2027-01-12	fx2	-	bank	jpy	300	food	usd	200
+TX	fx2	2027-01-12
+EFFECT	bank	jpy	-300	exchange-source
+EFFECT	food	usd	200	exchange-destination
+EXCHANGE	exchange-source	exchange-destination
+ENDTX
+ADMITTED
+ENDFX
+# 同じMeasureどうしは両替ではない
+FX	2027-01-12	fx3	-	bank	jpy	100	food	jpy	100
+REFUSED	same-measure
+ENDFX
+# 使わなくなった（HIDDEN）口座への新しいお金の流れは帳簿が断る
+FX	2027-01-12	fx4	-	bank	jpy	100	old	usd	1
+TX	fx4	2027-01-12
+EFFECT	bank	jpy	-100	exchange-source
+EFFECT	old	usd	1	exchange-destination
+EXCHANGE	exchange-source	exchange-destination
+ENDTX
+REFUSED	locus-unapproved
+ENDFX

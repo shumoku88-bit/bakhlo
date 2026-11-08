@@ -104,11 +104,32 @@ let answer use (q : question) =
       (match R.refund ~book ~new_id:(fun () -> fresh) ~id ~day with
       | Error why -> [ "REFUSED\t" ^ why ]
       | Ok e -> entry_lines e)
+  | [ "FX"; day; fresh; memo; fl; fm; fq; tl; tm; tq ] ->
+      row q.header
+      ::
+      (match
+         R.exchange
+           ~new_id:(fun () -> fresh)
+           ~day
+           ~memo:(if memo = "-" then "" else memo)
+           ~from:(fl, fm, Z.of_string fq)
+           ~into:(tl, tm, Z.of_string tq)
+       with
+      | Error why -> [ "REFUSED\t" ^ why ]
+      | Ok e ->
+          entry_lines e
+          @ [
+              (match B.put_entry book ~replace:false e ~plan:None with
+              | Ok _ -> "ADMITTED"
+              | Error why -> "REFUSED\t" ^ why);
+            ])
   | _ -> bad ("question " ^ row q.header)
 
 let%expect_test "Record form samples use only the household core" =
   let counts = create () in
-  check counts ~dir:"records" ~file:"forms.answers" ~blocks:[ "OPEN"; "FORM"; "REFUND" ] ~answer;
-  Printf.printf "%d OPEN, %d FORM, %d REFUND, %d failures\n" (counted counts "OPEN")
-    (counted counts "FORM") (counted counts "REFUND") counts.failures;
-  [%expect {| 10 OPEN, 18 FORM, 6 REFUND, 0 failures |}]
+  check counts ~dir:"records" ~file:"forms.answers"
+    ~blocks:[ "OPEN"; "FORM"; "REFUND"; "FX" ]
+    ~answer;
+  Printf.printf "%d OPEN, %d FORM, %d REFUND, %d FX, %d failures\n" (counted counts "OPEN")
+    (counted counts "FORM") (counted counts "REFUND") (counted counts "FX") counts.failures;
+  [%expect {| 10 OPEN, 18 FORM, 6 REFUND, 4 FX, 0 failures |}]

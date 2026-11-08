@@ -16,7 +16,8 @@ val commands :
     | `Pace_pool
     | `Pace_cycle
     | `Pace_if of string list
-    | `Pace_target ]
+    | `Pace_target
+    | `Fx ]
     option)
   * string)
   list

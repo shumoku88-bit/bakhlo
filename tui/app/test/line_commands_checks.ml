@@ -167,7 +167,7 @@ let run_all () =
        \  2026-11-08  (no memo)\n\
        \  Bank  -80,000  jpy\n\
        \  Food  +80,000  jpy\n\n\
-        Save? (y / n / e to edit) [y]: Saved.\n"
+        Save? (y / n / e to edit / o for the original amount) [y]: Saved.\n"
     && (not (contains out "rent-11"))
     && not (contains out "entry-"))
     "bk-pay-preview-without-ids";
@@ -442,6 +442,40 @@ let run_all () =
     (contains out ("  after" ^ String.make 20 ' ' ^ "-4,995  jpy/day")
     && contains out ("  change" ^ String.make 22 ' ' ^ "-59  jpy/day"))
     "bk-pace-if-prices-a-purchase";
+  (* `bk fx` and an original amount need a second Measure. *)
+  Unix.mkdir "scratch/bk-fx" 0o700;
+  write "scratch/bk-fx/book.txt"
+    "BOOK\t1\n\
+     MEASURE\tjpy\t0\n\
+     MEASURE\tusd\t2\n\
+     LOCUS\tbank\tBank\t\n\
+     LOCUS\twallet\tWallet\t\n\
+     LOCUS\tfood\tFood\t\n\
+     END\n";
+  let in_fx command answers =
+    let io, _ = script answers in
+    ignore (L.run io command (F.load "scratch/bk-fx/book.txt") ~today:"2026-11-08")
+  in
+  in_fx `Fx [ ""; "travel"; "bank"; ""; "15000"; "wallet"; ""; "100"; "" ];
+  require
+    (contains (F.read "scratch/bk-fx/book.txt")
+       "\t2026-11-08\tDESC\ttravel\n\
+        EFFECT\tbank\tjpy\t-15000\texchange-source\n\
+        EFFECT\twallet\tusd\t10000\texchange-destination\n\
+        EXCHANGE\tjpy\tusd\n\
+        ENDTX")
+    "bk-fx-records-an-exchange";
+  (* `o` at Save adds the original amount and reviews the same rows again. *)
+  in_fx `Record
+    [ ""; "lunch abroad"; ""; "bank"; "-1500"; "food"; ""; ""; "o"; ""; "12.50"; ""; "n" ];
+  require
+    (contains (F.read "scratch/bk-fx/book.txt")
+       "DESC\tlunch abroad\n\
+        EFFECT\tbank\tjpy\t-1500\n\
+        EFFECT\tfood\tjpy\t1500\n\
+        ORIGINAL\tusd\t1250\n\
+        ENDTX")
+    "bk-r-adds-an-original-amount";
   (* bk help lists every command, and every listed command runs: with no answers
      it stops and writes nothing. *)
   List.iter

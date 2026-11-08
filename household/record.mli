@@ -53,3 +53,14 @@ val refund :
 (** The refund of record [id] on [day]: every row negated, linked by [reversal_of],
     memo ["Refund: <memo>"] (or ["Refund"]). Refuses [unknown-entry], [already-refund]
     (a refund is not refunded) and [already-refunded]. Book admits or refuses it. *)
+
+val exchange :
+  new_id:(unit -> string) ->
+  day:string ->
+  memo:string ->
+  from:string * string * Z.t ->
+  into:string * string * Z.t ->
+  (B.entry, string) result
+(** One exchange: [from] (Locus, Measure, amount) leaves, [into] arrives, keyed
+    [exchange-source] and [exchange-destination]; an empty memo is none. Refuses
+    [same-measure] and [non-positive-amount]; Book admits or refuses the record. *)
