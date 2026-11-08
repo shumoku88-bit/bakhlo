@@ -172,7 +172,7 @@ let help_form () =
       "  Result  = Income - Expense";
       "";
       "Provenance Distinction";
-      "  Scheduled: paid via Scheduled plan completion";
+      "  Scheduled: paid for a plan, or its refund";
       "  other: direct ad-hoc spending";
       "";
       "Reading the summary";

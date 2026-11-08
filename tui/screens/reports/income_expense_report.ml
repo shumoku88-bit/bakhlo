@@ -69,13 +69,10 @@ let truncate_to_days (period : period) days =
 
 let compute_report ~book ~roles ~period =
   let entries = B.entries book in
-  let plans = B.plans book in
   let in_period (e : B.entry) = e.day >= period.start_day && e.day < period.end_exclusive in
   let period_entries = List.filter in_period entries in
   let measures = List.map fst (B.measures book) |> List.sort_uniq String.compare in
-  let is_scheduled_payment (e : B.entry) =
-    List.exists (fun (p : B.plan) -> p.paid_by = Some e.id) plans
-  in
+  let settles_plan = B.settles_plan book in
 
   let unresolved_acc = ref [] in
 
@@ -89,7 +86,7 @@ let compute_report ~book ~roles ~period =
 
         List.iter
           (fun (e : B.entry) ->
-            let is_sched = is_scheduled_payment e in
+            let is_sched = settles_plan e in
             List.iter
               (fun (eff : B.posting) ->
                 if eff.B.measure = measure then

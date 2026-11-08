@@ -21,8 +21,9 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   Reports followed: `test/reports/` (one synthetic book, 29 hand-written questions)
   pins Income & Expense, Transactions Flow, Stock–Flow, Trend / Locus, Liquidity,
   Multicurrency and Actual's day and period EXPENSE totals, run by
-  `tui/app/test/report_answers.ml`. Open question for the user: Income & Expense
-  counts the refund of a paid plan as Ordinary, History as the plan's (pinned as is).
+  `tui/app/test/report_answers.ml`. User decision (2026-11-08): the refund of a
+  plan's payment counts with the plan in Income & Expense too, as in History
+  (`Book.settles_plan` owns the rule).
   [Evidence](VERIFICATION.md#scheduled-answer-samples-2026-11-08).
 
 - 2026-11-07: Record/Preview typography finishes the series' next step: exact

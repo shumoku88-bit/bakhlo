@@ -442,22 +442,29 @@ let quiet_day =
     scheduled_reserved_outflow = Z.zero;
   }
 
+(* An entry settles a plan when it pays one or reverses such a payment: a refund
+   of a plan's payment belongs to the plan, as the payment did. *)
+let settles_plan t =
+  let paying =
+    List.fold_left
+      (fun set (p : plan) -> match p.paid_by with Some id -> Smap.add id () set | None -> set)
+      Smap.empty (plans t)
+  in
+  fun (e : entry) ->
+    Smap.mem e.id paying
+    || match e.reversal_of with Some target -> Smap.mem target paying | None -> false
+
 (* Each entry counts by its net effect on the pool, so a move inside the pool is
-   quiet. An entry that pays a plan, or reverses such a payment, is Scheduled; the
-   rest is discretionary. A reversal recorded on its target's day cancels it out of
-   both days' activity. The paying day also shows the plan's protected drain being
-   released. *)
+   quiet. An entry that settles a plan is Scheduled; the rest is discretionary. A
+   reversal recorded on its target's day cancels it out of both days' activity.
+   The paying day also shows the plan's protected drain being released. *)
 let day_activities t ~measure ~pool =
   let in_pool (p : posting) =
     p.measure = measure && List.exists (fun (c : coordinate) -> c.locus = p.locus) pool
   in
   let entries = entries t in
   let ids = List.fold_left (fun set id -> Smap.add id () set) Smap.empty in
-  let paying = ids (List.filter_map (fun (p : plan) -> p.paid_by) (plans t)) in
-  let scheduled (e : entry) =
-    Smap.mem e.id paying
-    || match e.reversal_of with Some target -> Smap.mem target paying | None -> false
-  in
+  let scheduled = settles_plan t in
   let same_day_pairs =
     ids
       (List.concat_map

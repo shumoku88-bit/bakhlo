@@ -159,6 +159,12 @@ val past_paces :
     day of its payment, because the restated pool holds only payments made by then.
     Refuses with {!pool_at_end_of_day}'s reason or a non-positive horizon. *)
 
+val settles_plan : t -> entry -> bool
+(** Whether an entry pays a plan or reverses such a payment, so that a refund of a
+    plan's payment counts with the plan (History's Scheduled activity, Income &
+    Expense's Scheduled split; test/reports, [INCOME-EXPENSE]). Apply it to the book
+    once and reuse the result for many entries. *)
+
 type day_activity = {
   discretionary_outflow : Z.t;
   discretionary_inflow : Z.t;

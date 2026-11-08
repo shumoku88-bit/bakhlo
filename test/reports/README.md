@@ -21,8 +21,9 @@ Bakhloでの確認は `tui/app/test/report_answers.ml`（`./tools/check` の一�
   Measureごとに `TOTAL` で（0は出さない）。役割のない科目の動きがあれば `PARTIAL`（Actualの `+?`）。
   1日の窓がActualの日見出し、期間の窓が期間バーと期間選択の合計。
 - `INCOME-EXPENSE	<始まり>	<終わり>`：帳簿のすべてのMeasureについて `MEASURE`、科目ID順の
-  `INCOME`（符号を反転）と `EXPENSE`、`TOTAL-INCOME`・`TOTAL-EXPENSE`、予定を払った実績の
-  EXPENSE `SCHEDULED` と残り `ORDINARY`、`NET`（収入−支出）。最後に役割のない動きを
+  `INCOME`（符号を反転）と `EXPENSE`、`TOTAL-INCOME`・`TOTAL-EXPENSE`、予定を払った実績と
+  その返金（取消の実績）のEXPENSE `SCHEDULED` と残り `ORDINARY`、`NET`（収入−支出）。返金は
+  予定の分を戻すもので、HistoryのScheduledと同じ決まり。最後に役割のない動きを
   `UNRESOLVED	日付	科目	Measure	金額` で。
 - `TRANSACTIONS-FLOW	<始まり>	<終わり>`：触れた（科目, Measure）ごとの
   `ROW	科目	Measure	増	減	差	総量	件数` を総量の大きい順（同じなら科目、Measureの順）に。

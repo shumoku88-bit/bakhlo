@@ -97,9 +97,25 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
   answer changed, so no screen capture was taken.
 - `./tools/check` (runs the 29 answers), `./tools/tui --self-check`,
   `./tools/format --check` and `./tools/privacy-scan --all`: exit 0.
-- Pinned as current behavior, not decided: Income & Expense counts the refund of
-  a paid plan's payment as Ordinary, while History treats it as the plan's.
-  Report refusal reasons are English sentences, not codes.
+- Pinned as current behavior: report refusal reasons are English sentences, not codes.
+- User decision (2026-11-08): the samples showed Income & Expense counting the
+  refund of a plan's payment as other spending while History counted it with the
+  plan. Now `Book.settles_plan` (pays a plan or reverses such a payment) owns the
+  rule for both; the February window answers Scheduled −80000, other 0, and the
+  old answer fails (1 failure), 29 answers, 0 failures. The I&E help line now
+  reads "Scheduled: paid for a plan, or its refund" (a longer first try wrapped
+  mid-word at 120×36, so it was shortened). LOAM links Scheduled by the payment's
+  correction root; whether a refund falls under it was not checked, and LOAM was
+  not driven.
+- Before (`974d7e4` export) and after binaries, fresh `./tools/compare refresh`,
+  `scratch/ie-refund-20261108/capture.sh` at 120×36/80×24. Synthetic (the
+  test/reports book): the February summary split and the February and March
+  tables move the refund from other to Scheduled, and the help line changes;
+  the other flows are byte-identical. Latest copy: Income & Expense open,
+  periods 2–5 and twelve months back with their tables (31 flows) are
+  byte-identical; only the help line differs. Digests unchanged; owned tmux
+  closed; `clean-copies`: exit 0. `./tools/check`, `./tools/tui --self-check`,
+  `./tools/format --check`, `./tools/privacy-scan --all`: exit 0.
 
 ## Record and Preview typography (2026-11-07)
 

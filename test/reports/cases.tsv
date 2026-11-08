@@ -1,6 +1,6 @@
 case	book	presets	note
 day-totals	base.txt	-	Actualの日見出しと期間の合計：EXPENSEの科目だけをMeasureごとに足し、0は出さない。役割のない科目があればPARTIAL（画面の+?）
-income-expense	base.txt	-	収支：INCOMEは符号を反転、EXPENSEはそのまま。予定を払った実績のEXPENSEはSCHEDULED（その返金はORDINARY）。ASSET・LIABILITY・EQUITYは数えず、役割のない科目はUNRESOLVED
+income-expense	base.txt	-	収支：INCOMEは符号を反転、EXPENSEはそのまま。予定を払った実績とその返金のEXPENSEはSCHEDULED（返金は予定の分を戻す）。ASSET・LIABILITY・EQUITYは数えず、役割のない科目はUNRESOLVED
 transactions-flow	base.txt	-	活動：触れた(科目, Measure)ごとの増減。総量の大きい順、同じなら科目・Measureの順。各行に動かした実績
 stock-flow	base.txt	-	残高と流れ：始まりと終わりの残高を根拠ごとに組み立てる。開始の記帳は流れに数えず、その日に始まる窓の始まりは不明。根拠のない科目は表から外して名前を出す
 trend	base.txt	presets.tsv	推移：科目ごとの記帳の合計を周期・月・日に分ける。周期と月は日数で割って切り捨て、観察日を含む区切りは途中（PARTIAL）
