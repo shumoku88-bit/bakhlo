@@ -60,6 +60,8 @@ let message ~plan = function
       | "plan-already-paid" -> tr "This Scheduled occurrence is already completed."
       | "plan-cancelled" -> tr "This Scheduled occurrence is cancelled."
       | "unknown-plan" -> tr "The Scheduled occurrence is unavailable."
+      | "merchant-classified" when not plan ->
+          tr "This Actual's Merchant is already classified; a correction keeps it."
       | why when (not plan) && String.starts_with ~prefix:"entry-admission" why ->
           tr "Movement admission refused (entry-admission); check conservation and relationships."
       | why ->

@@ -197,7 +197,8 @@ val correct_entry_date : t -> id:string -> day:string -> (t, string) result
 (** Only the date; a Locus no longer offered may stay. *)
 
 val classify_merchant : t -> id:string -> disposition:disposition -> (t, string) result
-(** First classification only. *)
+(** First classification only: [merchant-unknown], [merchant-classified], or
+    [merchant-token] for a name that is not one book.txt word. *)
 
 val put_plan : t -> replace:bool -> plan -> (t, string) result
 (** A new open plan, or an open one replaced. *)

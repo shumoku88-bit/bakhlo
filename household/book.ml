@@ -567,7 +567,11 @@ let require_open_plan (p : plan) =
   require (p.paid_by = None) "plan-already-paid";
   require (p.cancelled_on = None) "plan-cancelled"
 
-let merchant_classified = "loam: Event Merchant is already classified; replacement is not qualified"
+let merchant_classified = "merchant-classified"
+
+(* A TX refusal names its book.txt reason, as [entry-admission:<code>]. *)
+let entry_refusal code =
+  match refusal code with "entry-admission" -> "entry-admission:" ^ code | why -> why
 
 (* An empty memo is no memo, as book.txt writes it, so a saved entry equals its reload. *)
 let no_empty_memo (e : entry) = if e.memo = Some "" then { e with memo = None } else e
@@ -622,9 +626,6 @@ let put_entry t ~replace (e : entry) ~plan =
         with Refused (("exchange-key" | "exchange-ambiguous") as code) ->
           raise (Refused ("entry-admission:" ^ code))
       in
-      let entry_refusal code =
-        match refusal code with "entry-admission" -> "entry-admission:" ^ code | why -> why
-      in
       with_entry t
         (commit ~refusal:entry_refusal t
            ((if replace then T.Replace_tx tx else T.Add_tx tx) :: paid))
@@ -640,25 +641,22 @@ let correct_entry_date t ~id ~day =
         match find_entry t id with Some e -> e | None -> raise (Refused "unknown-entry")
       in
       let e = { old with day } in
-      with_entry t (commit t [ T.Replace_tx (tx_of e) ]) e ~replace:true)
+      with_entry t (commit ~refusal:entry_refusal t [ T.Replace_tx (tx_of e) ]) e ~replace:true)
 
 let valid_token s =
-  s <> "" && not (String.contains s '\t' || String.contains s '\n' || String.contains s '\r')
+  s <> "" && not (String.exists (fun c -> c = ' ' || c = '\t' || c = '\n' || c = '\r') s)
 
 let classify_merchant t ~id ~disposition =
   protect (fun () ->
       let old =
-        match find_entry t id with
-        | Some e -> e
-        | None -> raise (Refused "loam: Merchant classification requires an existing Event")
+        match find_entry t id with Some e -> e | None -> raise (Refused "merchant-unknown")
       in
       require (old.merchant = None) merchant_classified;
       (match disposition with
-      | Merchant p ->
-          require (valid_token p) "loam: Merchant party token must be a non-empty single text field"
+      | Merchant p -> require (valid_token p) "merchant-token"
       | Nonmerchant -> ());
       let e = { old with merchant = Some disposition } in
-      with_entry t (commit t [ T.Replace_tx (tx_of e) ]) e ~replace:true)
+      with_entry t (commit ~refusal:entry_refusal t [ T.Replace_tx (tx_of e) ]) e ~replace:true)
 
 let put_plan t ~replace (p : plan) =
   protect (fun () ->

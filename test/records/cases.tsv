@@ -44,7 +44,7 @@ attach-edit	base.txt	cannot-attach-plan-on-edit	既存実績へ予定を後付�
 pay-unknown	base.txt	unknown-plan	未知の予定
 pay-paid	base.txt	plan-already-paid	払い済みの予定
 pay-cancelled	base.txt	plan-cancelled	取消済みの予定
-merchant-space	base.txt	entry-admission	空白入りの店名もBook_txtのtoken規則で拒否
+merchant-space	base.txt	merchant-token	空白入りの店名はbook.txtの1語にならない
 replace-opening	opening.txt	support-admission	開始残高の記帳からその座標を消さない
 refund-classified	classify-shop.after.txt	ok	元の店は保持し返金には継承しない
 multi-measure	base.txt	ok	Measureごとに釣り合えばBookは受け入れる（単一MeasureのRecordとは別）

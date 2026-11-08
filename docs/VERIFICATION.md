@@ -16,6 +16,9 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
   plan prefill and the Original field's distinct decimal grammar. Screens keep
   their messages; Book_txt admission and saved bytes remain unchanged.
   Put_entry now carries `entry-admission:<code>`; publication keeps its old wording.
+  Follow-up: Merchant refusals are Book codes (`merchant-classified`, `merchant-unknown`,
+  `merchant-token`, which now also refuses a space), and date corrections and
+  classifications carry `entry-admission:<code>` too; the runner no longer translates.
 - First command: compilation stopped on two docstrings; the next on two missing
   wrapper exports. First executing run: zero new-sample mismatches, one obsolete
   coarse-code assertion. Three deliberately wrong answers each failed, then were

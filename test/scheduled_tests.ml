@@ -194,13 +194,6 @@ let pace_blocks book text =
       | [] -> bad "empty question block")
     (split [] (lines text))
 
-let refusal_code = function
-  | "loam: Event Merchant is already classified; replacement is not qualified" ->
-      "merchant-classified"
-  | "loam: Merchant classification requires an existing Event" -> "merchant-unknown"
-  | "loam: Merchant party token must be a non-empty single text field" -> "merchant-token"
-  | code -> code
-
 let run dir =
   let failures = ref 0 and accepted = ref 0 and refused = ref 0 and paces = ref 0 in
   let fail name why =
@@ -231,8 +224,7 @@ let run dir =
             | Error why, "ok" -> fail name ("refused " ^ why)
             | Error why, code ->
                 incr refused;
-                if refusal_code why <> code then
-                  fail name (Printf.sprintf "want %s, got %s" code why);
+                if why <> code then fail name (Printf.sprintf "want %s, got %s" code why);
                 if exists dir after_file || exists dir pace_file then
                   fail name "a refused sample has no book after it"
           with Bad_sample why -> fail name ("bad sample: " ^ why))

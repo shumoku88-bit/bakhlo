@@ -33,9 +33,8 @@ CLASSIFY-MERCHANTの店名欄だけは `\t`・`\r`・`\n`・`\\` をdecodeし、
   `exchange-key`・`exchange-ambiguous`。画面と出版境界は以前のentry-admissionの文言を保つ。
 - `exchange-key-taken` は鍵なしの両替の自動鍵が別行にある場合、`entry-not-representable` は
   書いて読んだentryが元と違う場合。どちらも保存しない。
-- その他の拒否はBookのコード。Merchantの3つの旧来の文だけ、runnerで
-  `merchant-classified`（分類済み）、`merchant-unknown`（実績なし）、`merchant-token`
-  （空またはtab/CR/LFを含む店）へ写す。画面の文言を変えるための別error型は作らない。
+- その他の拒否はBookのコード。店の分類は `merchant-classified`（分類済み、訂正でも変えない）、
+  `merchant-unknown`（実績なし）、`merchant-token`（空、または空白・tab・CR・LFを含む店名）。
 
 ## Recordの問い
 
