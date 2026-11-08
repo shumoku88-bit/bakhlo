@@ -84,7 +84,7 @@ let rows ~ctx ~today period windows =
       let i = search 0 n e.day in
       if i >= 0 && contains windows.(i) e.day then buckets.(i) <- e :: buckets.(i))
     (B.entries ctx.Act.book);
-  let roles = Act.expense_roles ~book:ctx.Act.book ctx.Act.scope.roles in
+  let total = Act.expense_total ctx.Act.book in
   List.init n (fun i ->
       let window = windows.(n - 1 - i) and entries = buckets.(n - 1 - i) in
       {
@@ -92,7 +92,7 @@ let rows ~ctx ~today period windows =
         label = label period window;
         now = contains window today;
         count = List.length entries;
-        total = (if entries = [] then None else Act.expense_total roles entries);
+        total = (if entries = [] then None else total entries);
       })
 
 let index_of rows reference =

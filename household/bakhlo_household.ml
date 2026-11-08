@@ -5,3 +5,5 @@ module Income_expense = Income_expense
 module Transactions_flow = Transactions_flow
 module Liquidity = Liquidity
 module Multicurrency_spend = Multicurrency_spend
+module Trend = Trend
+module Stock_flow = Stock_flow

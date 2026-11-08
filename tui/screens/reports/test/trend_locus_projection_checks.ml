@@ -2,7 +2,7 @@
    history, effective scopes, window completeness and refusals. Synthetic books
    only; no wording, layout or default-count assertions. *)
 module B = Bakhlo_household.Book
-module T = Trend_locus_report
+module T = Bakhlo_household.Trend
 
 let get = function Ok x -> x | Error why -> failwith why
 let require condition why = if not condition then failwith why
@@ -40,7 +40,7 @@ let primary =
 
 let project ?(config = Some config) ?(grain = T.Cycle) ?(scope = T.All_history) book observed
     coordinates =
-  T.project ~book ~observed_at:observed ~boundary_presets_text:config ~grain ~scope ~coordinates
+  T.project book ~observed_at:observed ~boundary_presets_text:config ~grain ~scope ~coordinates
 
 let series_of snapshot ~locus =
   match Array.find_opt (fun (s : T.series) -> s.coordinate.locus = locus) snapshot.T.series with
@@ -56,7 +56,7 @@ let point what (p : T.point) ~start ~stop ~days ~total ~value ~complete =
 let refuses ?config ?(grain = T.Day) ?(scope = T.All_history) book observed coordinates why =
   require
     (Result.is_error
-       (T.project ~book ~observed_at:observed ~boundary_presets_text:config ~grain ~scope
+       (T.project book ~observed_at:observed ~boundary_presets_text:config ~grain ~scope
           ~coordinates))
     why
 
@@ -118,7 +118,7 @@ let huge_book_checks () =
 
 let catalog_checks () =
   require
-    (T.catalog ~book:primary ~measure:"jpy"
+    (T.catalog primary ~measure:"jpy"
     = [ coord "a" "jpy"; coord "b" "jpy"; coord "c" "jpy"; coord "gamma" "jpy" ])
     "catalog is admitted plus recorded identities, never inferred roles";
   let historical =
@@ -126,10 +126,10 @@ let catalog_checks () =
       (row "h1" "2026-10-02" (ab (z 5) ^ posting "d" "eur" (z 700) ^ posting "a" "eur" (z (-700))))
   in
   require
-    (T.catalog ~book:historical ~measure:"jpy" = [ coord "a" "jpy"; coord "b" "jpy" ])
+    (T.catalog historical ~measure:"jpy" = [ coord "a" "jpy"; coord "b" "jpy" ])
     "historical effect loci supply catalog coordinates";
   require
-    (T.catalog ~book:historical ~measure:"eur" = [ coord "a" "eur"; coord "d" "eur" ])
+    (T.catalog historical ~measure:"eur" = [ coord "a" "eur"; coord "d" "eur" ])
     "catalog never mixes measures"
 
 let scope_checks () =

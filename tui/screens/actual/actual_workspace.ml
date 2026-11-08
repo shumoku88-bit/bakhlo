@@ -21,11 +21,10 @@ type scope = {
   today : string;
   focus_day : string;
       (** The day the window was opened on: today, or the day of a chosen window. *)
-  roles : (string * Roles.role) list;
   measure : string;
 }
 (** What the workspace reads besides the book: the resolved period window, the
-    day, the accounting roles and the current Measure. *)
+    day and the current Measure. The accounting roles are the book's own. *)
 
 type context = {
   book : B.t;
@@ -210,7 +209,7 @@ let filtered_entries ~ctx t ~records ~locus =
   in
   let filtered = List.filter (matches_search ~book t) by_locus in
   List.sort
-    (compare_entries ~sort:t.order ~roles:ctx.scope.roles ~measure:ctx.scope.measure)
+    (compare_entries ~sort:t.order ~roles:(B.roles ctx.book) ~measure:ctx.scope.measure)
     filtered
 
 (* A day of the list: its entries, where its first entry sits in the sorted
@@ -231,48 +230,18 @@ let totals_text ~book totals partial =
   | [] -> if partial then Some "+?" else None
   | parts -> Some (String.concat " / " parts ^ if partial then "+?" else "")
 
-(* The EXPENSE total of the given entries: a day's shown entries, so its count and
-   total describe the same rows under a Locus filter or a search, or the whole
-   window for the title. *)
-type expense_roles = { role_book : B.t; table : (string, Roles.role) Hashtbl.t }
+(* The EXPENSE total of the given entries in the shared money format, marked [+?]
+   when an effect has no role: a day's shown entries, so its count and total
+   describe the same rows under a Locus filter or a search, or the whole window
+   for the title. The rule is the core's ({!Bakhlo_household.Income_expense.spending}).
+   Apply it to the book once per frame. *)
+let expense_total book =
+  let spending = Bakhlo_household.Income_expense.spending book in
+  fun entries ->
+    let s = spending entries in
+    totals_text ~book s.totals s.partial
 
-let expense_roles ~book roles =
-  let table = Hashtbl.create (List.length roles) in
-  List.iter
-    (fun (locus, role) -> if not (Hashtbl.mem table locus) then Hashtbl.add table locus role)
-    roles;
-  { role_book = book; table }
-
-(* A ledger has few Measures, so the sums are an association list. *)
-let expense_sums roles entries =
-  let totals = ref [] and partial = ref false in
-  let add measure amount =
-    let rec go = function
-      | [] -> [ (measure, amount) ]
-      | (m, sum) :: rest when String.equal m measure -> (m, Z.add sum amount) :: rest
-      | pair :: rest -> pair :: go rest
-    in
-    totals := go !totals
-  in
-  List.iter
-    (fun (e : B.entry) ->
-      List.iter
-        (fun (posting : B.posting) ->
-          match Hashtbl.find_opt roles.table posting.B.locus with
-          | Some Roles.Expense -> add posting.B.measure posting.B.amount
-          | Some (Roles.Income | Roles.Asset | Roles.Liability | Roles.Equity) -> ()
-          | None -> partial := true)
-        e.effects)
-    entries;
-  (List.sort (fun (a, _) (b, _) -> String.compare a b) !totals, !partial)
-
-let expense_total roles entries =
-  let sums, partial = expense_sums roles entries in
-  totals_text ~book:roles.role_book sums partial
-
-(* The EXPENSE total per Measure of these entries in the shared money format,
-   marked [+?] when an effect has no role. *)
-let shown_total ~ctx entries = expense_total (expense_roles ~book:ctx.book ctx.scope.roles) entries
+let shown_total ~ctx entries = expense_total ctx.book entries
 
 (* Day groups follow the list order; under an amount order there is no day to
    group by, so no header is drawn. *)
@@ -290,11 +259,11 @@ let groups_of_entries ~ctx ~order records =
             in
             loop acc (index + 1) rest
       in
-      let roles = expense_roles ~book:ctx.book ctx.scope.roles in
+      let total = expense_total ctx.book in
       List.map
         (fun (g : group) ->
           let entries = List.rev g.entries in
-          { g with entries; total = lazy (expense_total roles entries) })
+          { g with entries; total = lazy (total entries) })
         (loop [] 0 records)
 
 (* The selection the workspace opens on: today's group, or the latest day before

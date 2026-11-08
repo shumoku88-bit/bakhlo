@@ -393,17 +393,17 @@ let run ~width_of ~directory (back_home : C.state) =
      observation is exact but undated, so it is not in this list. *)
   configure "bank\tjpy\n";
   (match stock_flow_result sf_ctl with
-  | Ok unsupported ->
+  | Ok (_, unsupported) ->
       require
-        (unsupported.Stock_flow_report.coordinates = []
-        && unsupported.Stock_flow_report.unsupported <> [])
+        (unsupported.Bakhlo_household.Stock_flow.coordinates = []
+        && unsupported.Bakhlo_household.Stock_flow.unsupported <> [])
         "sf-lists-unsupported-coordinates"
   | Error why -> failwith ("stock-flow refused a listing: " ^ why));
   configure "food\tjpy\n";
   require
     (Stock_flow_screen.preset sf_ctl.C.screens.stock_flow = Income_expense_report.Cycle)
     "sf-defaults-to-the-configured-cycle";
-  let report = get (stock_flow_result sf_ctl) in
+  let _, (report : Bakhlo_household.Stock_flow.snapshot) = get (stock_flow_result sf_ctl) in
   require
     (report.measure = "jpy"
     && Z.equal report.reconstructed_start Z.zero

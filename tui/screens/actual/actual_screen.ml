@@ -85,13 +85,7 @@ let window (env : Screen.env) ws =
         Some (why ^ " Showing all entries.") )
 
 let scope_of (env : Screen.env) ws window =
-  {
-    Act.window;
-    today = env.today;
-    focus_day = anchor env ws;
-    roles = env.accounting_roles;
-    measure = env.measure;
-  }
+  { Act.window; today = env.today; focus_day = anchor env ws; measure = env.measure }
 
 let context_of (env : Screen.env) ws =
   let window, warning = window env ws in

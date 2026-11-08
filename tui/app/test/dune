@@ -4,7 +4,6 @@
 
 (executable
  (name app_checks)
- (modules app_checks terminal_checks)
  (libraries
   bakhlo_tui_terminal
   bakhlo_tui_kit
@@ -25,20 +24,3 @@
  (deps %{workspace_root}/examples/book.txt)
  (action
   (run %{exe:app_checks.exe} %{workspace_root})))
-
-; Reports and the Actual's day totals against the language-neutral samples in
-; test/reports (see its README).
-
-(test
- (name report_answers)
- (modules report_answers)
- (libraries
-  bakhlo_screen_reports
-  bakhlo_screen_actual
-  bakhlo_tui_book
-  bakhlo.household
-  zarith)
- (deps
-  (glob_files %{workspace_root}/test/reports/*))
- (action
-  (run %{test} %{workspace_root}/test/reports)))

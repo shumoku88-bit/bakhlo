@@ -1,10 +1,15 @@
-(* Trend / Locus report: exact recorded Effect flow per Locus x Measure over
-   explicitly configured cycle history. Read-only; no balance, support,
-   role or household-coverage inference. *)
-module B = Bakhlo_household.Book
-module Day = Bakhlo_household.Day
-module IncExp = Income_expense_report
-module Roles = Locus_roles
+(* Trend: how one Locus's recorded flow moves over time.
+
+   The household picks up to five Loci of one Measure and asks how much moved
+   through each per cycle, month or day. History starts at the first boundary of
+   the household's own cycle preset (test/periods), so a chart never reaches back
+   to a guess. A cycle or month point is its daily average, floored:
+
+     food  2027-01-25 .. 2027-02-25   31 days   total 9300   value 300
+
+   while a day point is that day's total. The window containing the observation
+   day is partial. Refunds count with their own sign; nothing is read as a
+   balance. Pinned in test/reports ([TREND], [TREND-DEFAULT]). *)
 
 type grain = Cycle | Month | Day
 type scope = All_history | Current_cycle | Current_month | Last_30_days
@@ -24,7 +29,7 @@ type series = { coordinate : coordinate; label : string; points : point array }
 type snapshot = {
   measure : string;
   observed_at : string;
-  source : string;
+  preset : string;
   scope_start : string;
   scope_end_exclusive : string;
   grain : grain;
@@ -33,33 +38,11 @@ type snapshot = {
 }
 
 let ( let* ) = Result.bind
-let grain_label = function Cycle -> "Cycle" | Month -> "Month" | Day -> "Day"
-
-let scope_label = function
-  | All_history -> "All history"
-  | Current_cycle -> "Current cycle"
-  | Current_month -> "Current month"
-  | Last_30_days -> "Last 30 days"
-
-let month_starts = [| 0; 31; 59; 90; 120; 151; 181; 212; 243; 273; 304; 334 |]
-
-(* Proleptic Gregorian ordinal, used only for exact window day counts. *)
-let day_ordinal day =
-  match Day.parts day with
-  | Error _ -> None
-  | Ok (year, month, day_of_month) ->
-      let prior = year - 1 in
-      let leap = year mod 400 = 0 || (year mod 4 = 0 && year mod 100 <> 0) in
-      Some
-        ((365 * prior) + (prior / 4) - (prior / 100) + (prior / 400)
-        + month_starts.(month - 1)
-        + day_of_month
-        + if leap && month > 2 then 1 else 0)
 
 let days_between start_day end_exclusive =
-  match (day_ordinal start_day, day_ordinal end_exclusive) with
-  | Some start, Some stop when stop > start -> stop - start
-  | _ -> invalid_arg "Trend_locus_report: point window is not a real date range"
+  match (Day.index start_day, Day.index end_exclusive) with
+  | Ok start, Ok stop when stop > start -> stop - start
+  | _ -> invalid_arg "Trend: point window is not a real date range"
 
 let canonical_date day =
   match Day.normalize day with Ok canonical -> canonical = day | Error _ -> false
@@ -74,13 +57,11 @@ type bounds = {
 (* One explicit preset must own the observation day; its first boundary is the
    only history start, and every scope is clipped to it. *)
 let configured_bounds ~observed_at ~text =
-  match
-    Result.bind (Bakhlo_household.Period.read text) (Bakhlo_household.Period.cycle ~day:observed_at)
-  with
+  match Result.bind (Period.read text) (Period.cycle ~day:observed_at) with
   | Error (No_cycle _) -> Error "No explicit boundary preset contains the observation day."
   | Error (Ambiguous _) ->
       Error "Multiple boundary presets contain the observation day; selection is ambiguous."
-  | Error why -> Error (Bakhlo_household.Period.message why)
+  | Error why -> Error (Period.message why)
   | Ok cycle ->
       let cycle_start = fst (List.nth cycle.windows cycle.index) in
       Ok
@@ -91,17 +72,17 @@ let configured_bounds ~observed_at ~text =
           windows = List.map (fun (a, b) -> (cycle.name, a, b)) cycle.windows;
         }
 
-let catalog ~book ~measure =
+let catalog book ~measure =
   let historical =
     List.concat_map
-      (fun (entry : B.entry) ->
+      (fun (entry : Book.entry) ->
         List.filter_map
-          (fun (posting : B.posting) ->
-            if posting.B.measure = measure then Some posting.B.locus else None)
+          (fun (posting : Book.posting) ->
+            if posting.measure = measure then Some posting.locus else None)
           entry.effects)
-      (B.entries book)
+      (Book.entries book)
   in
-  let admitted = Option.value ~default:[] (B.approved_loci book) in
+  let admitted = Option.value ~default:[] (Book.approved_loci book) in
   List.sort_uniq String.compare (admitted @ historical)
   |> List.map (fun locus -> { locus; measure })
 
@@ -113,28 +94,29 @@ let history_start ~observed_at ~boundary_presets_text =
 (* The default series: the three Expense-role Loci with the most recorded
    entries in the shown history. Ties go to the larger recorded movement first,
    then to the token, so the choice is deterministic and derived from data. *)
-let initial_series ~book ~measure ~roles ~start_day ~end_exclusive =
+let initial_series book ~measure ~start_day ~end_exclusive =
+  let roles = Book.roles book in
   let role locus = List.assoc_opt locus roles in
   let table = Hashtbl.create 16 in
   List.iter
-    (fun (entry : B.entry) ->
+    (fun (entry : Book.entry) ->
       if entry.day >= start_day && entry.day < end_exclusive then
         let seen = Hashtbl.create 4 in
         List.iter
-          (fun (posting : B.posting) ->
-            let locus = posting.B.locus in
+          (fun (posting : Book.posting) ->
+            let locus = posting.locus in
             if
-              posting.B.measure = measure
-              && role locus = Some Roles.Expense
+              posting.measure = measure
+              && role locus = Some Book.T.Expense
               && not (Hashtbl.mem seen locus)
             then (
               Hashtbl.replace seen locus ();
               let entries, total =
                 Option.value ~default:(0, Z.zero) (Hashtbl.find_opt table locus)
               in
-              Hashtbl.replace table locus (entries + 1, Z.add total (Z.abs posting.B.amount))))
+              Hashtbl.replace table locus (entries + 1, Z.add total (Z.abs posting.amount))))
           entry.effects)
-    (B.entries book);
+    (Book.entries book);
   Hashtbl.fold (fun locus (entries, total) acc -> (locus, entries, total) :: acc) table []
   |> List.sort (fun (a, entries_a, total_a) (b, entries_b, total_b) ->
       let by_entries = compare entries_b entries_a in
@@ -152,7 +134,7 @@ let validate_coordinates ~book ~(coordinates : coordinate list) =
       let measure = first.measure in
       if measure = "" then Error "No Measure is selected."
       else if List.length coordinates > 5 then Error "At most five Loci can be compared."
-      else if not (List.exists (fun (name, _) -> name = measure) (B.measures book)) then
+      else if not (List.exists (fun (name, _) -> name = measure) (Book.measures book)) then
         Error ("Measure is not configured in the book: " ^ measure)
       else
         let rec loop seen = function
@@ -177,7 +159,7 @@ let lower_bound days key =
 let window_total (days, sums) start_day end_exclusive =
   Z.sub sums.(lower_bound days end_exclusive) sums.(lower_bound days start_day)
 
-let project ~book ~observed_at ~boundary_presets_text ~grain ~scope ~coordinates =
+let project book ~observed_at ~boundary_presets_text ~grain ~scope ~coordinates =
   if not (canonical_date observed_at) then Error "Observation day is not a real Gregorian date."
   else
     let* measure = validate_coordinates ~book ~coordinates in
@@ -242,18 +224,18 @@ let project ~book ~observed_at ~boundary_presets_text ~grain ~scope ~coordinates
         Hashtbl.replace daily coordinate.locus (Hashtbl.create 8))
       coordinates;
     List.iter
-      (fun (entry : B.entry) ->
+      (fun (entry : Book.entry) ->
         if entry.day >= scope_start && entry.day < scope_end_exclusive then
           List.iter
-            (fun (posting : B.posting) ->
-              let locus = posting.B.locus in
-              if Hashtbl.mem selected locus && posting.B.measure = measure then
+            (fun (posting : Book.posting) ->
+              let locus = posting.locus in
+              if Hashtbl.mem selected locus && posting.measure = measure then
                 let table = Hashtbl.find daily locus in
-                let quantity = posting.B.amount in
+                let quantity = posting.amount in
                 let prior = Option.value ~default:Z.zero (Hashtbl.find_opt table entry.day) in
                 Hashtbl.replace table entry.day (Z.add prior quantity))
             entry.effects)
-      (B.entries book);
+      (Book.entries book);
     let prefix_of locus =
       let table = Hashtbl.find daily locus in
       let days =
@@ -294,7 +276,7 @@ let project ~book ~observed_at ~boundary_presets_text ~grain ~scope ~coordinates
               windows
             |> Array.of_list
           in
-          { coordinate; label = B.label book coordinate.locus; points })
+          { coordinate; label = Book.label book coordinate.locus; points })
         coordinates
       |> Array.of_list
     in
@@ -302,7 +284,7 @@ let project ~book ~observed_at ~boundary_presets_text ~grain ~scope ~coordinates
       {
         measure;
         observed_at;
-        source = Printf.sprintf "%s (boundary-presets.tsv)" bounds.preset;
+        preset = bounds.preset;
         scope_start;
         scope_end_exclusive;
         grain;

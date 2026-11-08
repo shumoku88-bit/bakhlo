@@ -25,3 +25,12 @@ type t = {
 
 val compute : Book.t -> start:string -> stop:string -> t
 (** The entries dated in [\[start, stop)], by the book's own roles. *)
+
+type spending = {
+  totals : (string * Z.t) list;  (** EXPENSE per touched Measure, in Measure order; zeros kept. *)
+  partial : bool;  (** Some effect is on a Locus without a role. *)
+}
+
+val spending : Book.t -> Book.entry list -> spending
+(** The EXPENSE of any rows, by the book's roles: the Actual's day header and period
+    totals ([EXPENSE-TOTAL]). Apply it to the book once and reuse the result. *)

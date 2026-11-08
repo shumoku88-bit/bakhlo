@@ -2,7 +2,6 @@
 module B = Bakhlo_household.Book
 module Day = Bakhlo_household.Day
 module IE = Bakhlo_household.Income_expense
-module Roles = Locus_roles
 module O = Ui_render
 module A = Draft
 

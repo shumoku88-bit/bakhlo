@@ -2,13 +2,12 @@
 
    Each sample in test/reports is a book (and, for cycles, a boundary-presets.tsv)
    with question blocks. A block names a report and its inputs and is followed by
-   the answer; this runner prints the whole block again from Bakhlo's own report
-   code and compares the text. The files are the specification a rewrite must
-   pass (test/reports/README.md). *)
+   the answer; this runner prints the whole block again from Bakhlo's
+   core and compares the text. The files are the specification a rewrite must
+   pass (test/reports/README.md); this runner only proves Bakhlo agrees. *)
 module B = Bakhlo_household.Book
-module IncExp = Income_expense_report
 
-let dir = Sys.argv.(1)
+let dir = "reports"
 let read name = In_channel.with_open_bin (Filename.concat dir name) In_channel.input_all
 let lines text = List.filter (fun l -> l <> "") (String.split_on_char '\n' text)
 let fields = String.split_on_char '\t'
@@ -24,14 +23,12 @@ let expense_total book ~start ~stop =
   let entries =
     List.filter (fun (e : B.entry) -> start <= e.day && e.day < stop) (B.entries book)
   in
-  let sums, partial =
-    Actual_workspace.expense_sums (Actual_workspace.expense_roles ~book (B.roles book)) entries
-  in
+  let s = Bakhlo_household.Income_expense.spending book entries in
   List.filter_map
     (fun (measure, n) ->
       if Z.equal n Z.zero then None else Some ("TOTAL\t" ^ measure ^ "\t" ^ money n))
-    sums
-  @ if partial then [ "PARTIAL" ] else []
+    s.totals
+  @ if s.partial then [ "PARTIAL" ] else []
 
 (* 2. Income & Expense of [start, end): every Measure of the book, its classified
    Loci by ID, the totals and the Scheduled split, then the unresolved effects. *)
@@ -55,9 +52,6 @@ let income_expense book ~start ~stop =
       (fun (u : IE.unresolved) ->
         String.concat "\t" [ "UNRESOLVED"; u.day; u.locus; u.measure; money u.amount ])
       r.unresolved
-
-let period start stop =
-  { IncExp.preset = IncExp.Month; start_day = start; end_exclusive = stop; label = "" }
 
 let known = function Some n -> money n | None -> "?"
 let refused why = [ "REFUSED\t" ^ why ]
@@ -86,11 +80,11 @@ let transactions_flow book ~start ~stop =
 
 (* 4. Stock–Flow of the TRACK and LIABILITY Loci in one Measure over [start, end). *)
 let stock_flow book ~measure ~start ~stop ~track ~liabilities =
-  let module S = Stock_flow_report in
+  let module S = Bakhlo_household.Stock_flow in
   let pairs = List.map (fun l -> (l, measure)) in
   match
-    S.compute_report ~book ~measure ~tracked_coords:(pairs track)
-      ~liability_coords:(pairs liabilities) ~period:(period start stop)
+    S.compute book ~measure ~tracked_coords:(pairs track) ~liability_coords:(pairs liabilities)
+      ~start ~stop
   with
   | Error why -> refused why
   | Ok r ->
@@ -135,7 +129,7 @@ let stock_flow book ~measure ~start ~stop ~track ~liabilities =
 
 (* 5. Trend / Locus: the chosen Loci's recorded flow by Cycle, Month or Day. *)
 let trend book ~presets ~measure ~observed_at ~grain ~scope ~loci =
-  let module T = Trend_locus_report in
+  let module T = Bakhlo_household.Trend in
   let grain =
     match grain with
     | "CYCLE" -> T.Cycle
@@ -157,7 +151,7 @@ let trend book ~presets ~measure ~observed_at ~grain ~scope ~loci =
     | other -> bad ("scope " ^ other)
   in
   match
-    T.project ~book ~observed_at ~boundary_presets_text:presets ~grain ~scope
+    T.project book ~observed_at ~boundary_presets_text:presets ~grain ~scope
       ~coordinates:(List.map (fun locus -> { T.locus; measure }) loci)
   with
   | Error why -> refused why
@@ -183,9 +177,8 @@ let trend book ~presets ~measure ~observed_at ~grain ~scope ~loci =
 
 (* 6. Trend / Locus's default Loci for [start, end). *)
 let trend_default book ~measure ~start ~stop =
-  Trend_locus_report.initial_series ~book ~measure ~roles:(B.roles book) ~start_day:start
-    ~end_exclusive:stop
-  |> List.map (fun (c : Trend_locus_report.coordinate) -> "DEFAULT\t" ^ c.locus)
+  Bakhlo_household.Trend.initial_series book ~measure ~start_day:start ~end_exclusive:stop
+  |> List.map (fun (c : Bakhlo_household.Trend.coordinate) -> "DEFAULT\t" ^ c.locus)
 
 (* 7. Liquidity: today's selected balance and the open plans through a day. *)
 let liquidity book ~today ~through ~pool =
@@ -284,7 +277,7 @@ let blocks text =
   in
   split [] (lines text)
 
-let () =
+let%expect_test "every report sample gives its listed answer" =
   let failures = ref 0 and answers = ref 0 in
   let fail name why =
     incr failures;
@@ -311,4 +304,4 @@ let () =
       | _ -> fail row "bad cases row")
     (List.tl (lines (read "cases.tsv")));
   Printf.printf "%d report answers, %d failures\n" !answers !failures;
-  if !failures > 0 then exit 1
+  [%expect {| 29 report answers, 0 failures |}]

@@ -14,5 +14,10 @@ val view : Screen.env -> Screen.geometry -> t -> Screen.view
 
 val form : t -> Ui_form.t option
 val preset : t -> Income_expense_report.period_preset
-val result : Screen.env -> t -> (Stock_flow_report.report, string) result
+
+val result :
+  Screen.env ->
+  t ->
+  (Income_expense_report.period * Bakhlo_household.Stock_flow.snapshot, string) result
+
 val scroll : t -> int

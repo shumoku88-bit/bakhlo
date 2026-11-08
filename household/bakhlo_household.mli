@@ -19,3 +19,9 @@ module Liquidity = Liquidity
 
 module Multicurrency_spend = Multicurrency_spend
 (** Spending per Measure in a window, never converted. *)
+
+module Trend = Trend
+(** Recorded flow per Locus over the cycle history. *)
+
+module Stock_flow = Stock_flow
+(** Why the watched balances changed between two days. *)

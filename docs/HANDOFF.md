@@ -24,6 +24,10 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   `tui/app/test/report_answers.ml`. User decision (2026-11-08): the refund of a
   plan's payment counts with the plan in Income & Expense too, as in History
   (`Book.settles_plan` owns the rule).
+  Then every report calculation and Actual's EXPENSE totals moved into the core
+  (`household/income_expense.ml`, `transactions_flow.ml`, `stock_flow.ml`, `trend.ml`,
+  `liquidity.ml`, `multicurrency_spend.ml`); the screens only name and format, and
+  `test/reports_tests.ml` checks the samples against the core alone.
   [Evidence](VERIFICATION.md#scheduled-answer-samples-2026-11-08).
 
 - 2026-11-07: Record/Preview typography finishes the series' next step: exact

@@ -25,6 +25,9 @@ let fixture =
    LOCUS\texpenses:groceries\t食費\tFood\n\
    LOCUS\texpenses:rent\t家賃\tRent\n\
    LOCUS\texpenses:unfiled\t雑費\tUnfiled\n\
+   ROLE\tassets:cash\tASSET\n\
+   ROLE\texpenses:groceries\tEXPENSE\n\
+   ROLE\texpenses:rent\tEXPENSE\n\
    ZERO-ORIGIN\texpenses:groceries\tjpy\n\
    ANCHOR\t-\n\
    ASSERT\tassets:cash\tjpy\t100000\n\
@@ -76,8 +79,8 @@ let roles =
 
 let month = { Act.start_day = "2026-10-01"; end_exclusive = "2026-11-01"; label = "Month 2026-10" }
 
-let make_ctx ?(roles = roles) ?(window = month) ?(today = "2026-10-15") ?(measure = "jpy") book =
-  { Act.book; scope = { Act.window; today; focus_day = today; roles; measure }; warning = None }
+let make_ctx ?(window = month) ?(today = "2026-10-15") ?(measure = "jpy") book =
+  { Act.book; scope = { Act.window; today; focus_day = today; measure }; warning = None }
 
 let rows_of ctx t =
   Act.screen ~ctx ~total:None ~draft_retained:false ~dimensions:(120, 36) ~width_of:String.length t

@@ -2,7 +2,7 @@
    clamping and containment, inline series picker, session annotations, modal
    closing and stale-config/book requery. Synthetic books only. *)
 module B = Bakhlo_household.Book
-module R = Trend_locus_report
+module R = Bakhlo_household.Trend
 module S = Trend_locus_screen
 module Roles = Locus_roles
 
@@ -30,7 +30,11 @@ let rows =
   ^ row "oct3" "2026-10-03" (ab (z (-4)))
   ^ row "oct4" "2026-10-04" (ab (z 100))
 
-let make_book extra = get (B.read (header ^ rows ^ extra ^ footer))
+let read extra = get (B.read (header ^ rows ^ extra ^ footer))
+let make_book extra = get (B.set_roles (read extra) [ ("a", Roles.Expense); ("b", Roles.Expense) ])
+
+(* The same book without roles: no default series. *)
+let bare_book = read ""
 let book = make_book ""
 let changed_book = make_book (row "extra" "2026-10-02" (ab (z 10)))
 let boundaries = "household\t2026-10-01\t2026-10-03\t2026-11-01\n"
@@ -38,7 +42,6 @@ let long_boundaries = "long\t2026-08-01\t2026-11-01\n"
 
 let env_with ?(book = book) ?(measure = "jpy") boundaries =
   Screen.env_for_checks
-    ~accounting_roles:[ ("a", Roles.Expense); ("b", Roles.Expense) ]
     ~config:(fun name ->
       if List.mem name S.config_files then Ok (Some boundaries) else Error ("undeclared " ^ name))
     ~book ~measure ~today:"2040-01-01" ()
@@ -673,7 +676,7 @@ let () =
     ((point_of (get (S.result long_env settled)) 0).R.start_day = "2026-08-01")
     "changed boundaries are projected again";
   require
-    (S.result { env with Screen.accounting_roles = [] } settled <> S.result env settled)
+    (S.result (env_with ~book:bare_book boundaries) settled <> S.result env settled)
     "changed roles are projected again";
 
   (* Leaving and modal closing. *)
@@ -691,7 +694,7 @@ let () =
   in
   require (Result.is_error (S.result broken owned)) "a config read failure clears the chart";
   (* An explicit series does not need the roles. *)
-  let no_roles = { env with Screen.accounting_roles = [] } in
+  let no_roles = env_with ~book:bare_book boundaries in
   let roles_picker = after no_roles owned (`ASCII 'a') in
   let roles_explicit = after no_roles (press_n no_roles roles_picker (`Arrow `Down) 3) `Enter in
   require

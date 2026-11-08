@@ -15,7 +15,6 @@ type scope = {
   today : string;
   focus_day : string;
       (** The day the window was opened on: today, or the day of a chosen window. *)
-  roles : (string * Roles.role) list;
   measure : string;
 }
 
@@ -89,18 +88,10 @@ val screen :
   t ->
   (Ui_render.style * string) list
 
-type expense_roles
-
-val expense_roles : book:B.t -> (string * Roles.role) list -> expense_roles
-(** Accounting roles ready for EXPENSE totals; [book] supplies the Measure formats. *)
-
-val expense_sums : expense_roles -> B.entry list -> (string * Z.t) list * bool
-(** The EXPENSE sum per Measure (sorted, zeros kept) and whether some effect has no
-    role (test/reports, [EXPENSE-TOTAL]). *)
-
-val expense_total : expense_roles -> B.entry list -> string option
+val expense_total : B.t -> B.entry list -> string option
 (** The EXPENSE total per Measure of these entries in the shared money format,
-    marked [+?] when an effect has no role. *)
+    marked [+?] when an effect has no role ({!Bakhlo_household.Income_expense.spending}).
+    Apply it to the book once and reuse the result. *)
 
 val window_total : ctx:context -> string option
 (** The window's EXPENSE total per Measure, in the shared money format; [total]

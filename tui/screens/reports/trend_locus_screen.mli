@@ -29,7 +29,7 @@ val view : Screen.env -> Screen.geometry -> t -> Screen.view
 
 (** {2 Queries for checks} *)
 
-val result : Screen.env -> t -> (Trend_locus_report.snapshot, string) result
+val result : Screen.env -> t -> (Bakhlo_household.Trend.snapshot, string) result
 (** The current projection of the current book and configuration; an error
     never returns a stale chart. *)
 
@@ -44,12 +44,12 @@ val visible_window : Screen.env -> t -> int * int
 (** The shown points [[start, stop)]: every point, except that Day over all
     history shows 31 and moves only when the selection leaves them. *)
 
-val grain : t -> Trend_locus_report.grain
+val grain : t -> Bakhlo_household.Trend.grain
 
-val scope : t -> Trend_locus_report.scope
+val scope : t -> Bakhlo_household.Trend.scope
 (** The effective scope; other grains always report {!All_history}. *)
 
-val coordinates : Screen.env -> t -> Trend_locus_report.coordinate list
+val coordinates : Screen.env -> t -> Bakhlo_household.Trend.coordinate list
 (** The plotted coordinates; the default catalog selection until the user
     chooses one in the series picker. *)
 
@@ -65,7 +65,7 @@ val guides : t -> bool
 val notice : t -> string
 (** The last notice shown by this screen. *)
 
-val catalog : Screen.env -> t -> Trend_locus_report.coordinate list
+val catalog : Screen.env -> t -> Bakhlo_household.Trend.coordinate list
 val picker_open : t -> bool
 
 val picker_target : t -> int option

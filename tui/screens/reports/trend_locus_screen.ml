@@ -4,13 +4,13 @@
 
    The owner never writes a file, never reads the clock and never keeps a stale
    chart: a projection is reused only while its book is the same value and its
-   configuration text, roles, Measure and query are equal, so a changed book or
-   file is projected again and a failure clears the chart instead of painting an
+   configuration text, Measure and query are equal (roles live in the book), so a
+   changed book or file is projected again and a failure clears the chart instead of painting an
    old one. The selection is an immutable period; the effective point index is
    derived from the current projection. *)
 module B = Bakhlo_household.Book
 module Day = Bakhlo_household.Day
-module R = Trend_locus_report
+module R = Bakhlo_household.Trend
 module O = Ui_render
 
 let markers = [| "●"; "◆"; "▲"; "■"; "□" |]
@@ -21,6 +21,16 @@ module Panel = Ui_panel
 let tr = Ui_text.tr
 let boundary_file = "boundary-presets.tsv"
 let config_files = [ boundary_file ]
+let grain_label = function R.Cycle -> "Cycle" | R.Month -> "Month" | R.Day -> "Day"
+
+let scope_label = function
+  | R.All_history -> "All history"
+  | R.Current_cycle -> "Current cycle"
+  | R.Current_month -> "Current month"
+  | R.Last_30_days -> "Last 30 days"
+
+(* Where the history came from, as the reader set it up. *)
+let source (snap : R.snapshot) = snap.preset ^ " (" ^ boundary_file ^ ")"
 let max_series = 5
 let max_overlays = 3
 let max_name_chars = 32
@@ -48,7 +58,6 @@ type picker = { target : int; cursor : int; notice : string }
 type projection = {
   book : B.t;  (** Compared physically: every book change is a new value. *)
   boundary : (string option, string) result;
-  roles : (string * Locus_roles.role) list;
   measure : string;
   query : string option * R.grain * R.scope * R.coordinate list;
   plotted : R.coordinate list;  (** The effective series. *)
@@ -109,7 +118,7 @@ let effective_scope t = if t.grain = R.Day then t.scope else R.All_history
 
 (* The default series is derived from the shown history every time: the Expense
    role is the only authority, never a guessed name or sign. *)
-let default_coordinates (env : Screen.env) t ~boundary ~roles =
+let default_coordinates (env : Screen.env) t ~boundary =
   match t.focus_day with
   | None -> []
   | Some observed_at -> (
@@ -121,33 +130,31 @@ let default_coordinates (env : Screen.env) t ~boundary ~roles =
           match Day.shift_days observed_at 1 with
           | Error _ -> []
           | Ok end_exclusive ->
-              R.initial_series ~book:env.book ~measure:env.measure ~roles ~start_day ~end_exclusive)
-      )
+              R.initial_series env.book ~measure:env.measure ~start_day ~end_exclusive))
 
 let compute (env : Screen.env) t =
   let boundary = env.config boundary_file in
-  let roles = env.accounting_roles in
   let query = (t.focus_day, t.grain, effective_scope t, t.coordinates) in
   match t.projection with
   | Some p
-    when p.book == env.book && p.boundary = boundary && p.roles = roles && p.measure = env.measure
-         && p.query = query ->
+    when p.book == env.book && p.boundary = boundary && p.measure = env.measure && p.query = query
+    ->
       p
   | _ ->
       let plotted =
         match t.coordinates with
         | _ :: _ as coordinates -> coordinates
-        | [] -> default_coordinates env t ~boundary ~roles
+        | [] -> default_coordinates env t ~boundary
       in
       let outcome =
         match t.focus_day with
         | None -> Error "No observation day: the Shell has not focused a day for this chart."
         | Some observed_at ->
             Result.bind boundary (fun boundary_presets_text ->
-                R.project ~book:env.book ~observed_at ~boundary_presets_text ~grain:t.grain
+                R.project env.book ~observed_at ~boundary_presets_text ~grain:t.grain
                   ~scope:(effective_scope t) ~coordinates:plotted)
       in
-      { book = env.book; boundary; roles; measure = env.measure; query; plotted; outcome }
+      { book = env.book; boundary; measure = env.measure; query; plotted; outcome }
 
 let with_projection env t = { t with projection = Some (compute env t) }
 let project env t = (compute env t).outcome
@@ -337,7 +344,7 @@ let previous_scope = function
 
 (* Series picker *)
 
-let catalog (env : Screen.env) t = R.catalog ~book:env.book ~measure:(current_measure env t)
+let catalog (env : Screen.env) t = R.catalog env.book ~measure:(current_measure env t)
 
 let replace_at coordinates index candidate =
   let rec loop i acc = function
@@ -750,12 +757,12 @@ let source_line t (snap : R.snapshot) visible =
         Result.value ~default:snap.R.scope_end_exclusive
           (Day.shift_days snap.R.scope_end_exclusive (-1))
       in
-      snap.R.source ^ separator ^ "Range " ^ R.scope_label snap.R.scope ^ "   "
+      source snap ^ separator ^ "Range " ^ scope_label snap.R.scope ^ "   "
       ^ short_date snap.R.scope_start ^ " → " ^ short_date last ^ separator ^ "Grain Day"
       ^ separator ^ snap.R.measure ^ separator ^ "braille"
       ^ if sliding t then separator ^ string_of_int visible ^ "-day viewport" else ""
   | grain ->
-      snap.R.source ^ separator ^ "Grain " ^ R.grain_label grain ^ separator ^ snap.R.measure
+      source snap ^ separator ^ "Grain " ^ grain_label grain ^ separator ^ snap.R.measure
       ^ separator ^ "braille"
 
 (* Two rack rows of five slots; a series slot carries its series' colour. *)
@@ -1004,11 +1011,11 @@ let chart_rows (env : Screen.env) (geometry : Screen.geometry) t (snap : R.snaps
   let spans rows = List.map (fun spans -> (O.Spans spans, O.spans_text spans)) rows in
   let header =
     match selected_point snap selected with
-    | None -> [ (O.Heading, "Trend   " ^ R.grain_label t.grain); (O.Chrome, "No selected period.") ]
+    | None -> [ (O.Heading, "Trend   " ^ grain_label t.grain); (O.Chrome, "No selected period.") ]
     | Some point when compact ->
         let title =
-          "Trend " ^ R.grain_label snap.R.grain
-          ^ (if snap.R.grain = R.Day then "/" ^ R.scope_label snap.R.scope else "")
+          "Trend " ^ grain_label snap.R.grain
+          ^ (if snap.R.grain = R.Day then "/" ^ scope_label snap.R.scope else "")
           ^ " · " ^ snap.R.measure
         in
         let series_count = Array.length snap.R.series in
@@ -1023,9 +1030,7 @@ let chart_rows (env : Screen.env) (geometry : Screen.geometry) t (snap : R.snaps
         [ (O.Heading, title) ]
         @ (if tiny then []
            else
-             [
-               (O.Chrome, if t.notice = "" then "Source " ^ snap.R.source else "Notice " ^ t.notice);
-             ])
+             [ (O.Chrome, if t.notice = "" then "Source " ^ source snap else "Notice " ^ t.notice) ])
         @ [ (O.Active, if tiny then "Selected " ^ point.R.start_day else selected_line snap point) ]
         @ spans values
     | Some point ->

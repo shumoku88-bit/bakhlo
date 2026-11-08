@@ -1,8 +1,6 @@
 module B = Bakhlo_household.Book
 (** Income & Expense Report: period-based P/L analysis by month, cycle, year, or all-time. *)
 
-module Roles = Locus_roles
-
 type period_preset = Period_window.preset = Month | Cycle | Previous_cycle | Year | All_time
 
 type period = Period_window.period = {

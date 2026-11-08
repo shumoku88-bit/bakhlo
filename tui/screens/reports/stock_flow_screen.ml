@@ -58,8 +58,11 @@ let result (env : Screen.env) t =
             | [] -> Error "Stock–Flow requires a nonempty balance-view.tsv selection."
             | (_, measure) :: _ ->
                 Result.bind (P.checked env t.report.preset t.report.period_offset) (fun period ->
-                    StockFlow.compute_report ~book:env.book ~measure ~tracked_coords
-                      ~liability_coords:(liability_coords measure) ~period)))
+                    Result.map
+                      (fun report -> (period, report))
+                      (Bakhlo_household.Stock_flow.compute env.book ~measure ~tracked_coords
+                         ~liability_coords:(liability_coords measure) ~start:period.start_day
+                         ~stop:period.end_exclusive))))
 
 let help_form () =
   Frame.help_form ~title:"Stock–Flow / Help"
@@ -95,12 +98,14 @@ let content (env : Screen.env) (geometry : Screen.geometry) t =
   let width, _ = geometry.content in
   let width_of = geometry.width_of in
   match result env t with
-  | Ok rep ->
+  | Ok (period, rep) ->
       Frame.Body
-        ( Printf.sprintf "Stock–Flow • %s (%s)" (IncExp.preset_label t.report.preset) rep.measure,
+        ( Printf.sprintf "Stock–Flow • %s (%s)"
+            (IncExp.preset_label t.report.preset)
+            rep.Bakhlo_household.Stock_flow.measure,
           StockFlow.render_summary_lines
             ~width:(max 0 (width - 4))
-            ~width_of ~book:env.book ~report:rep )
+            ~width_of ~book:env.book ~period ~report:rep )
   | Error why ->
       let remedy =
         if Base.String.is_substring why ~substring:"Historical start unsupported" then
@@ -142,8 +147,8 @@ let handle (env : Screen.env) geometry t input =
                 }
           | Some (`ASCII 'p', []) -> (
               match result env t with
-              | Ok rep ->
-                  let lines = StockFlow.print_summary ~book:env.book ~report:rep in
+              | Ok (period, rep) ->
+                  let lines = StockFlow.print_summary ~book:env.book ~period ~report:rep in
                   stay
                     {
                       t with

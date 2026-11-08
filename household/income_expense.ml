@@ -86,3 +86,28 @@ let compute book ~start ~stop =
   let measures = List.sort_uniq String.compare (List.map fst (Book.measures book)) in
   let summaries = List.map summary measures in
   { summaries; unresolved = List.rev !unresolved }
+
+(* The Actual list asks a smaller question of any rows it shows (a day under a
+   filter, a whole window): how much EXPENSE they hold per Measure, and whether
+   some effect has no role, so that the sum may be short. *)
+type spending = { totals : (string * Z.t) list; partial : bool }
+
+let spending book =
+  let roles = Hashtbl.create 16 in
+  List.iter
+    (fun (locus, role) -> if not (Hashtbl.mem roles locus) then Hashtbl.add roles locus role)
+    (Book.roles book);
+  fun entries ->
+    let totals = Hashtbl.create 4 and partial = ref false in
+    List.iter
+      (fun (e : Book.entry) ->
+        List.iter
+          (fun (p : Book.posting) ->
+            match Hashtbl.find_opt roles p.locus with
+            | Some Book.T.Expense -> add totals p.measure p.amount
+            | Some (Income | Asset | Liability | Equity) -> ()
+            | None -> partial := true)
+          e.effects)
+      entries;
+    let totals = Hashtbl.fold (fun measure sum acc -> (measure, sum) :: acc) totals [] in
+    { totals = List.sort (fun (a, _) (b, _) -> String.compare a b) totals; partial = !partial }

@@ -122,7 +122,21 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
   read the book's own roles; the screens keep labels, order by label and text.
   The answer runner calls the core for these four. 29 answers, 0 failures;
   `./tools/check`, `./tools/tui --self-check`, `./tools/format --check`: exit 0.
-  Trend / Locus, Stock–Flow and the Actual totals follow.
+  Then `household/trend.ml` (the screen copy is removed; grain and scope names
+  stay in the screen), `stock_flow.ml` (the screen passes its window label) and
+  `Income_expense.spending` for Actual's day and window totals; Actual and Trend
+  read the book's roles, not a separate list. The answers moved to
+  `test/reports_tests.ml`, which needs only the core; a wrong BALANCE-START
+  failed there, then was restored. 29 answers, 0 failures; `./tools/check`,
+  `./tools/tui --self-check`, `./tools/format --check`: exit 0.
+- Before (`d6200ef`) and after binaries, fresh `./tools/compare refresh`,
+  `scratch/report-core-20261108/capture.sh`: all six reports through their
+  period keys, four months back and ahead, the I&E table and compare picker, the
+  Transactions Flow detail, Trend moves, and Actual's window, `[` `]]` `{` and
+  period picker, on the test/reports book (with balance-view), the synthetic
+  book and the latest copy at 120×36/80×24: 69 flows each, 414 captures, all
+  byte-identical; 49 and 64 distinct screens per size (samples, latest), so the
+  flows were reached. Digests unchanged; owned tmux closed; `clean-copies`: exit 0.
 
 ## Record and Preview typography (2026-11-07)
 
