@@ -14,6 +14,22 @@
    it is left out of the flows, and a window that contains it has an unknown net.
    Pinned in test/reports ([STOCK-FLOW]). *)
 
+type missing_support = Empty_cell | No_support | History_refused of string
+
+let missing_code = function
+  | Empty_cell -> "empty-cell"
+  | No_support -> "no-support"
+  | History_refused code -> code
+
+let missing_message = function
+  | Empty_cell -> "invalid coordinate token"
+  | No_support -> "no zero-origin, bounded, opening or observation support"
+  | History_refused "history-support-missing" -> "no zero-origin or bounded history"
+  | History_refused "history-support-conflict" -> "zero-origin and bounded history overlap"
+  | History_refused "history-bounded-anchor-missing" ->
+      "bounded history needs an exact current quantity"
+  | History_refused other -> other
+
 type support =
   | Zero_origin
   | Bounded of string  (** Bounded history start. *)
@@ -23,7 +39,7 @@ type support =
   | Opening_on of string  (** Opening entry is dated on the window's first day. *)
   | Opening_inside of string  (** The window contains the opening entry. *)
   | Observation_undated  (** An exact confirmation with no dated boundary. *)
-  | Unsupported of string
+  | Unsupported of missing_support
 
 type coordinate_activity = {
   locus : string;
@@ -52,7 +68,7 @@ type snapshot = {
   current_tracked : Z.t;  (** Sum of the known current quantities. *)
   coordinates : coordinate_activity list;
   liabilities : coordinate_activity list;
-  unsupported : (string * string) list;  (** Locus and its support state. *)
+  unsupported : (string * missing_support) list;
   excluded_openings : (string * string) list;
       (** The id and the day of each opening entry left out of the flows. *)
 }
@@ -60,18 +76,11 @@ type snapshot = {
 let code_of_refusal code =
   match String.index_opt code ':' with Some index -> String.sub code 0 index | None -> code
 
-let support_reason = function
-  | "history-support-missing" -> "no zero-origin or bounded history"
-  | "history-support-conflict" -> "zero-origin and bounded history overlap"
-  | "history-precedes-bounded-start" -> "window starts before the bounded history start"
-  | "history-bounded-anchor-missing" -> "bounded history needs an exact current quantity"
-  | other -> other
-
 let day_before day =
   match Day.shift_days day (-1) with Ok previous -> Some previous | Error _ -> None
 
-let coordinate_of ~measure locus : (Book.coordinate, string) result =
-  if locus = "" || measure = "" then Error "invalid coordinate token" else Ok { locus; measure }
+let coordinate_of ~measure locus : (Book.coordinate, missing_support) result =
+  if locus = "" || measure = "" then Error Empty_cell else Ok { locus; measure }
 
 (* Start or end balance for one coordinate through the shared support rule. *)
 let balance_at ~book ~measure ~coordinate ~day =
@@ -232,7 +241,9 @@ let compute book ~measure ~tracked_coords ~liability_coords ~start ~stop =
          | Ok coordinate -> (
              match (zero, bounded) with
              | true, Some _ ->
-                 base (Unsupported "zero-origin and bounded history overlap") None None
+                 (* Book refuses this pair on read (support-overlap), so it is kept
+                    only as a named code, never guessed. *)
+                 base (Unsupported (History_refused "history-support-conflict")) None None
              | true, None ->
                  (* Zero-origin: no Effect can precede the first calendar day, so a
                      window that starts before all history starts at exactly zero. *)
@@ -273,9 +284,7 @@ let compute book ~measure ~tracked_coords ~liability_coords ~start ~stop =
                      base support (boundary start) (boundary stop)
                  | None ->
                      if observation_exact ~book ~coordinate then base Observation_undated None None
-                     else
-                       base (Unsupported "no zero-origin, bounded, opening or observation support")
-                         None None)
+                     else base (Unsupported No_support) None None)
              | false, Some first_day -> (
                  let start_result =
                    match start_day with
@@ -286,7 +295,7 @@ let compute book ~measure ~tracked_coords ~liability_coords ~start ~stop =
                  let support =
                    match start_result with
                    | Error "history-precedes-bounded-start" -> Before_start first_day
-                   | Error code -> Unsupported (support_reason code)
+                   | Error code -> Unsupported (History_refused code)
                    | Ok _ -> Bounded first_day
                  in
                  match support with
@@ -298,21 +307,17 @@ let compute book ~measure ~tracked_coords ~liability_coords ~start ~stop =
                        (match end_result with Ok value -> Some value | Error _ -> None)))
        in
        let coordinates = List.map classify pool in
-       let supported, unsupported =
-         List.partition
+       let supported =
+         List.filter
            (fun (c : coordinate_activity) ->
              match c.support with Unsupported _ -> false | _ -> true)
            coordinates
        in
        let unsupported =
-         List.map
+         List.filter_map
            (fun (c : coordinate_activity) ->
-             match c.support with
-             | Unsupported reason -> (c.locus, reason)
-             | Zero_origin | Bounded _ | Before_start _ | Opening _ | Opening_after _ | Opening_on _
-             | Opening_inside _ | Observation_undated ->
-                 (c.locus, ""))
-           unsupported
+             match c.support with Unsupported reason -> Some (c.locus, reason) | _ -> None)
+           coordinates
        in
        let sum_known pick =
          List.fold_left

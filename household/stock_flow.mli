@@ -2,6 +2,19 @@
     zero-origin, bounded history or an opening entry; an unknown boundary stays
     unknown. Pinned in test/reports ([STOCK-FLOW]). *)
 
+type missing_support =
+  | Empty_cell  (** The Locus or Measure token is empty. *)
+  | No_support  (** No zero-origin, bounded history, opening entry or observation. *)
+  | History_refused of string
+      (** Book could not restate the balance on a boundary day; its code. An admitted
+          book does not reach this (support-overlap, history-unanchored). *)
+
+val missing_code : missing_support -> string
+(** The language-neutral reason, e.g. ["no-support"] (test/reports, [UNSUPPORTED]). *)
+
+val missing_message : missing_support -> string
+(** The reader-facing reason. *)
+
 type support =
   | Zero_origin
   | Bounded of string  (** Bounded history start. *)
@@ -11,7 +24,7 @@ type support =
   | Opening_on of string  (** Opening entry is dated on the window's first day. *)
   | Opening_inside of string  (** The window contains the opening entry. *)
   | Observation_undated  (** An exact confirmation with no dated boundary. *)
-  | Unsupported of string
+  | Unsupported of missing_support
 
 type coordinate_activity = {
   locus : string;
@@ -40,7 +53,7 @@ type snapshot = {
   current_tracked : Z.t;  (** Sum of the known current quantities. *)
   coordinates : coordinate_activity list;
   liabilities : coordinate_activity list;
-  unsupported : (string * string) list;  (** Locus and its support state. *)
+  unsupported : (string * missing_support) list;  (** Locus and why it has no support. *)
   excluded_openings : (string * string) list;
       (** The id and the day of each opening entry left out of the flows. *)
 }

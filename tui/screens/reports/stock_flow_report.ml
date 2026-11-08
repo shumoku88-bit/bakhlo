@@ -99,7 +99,8 @@ let footnote_lines ~book ~measure (report : SF.snapshot) =
   in
   let unsupported =
     List.map
-      (fun (locus, reason) -> Printf.sprintf "  %s/%s: %s" locus report.measure reason)
+      (fun (locus, reason) ->
+        Printf.sprintf "  %s/%s: %s" locus report.measure (SF.missing_message reason))
       report.unsupported
   in
   let excluded =
@@ -313,7 +314,7 @@ let print_summary ~book ~(period : IncExp.period) ~(report : SF.snapshot) =
       | None -> ())
     report.coordinates;
   List.iter
-    (fun (locus, reason) -> add (Printf.sprintf "  %s/%s: %s" locus m reason))
+    (fun (locus, reason) -> add (Printf.sprintf "  %s/%s: %s" locus m (SF.missing_message reason)))
     report.unsupported;
   add "================================================================================";
   List.rev !lines

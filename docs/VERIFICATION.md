@@ -155,6 +155,19 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
   during the run: the user recorded through `./tools/household` (file 11:17:43,
   its commit 11:17:45, the user's session still open); the AI only opened copies.
   Owned tmux closed; `clean-copies`: exit 0.
+- Follow-up, at the user's request: Stock–Flow's support reasons as codes.
+  `Stock_flow.missing_support` (`no-support`, `empty-cell`, or a Book history code)
+  has `missing_code` and `missing_message`; the screen and print preview keep the
+  same sentences. The samples name `no-support` and gained an `empty-cell` question
+  written by hand: 56 report answers, 0 failures on the first run; a wrong reason
+  failed, then was restored. Combinations Book refuses on read (support-overlap,
+  history-unanchored) never reach a report.
+- `./tools/check`, `./tools/tui --self-check`, `./tools/format --check`: exit 0.
+  Before (`362dfcd` build) and after, fresh `./tools/compare refresh`, the same
+  `capture.sh`: 414 captures byte-identical; original, copy and fixture digests
+  unchanged; owned tmux closed; `clean-copies`: exit 0. No captured Stock–Flow
+  selection has an unsupported cell, so the reason sentence itself was compared
+  by its unchanged text, not on screen.
 
 ## Record and Preview typography (2026-11-07)
 

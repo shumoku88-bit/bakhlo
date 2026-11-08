@@ -97,7 +97,7 @@ let stock_flow book ~measure ~start ~stop ~track ~liabilities =
         | S.Opening_on d -> "opening-on:" ^ d
         | S.Opening_inside d -> "opening-inside:" ^ d
         | S.Observation_undated -> "observation-undated"
-        | S.Unsupported why -> "unsupported:" ^ why
+        | S.Unsupported why -> "unsupported:" ^ S.missing_code why
       in
       List.map
         (fun (c : S.coordinate_activity) ->
@@ -124,7 +124,7 @@ let stock_flow book ~measure ~start ~stop ~track ~liabilities =
           "NET\t" ^ known r.net_change;
           "CURRENT\t" ^ money r.current_tracked;
         ]
-      @ List.map (fun (l, why) -> "UNSUPPORTED\t" ^ l ^ "\t" ^ why) r.unsupported
+      @ List.map (fun (l, why) -> "UNSUPPORTED\t" ^ l ^ "\t" ^ S.missing_code why) r.unsupported
       @ List.map (fun (id, day) -> "EXCLUDED-OPENING\t" ^ id ^ "\t" ^ day) r.excluded_openings
 
 (* 5. Trend / Locus: the chosen Loci's recorded flow by Cycle, Month or Day. *)
@@ -304,4 +304,4 @@ let%expect_test "every report sample gives its listed answer" =
       | _ -> fail row "bad cases row")
     (List.tl (lines (read "cases.tsv")));
   Printf.printf "%d report answers, %d failures\n" !answers !failures;
-  [%expect {| 55 report answers, 0 failures |}]
+  [%expect {| 56 report answers, 0 failures |}]

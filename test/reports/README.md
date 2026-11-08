@@ -38,7 +38,9 @@ Bakhloでの確認は `test/reports_tests.ml`。
   `zero-origin`・`bounded:<日>`・`before-start:<日>`・`opening:<日>`・`opening-on:<日>`・
   `opening-inside:<日>`・`opening-after:<日>`・`observation-undated`。そのあと合計
   （`BALANCE-START`・`BALANCE-END` は分かる値だけの和、`UNKNOWN-STARTS`、`INCREASES`・
-  `DECREASES`・`NET`・`CURRENT`）、根拠のない科目 `UNSUPPORTED`、流れから外した開始の記帳
+  `DECREASES`・`NET`・`CURRENT`）、根拠のない科目 `UNSUPPORTED	科目	理由`（`no-support`：0から・記録の始まり・
+  開始の記帳・確かめた残高のどれもない、`empty-cell`：科目かMeasureが空。0からと確かめた残高が重なる、などBookが読み込みで拒否する組み合わせからは出ない）、
+  流れから外した開始の記帳
   `EXCLUDED-OPENING`。開始の記帳は残高を決めるもので流れではないので、それを含む窓の `NET` は `?`。
   拒否：`bad-day`（実在しない日）・`empty-window`（始まりが終わりより前でない）・`no-selection`・
   `mixed-measures`（問いと違うMeasureのマス）・`duplicate-selection`。
