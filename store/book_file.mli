@@ -64,6 +64,9 @@ val read : string -> string
 (** File primitives shared by the Shell's configuration writers. *)
 
 val write_new : string -> string -> unit
+(** Create a file with these bytes, sent to the drive and read back but not yet
+    durable: a full sync of its directory must follow before it is reported. *)
+
 val with_writer : string -> (unit -> 'a) -> 'a
 
 val write_atomic : string -> string -> unit

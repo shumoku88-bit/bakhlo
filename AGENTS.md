@@ -107,7 +107,7 @@ User decision (2026-10-24): the household book is the line-based `book.txt` shar
 whole on every save with a save target of ≤100 ms. A change to its format needs an explicit,
 user-approved migration of `../bakhlo-data` (Principles).
 
-- One book file, `book.txt`: every save writes a temporary file, flushes it, keeps the current
+- One book file, `book.txt`: every save writes a temporary file, sends it to the drive, keeps the current
   file as `.prev`, renames and flushes the directory (`Book_file.publish`). No append log,
   Records, annual files or SQLite; long-term history is Git's job. The session keeps the
   in-memory book, whose state is the admitted book.txt (`Book` over
@@ -116,11 +116,14 @@ user-approved migration of `../bakhlo-data` (Principles).
   must equal the specification's balance (`test/book_txt_tests.ml`). An
   S-expression book is refused, never converted on load (the one-time migration tool,
   `tools/book-txt`, is in Git history up to `6a22ba6`).
-- Targets: a save ≤100 ms including the durable flush (user decision 2026-10-24; review
-  the storage when it is exceeded), key response ≤16 ms, startup ≤100 ms, measured at
-  the household's size and at ~30 years (~110k entries). User decision (2026-10-21): every household write
-  flushes the drive cache (`F_FULLFSYNC` on macOS, ~21 ms here) before it is reported. Measure with `./tools/startup-probe`. Startup is deferred by the user until
-  it is felt slow; then a disposable snapshot first, lazy older years only if needed.
+- Targets (user decision 2026-11-09, replacing the TUI-era ones): a save ≤100 ms including
+  the durable flush and startup ≤100 ms at the household's size; review the storage when
+  that is exceeded. At ~30 years (~110k entries) both are measured and recorded, and
+  reviewed only when felt slow (then a disposable snapshot first for startup, lazy older
+  years only if needed). Measure with `./tools/startup-probe`. User decision
+  (2026-10-21): every household write flushes the drive cache before it is reported:
+  the new file is ordered before its rename with `F_BARRIERFSYNC`, then the directory's
+  `F_FULLFSYNC` (~21 ms here) flushes the cache (barrier: user decision 2026-11-09).
 - Every `Book` mutation must agree with the cold reload of its book.txt: keep
   `test/book_cold_reload_tests.ml` green and extend it before adding a fast path. Its
   admission is `Book_txt.change` (the whole-file rules) after Bakhlo's write policies;

@@ -15,3 +15,16 @@ value bakhlo_full_sync(value fd)
 #endif
   return Val_unit;
 }
+
+/* Send a file's bytes to the drive and keep them ordered before later writes,
+   without waiting for the drive cache: F_BARRIERFSYNC on macOS, fsync(2)
+   elsewhere. A full sync must still follow before anything is reported. */
+value bakhlo_barrier_sync(value fd)
+{
+#ifdef F_BARRIERFSYNC
+  if (fcntl(Int_val(fd), F_BARRIERFSYNC) == -1) uerror("fcntl(F_BARRIERFSYNC)", Nothing);
+#else
+  if (fsync(Int_val(fd)) == -1) uerror("fsync", Nothing);
+#endif
+  return Val_unit;
+}

@@ -17,9 +17,10 @@ The dated log of earlier passes is in Git at `5b48008:docs/HANDOFF.md`; evidence
   Restoring that backup was drilled on 2026-10-23. `../loam-data` is the frozen LOAM record.
 - **Storage.** One `book.txt` in the common format with LOAM (`docs/COMMON_FORMAT.ja.md`,
   reader/printer `book_txt/`), rewritten whole on every save after `Book_txt.change` admits
-  only what changed; saves flush with `F_FULLFSYNC` (~21 ms). Synthetic save 48 ms at
-  1,000 entries, 90 ms at 45,000, 164 ms at 109,500 (over the 100 ms target there); cold
-  load 1.9 s at 109,500 (startup work deferred by the user).
+  only what changed; a save orders the new file with `F_BARRIERFSYNC` and flushes the drive
+  cache once with `F_FULLFSYNC` (~21 ms). Synthetic save 26 ms at 1,000 entries (about the
+  household's size; target 100 ms), 150 ms at 109,500 (recorded only); cold load 1.9 s at
+  109,500 (reviewed only when felt slow).
 - **Household core.** `household/` owns every household rule: `Book` (entries, plans,
   balances, Daily Pace, past paces), `Record` (the Record form), `Amount`, `Day`, `Period`
   and the reports (`Income_expense`, `Transactions_flow`, `Stock_flow`, `Trend`,

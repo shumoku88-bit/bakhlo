@@ -11,6 +11,18 @@ From 2026-11-09 (user decision) an entry names its commit (or comes in it) and s
 result, keeping synthetic checks, CI, latest-data paired comparison, physical terminal/IME,
 human acceptance and P7/power loss apart. What changed and why is that commit's message.
 
+## A barrier before the rename, one full flush (2026-11-09)
+
+- Throwaway step timings (scratch, median of 21, two runs each): the first sync as
+  `F_BARRIERFSYNC` took 1.0 ms at 1,000 entries and 1.9–2.4 ms at 109,500, against
+  20.5–26.7 ms as `F_FULLFSYNC`; the directory's full flush rose from 20.4 to 23.4–23.7 ms
+  at 109,500. Save totals 45.1–45.5 → 25.0–26.4 ms and 154.7–155.8 → 137.4–142.6 ms.
+- `startup_probe detail` on the change (real `Book_file.publish`): 25.9 ms at 1,000
+  entries (47.9 ms before), 150.3 ms at 109,500 (163.1 ms before).
+- `./tools/check` (incl. interrupted and killed writer tests) and `./tools/format --check`
+  passed. CI runs fsync on Ubuntu, as before (no `F_BARRIERFSYNC` there).
+- **Not executed:** power loss (P7/power-loss stays unqualified).
+
 ## Where a save's time goes (2026-11-09)
 
 - A throwaway program in ignored scratch repeated `Book_file.publish`'s steps on synthetic
