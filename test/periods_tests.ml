@@ -55,10 +55,22 @@ let answer_line use (q : Samples.question) =
       String.concat "\t" [ "SAME-AGE"; start; stop; string_of_int days; first; last ]
   | _ -> bad ("question " ^ line)
 
-let answer use q = [ answer_line use q ]
+let answer use (q : Samples.question) =
+  match q.header with
+  | "SET" :: today :: name :: dates ->
+      let config = Option.map (Samples.read "periods") (Samples.context use "PRESETS") in
+      let presets = match config with None -> Ok [] | Some _ -> P.read config in
+      Samples.row q.header
+      ::
+      (match Result.bind presets (P.set_preset ~name ~dates ~today) with
+      | Error why -> [ "REFUSED\t" ^ P.code why ]
+      | Ok next ->
+          List.map (fun (n, ds) -> Samples.row ("PRESET" :: n :: ds)) next
+          @ if P.parse (P.print next) = Ok next then [] else [ "PRINT-DOES-NOT-READ-BACK" ])
+  | _ -> [ answer_line use q ]
 
 let%expect_test "every period sample gives its listed answer" =
   let counts = Samples.create () in
-  Samples.run counts ~dir:"periods" ~blocks:[] ~answer;
+  Samples.run counts ~dir:"periods" ~blocks:[ "SET" ] ~answer;
   Printf.printf "%d answers, %d failures\n" counts.answers counts.failures;
-  [%expect {| 73 answers, 0 failures |}]
+  [%expect {| 82 answers, 0 failures |}]

@@ -216,6 +216,11 @@ val add_locus : t -> string -> (t, string) result
 
 val set_locus_label : t -> id:string -> label:string -> ?help:string -> unit -> (t, string) result
 
+val pool_candidates : t -> measure:string -> string list
+(** The Loci Daily Pace may spend from in [measure]: those whose current balance is
+    exact, grouped by what it rests on (zero origin, then an opening, then a count),
+    each group in first appearance over the entries and then the offered Loci. *)
+
 val observation_refusal : t -> locus:string -> measure:string -> string option
 (** [balance-from-records] when the balance already rests on the records (zero origin
     or an opening): a seen balance cannot be added there, only compared, and a

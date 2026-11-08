@@ -38,11 +38,12 @@ let read_config ~config_home ~book_path name =
 let read_pace_config state name =
   read_config ~config_home:state.config_home ~book_path:state.session.F.path name
 
-let write_config_file state name ~expected content =
-  let path = config_file_path state name in
+(* Replace a configuration file only if it still holds [expected] (None: absent). *)
+let write_config ~config_home ~book_path name ~expected content =
+  let path = config_path ~config_home ~book_path name in
   try
     F.with_writer path (fun () ->
-        match read_pace_config state name with
+        match read_config ~config_home ~book_path name with
         | Error why -> Error why
         | Ok current when current <> expected -> Error "Configuration changed. Reopen the editor."
         | Ok _ ->
@@ -52,6 +53,9 @@ let write_config_file state name ~expected content =
   | F.Refused why | Sys_error why -> Error why
   | Unix.Unix_error (err, fn, arg) ->
       Error (Printf.sprintf "%s (%s %s)" (Unix.error_message err) fn arg)
+
+let write_config_file state name ~expected content =
+  write_config ~config_home:state.config_home ~book_path:state.session.F.path name ~expected content
 
 (* Roles and Attention are sections of the book: saving one rewrites the book through
    the single writer, with the same conflict and uncertainty outcomes as a record. *)

@@ -293,11 +293,6 @@ let cycle_review_form name dates =
     ~fields:[ Form.action_buttons ~confirm:"Save boundaries" ~cancel:"Edit" () ]
     ()
 
-let replace_preset presets name dates =
-  if List.mem_assoc name presets then
-    List.map (fun (n, ds) -> if n = name then (name, dates) else (n, ds)) presets
-  else presets @ [ (name, dates) ]
-
 (* Entry points that other workflows (Commands) may open over any route. *)
 
 let open_pool (env : Screen.env) t =
@@ -348,27 +343,30 @@ let submit_cycle (env : Screen.env) t submitted =
   if List.length days > 32 then
     stay (notice submitted "Too many dates. Enter up to 32 explicit boundaries.")
   else
-    match (previous, decode_boundary_presets (name ^ "\t" ^ String.concat "\t" days ^ "\n")) with
-    | Error why, _ -> stay (notice submitted why)
-    | _, Error _ | _, Ok [] | _, Ok (_ :: _ :: _) ->
-        stay
-          (notice submitted
-             "Enter a token name and at least two REAL, strictly increasing YYYY-MM-DD dates, \
-              separated by commas.")
-    | Ok presets, Ok [ (name, dates) ] -> (
-        match current_window_for (replace_preset presets name dates) env.today with
-        | Error why ->
-            stay (notice submitted ("Explicit dates must define exactly one current cycle: " ^ why))
-        | Ok (source, _, _) when source <> name ->
+    match previous with
+    | Error why -> stay (notice submitted why)
+    | Ok presets -> (
+        match Period.set_preset presets ~name ~dates:days ~today:env.today with
+        | Error Period.Malformed ->
+            stay
+              (notice submitted
+                 "Enter a token name and at least two REAL, strictly increasing YYYY-MM-DD dates, \
+                  separated by commas.")
+        | Error (Period.Other_preset _) ->
             stay
               (notice submitted
                  "These dates do not cover the current cycle. Edit the current preset instead.")
+        | Error why ->
+            stay
+              (notice submitted
+                 ("Explicit dates must define exactly one current cycle: "
+                 ^ Period.message ~today:env.today why))
         | Ok _ ->
             ( {
                 t with
                 overlay =
                   Cycle_review
-                    { form = cycle_review_form name dates; editing = submitted; name; dates };
+                    { form = cycle_review_form name days; editing = submitted; name; dates = days };
               },
               Screen.Stay ))
 
@@ -390,17 +388,12 @@ let submit_cycle_review (env : Screen.env) (geometry : Screen.geometry) t (r : c
           Result.bind
             (match expected with None -> Ok [] | Some raw -> decode_boundary_presets raw)
             (fun presets ->
-              let next = replace_preset presets r.name r.dates in
-              Result.bind (current_window_for next env.today) (fun (source, _, _) ->
-                  if source <> r.name then
-                    Error
-                      "These dates do not cover the current cycle. Edit the current preset instead."
-                  else
-                    Ok
-                      ( expected,
-                        String.concat ""
-                          (List.map (fun (n, ds) -> n ^ "\t" ^ String.concat "\t" ds ^ "\n") next)
-                      ))))
+              match Period.set_preset presets ~name:r.name ~dates:r.dates ~today:env.today with
+              | Error (Period.Other_preset _) ->
+                  Error
+                    "These dates do not cover the current cycle. Edit the current preset instead."
+              | Error why -> Error (Period.message ~today:env.today why)
+              | Ok next -> Ok (expected, Period.print next)))
     in
     match content with
     | Error why ->

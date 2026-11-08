@@ -417,6 +417,31 @@ let run_all () =
   require (contains after "LOCUS\tfood\tGroceries\t") "bk-loci-name-renames";
   let _, after = fix "bk-loci-role" (`Loci `Role) [ "food"; "ex"; "" ] in
   require (contains after "ROLE\tfood\tEXPENSE") "bk-loci-role-gives-a-role";
+  (* `bk pace pool` and `cycle` write the settings files beside the book. Every account
+     here starts at zero: candidates Wallet, Food, Water, Bank, Card in that order. *)
+  Unix.mkdir "scratch/bk-settings" 0o700;
+  write "scratch/bk-settings/book.txt" book_text;
+  let settings command answers =
+    let io, _ = script answers in
+    ignore (L.run io command (F.load "scratch/bk-settings/book.txt") ~today:"2026-11-08")
+  in
+  settings `Pace_pool [ "1 4"; "" ];
+  require
+    (F.read "scratch/bk-settings/daily-pace.tsv" = "wallet\tjpy\nbank\tjpy\n")
+    "bk-pace-pool-saves";
+  settings `Pace_cycle [ ""; "2026-10-25 2026-11-25 2026-12-25"; "" ];
+  require
+    (F.read "scratch/bk-settings/boundary-presets.tsv" = "pay\t2026-10-25\t2026-11-25\t2026-12-25\n")
+    "bk-pace-cycle-saves";
+  (* `bk pace if 1000` on the bk-print settings: -83,900 free less 1,000 over 17 days is
+     -4,994.11…, which floors to -4,995, 59 less than today's -4,936. *)
+  let io, out = script [] in
+  ignore (L.run io (`Pace_if [ "1000" ]) (F.load "scratch/bk-print/book.txt") ~today:"2026-11-08");
+  let out = Buffer.contents out in
+  require
+    (contains out ("  after" ^ String.make 20 ' ' ^ "-4,995  jpy/day")
+    && contains out ("  change" ^ String.make 22 ' ' ^ "-59  jpy/day"))
+    "bk-pace-if-prices-a-purchase";
   (* bk help lists every command, and every listed command runs: with no answers
      it stops and writes nothing. *)
   List.iter

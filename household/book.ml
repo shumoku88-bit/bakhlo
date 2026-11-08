@@ -722,6 +722,28 @@ let set_locus_label t ~id ~label ?help () =
 (* One count of current quantities, reflecting every recorded TX: a new anchor at the
    last TX; older anchors lose the coordinates counted again, and are dropped when
    nothing is left. *)
+let pool_candidates t ~measure =
+  let group locus =
+    match quantity t ~locus ~measure with
+    | Some { support = T.Zero_origin; _ } -> Some 0
+    | Some { support = T.Opening _; _ } -> Some 1
+    | Some { support = T.Counted _; _ } -> Some 2
+    | None -> None
+  in
+  let add acc l = if List.mem l acc then acc else l :: acc in
+  let seen =
+    List.fold_left
+      (fun acc (e : entry) ->
+        List.fold_left
+          (fun acc (p : posting) -> if p.measure = measure then add acc p.locus else acc)
+          acc e.effects)
+      [] (entries t)
+  in
+  List.rev (List.fold_left add seen (offered t))
+  |> List.filter_map (fun locus -> Option.map (fun g -> (g, locus)) (group locus))
+  |> List.stable_sort (fun (a, _) (b, _) -> compare a b)
+  |> List.map snd
+
 let observation_refusal t ~locus ~measure =
   match quantity t ~locus ~measure with
   | Some { support = T.Zero_origin | T.Opening _; _ } -> Some "balance-from-records"

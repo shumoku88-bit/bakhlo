@@ -14,6 +14,7 @@ type refusal =
   | Ambiguous of string  (** Windows of two presets contain this day. *)
   | Outside_presets  (** The cycle moved past the configured windows. *)
   | Out_of_range  (** A calendar step leaves the years 0001–9999. *)
+  | Other_preset of string  (** Today's cycle belongs to this other preset. *)
 
 val code : refusal -> string
 (** The language-neutral reason, e.g. ["no-cycle:2027-02-10"]. *)
@@ -39,6 +40,15 @@ val cycle : preset list -> day:string -> (cycle, refusal) result
 
 val window_of : cycle -> string -> (string * string) option
 (** The window of the same preset that contains a day. *)
+
+val set_preset :
+  preset list -> name:string -> dates:string list -> today:string -> (preset list, refusal) result
+(** The presets with [name]'s dates replaced, or [name] added. Refuses [Malformed] for a
+    bad name or dates (two or more increasing real dates), the cycle refusals for
+    [today], and [Other_preset] when today's cycle belongs to another preset. *)
+
+val print : preset list -> string
+(** The presets as boundary-presets.tsv, one line each; [parse] reads it back. *)
 
 type span = Day | Month | Year | Cycle | Previous_cycle | All
 

@@ -11,3 +11,6 @@ OBSERVE	card	jpy	REFUSED	balance-from-records
 # 数えた残高は新しく数え直せる。根拠のない残高は見た残高から始められる
 OBSERVE	savings	jpy	OK
 OBSERVE	bank	jpy	OK
+# 今日の目安（Daily Pace）に入れられる口座：今の残高が正確な口座だけ。0から始まる・開始残高・数えた残高の順に
+# まとめ、それぞれ記録に出てきた順（その後に口座の並び）。根拠のないbankとequityは入らない。
+POOL	jpy	wallet	card	savings

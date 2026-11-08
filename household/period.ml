@@ -20,6 +20,7 @@ type refusal =
   | Ambiguous of string
   | Outside_presets
   | Out_of_range
+  | Other_preset of string
 
 let code = function
   | Not_configured -> "not-configured"
@@ -28,6 +29,7 @@ let code = function
   | Ambiguous day -> "ambiguous:" ^ day
   | Outside_presets -> "outside-presets"
   | Out_of_range -> "out-of-range"
+  | Other_preset name -> "other-preset:" ^ name
 
 let message ?today refusal =
   let named day = if Some day = today then "today" else day in
@@ -38,6 +40,7 @@ let message ?today refusal =
   | Ambiguous day -> "Multiple boundary presets contain " ^ named day ^ "; selection is ambiguous."
   | Outside_presets -> "Cycle boundary is outside configured presets."
   | Out_of_range -> "Date is outside 0001–9999."
+  | Other_preset name -> "Today's cycle is the preset " ^ name ^ "; edit that preset instead."
 
 let ( let* ) = Result.bind
 
@@ -95,6 +98,26 @@ let cycle presets ~day =
   | _ -> Error (Ambiguous day)
 
 let window_of cycle day = List.find_opt (contains day) cycle.windows
+
+(* Editing one preset: its dates are replaced (or it is added) only when the whole
+   file still reads and today's single cycle is that preset's; no date is inferred. *)
+let set_preset presets ~name ~dates ~today =
+  let* edited =
+    match parse (String.concat "\t" (name :: dates)) with
+    | Ok [ preset ] -> Ok preset
+    | Ok _ | Error _ -> Error Malformed
+  in
+  let next =
+    if List.mem_assoc name presets then
+      List.map (fun ((n, _) as p) -> if n = name then edited else p) presets
+    else presets @ [ edited ]
+  in
+  let* current = cycle next ~day:today in
+  if current.name <> name then Error (Other_preset current.name) else Ok next
+
+let print presets =
+  String.concat ""
+    (List.map (fun (name, dates) -> String.concat "\t" (name :: dates) ^ "\n") presets)
 
 (* 3. A window of a span, moved by whole spans. Months and years keep the day of
    the month only to find the start; a window always starts on the 1st. *)

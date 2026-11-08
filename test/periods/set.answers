@@ -1,0 +1,38 @@
+# 周期の境目の編集：名前つきのpresetの日付を置き換える（なければ足す）。ファイル全体が読めて、
+# 今日の周期がちょうど1つでそのpresetのものでなければ保存しない。日付を推測して足さない。
+USE	PRESETS	pay.tsv
+SET	2027-02-10	pay	2027-01-25	2027-02-25	2027-03-25	2027-04-25	2027-05-25
+PRESET	pay	2027-01-25	2027-02-25	2027-03-25	2027-04-25	2027-05-25
+ENDSET
+# 今日を含まない日付では周期がなくなる
+SET	2027-02-10	pay	2027-02-25	2027-03-25
+REFUSED	no-cycle:2027-02-10
+ENDSET
+# 今日の周期は別のpreset（pay）のもの
+SET	2027-02-10	bonus	2027-06-01	2027-12-01
+REFUSED	other-preset:pay
+ENDSET
+# 増えていかない日付、1つだけの日付、空白入りの名前は書けない
+SET	2027-02-10	pay	2027-02-25	2027-01-25
+REFUSED	malformed
+ENDSET
+SET	2027-02-10	pay	2027-01-25
+REFUSED	malformed
+ENDSET
+SET	2027-02-10	my pay	2027-01-25	2027-02-25
+REFUSED	malformed
+ENDSET
+# ファイルがなければ新しく作る
+USE	PRESETS	-
+SET	2027-02-10	pay	2027-01-25	2027-02-25
+PRESET	pay	2027-01-25	2027-02-25
+ENDSET
+# 2つのpreset：ほかのpresetは順序も日付もそのまま
+USE	PRESETS	two-presets.tsv
+SET	2027-02-10	pay	2027-01-25	2027-03-01
+PRESET	pay	2027-01-25	2027-03-01
+PRESET	pension	2027-02-15	2027-04-15
+ENDSET
+SET	2027-02-20	pay	2027-01-25	2027-02-15
+REFUSED	other-preset:pension
+ENDSET

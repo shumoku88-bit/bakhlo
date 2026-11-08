@@ -20,7 +20,11 @@ val run :
   | `Refund of string list
   | `Shop of string list
   | `Check
-  | `Loci of [ `List | `Add | `Name | `Role ] ] ->
+  | `Loci of [ `List | `Add | `Name | `Role ]
+  | `Pace_pool
+  | `Pace_cycle
+  | `Pace_if of string list
+  | `Pace_target ] ->
   Book_file.t ->
   today:string ->
   [ `Saved | `Stopped ]

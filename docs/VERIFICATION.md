@@ -7,6 +7,22 @@ toolchain. This file keeps the last week's entries (from 2026-11-02); entries fr
 2026-10-31 are in Git at `5b48008:docs/VERIFICATION.md`, earlier ones (including the bounded
 Solo5-SPT engine boot) at `90a5867:docs/VERIFICATION.md`.
 
+## Daily Pace settings as commands (2026-11-08)
+
+- `bk pace pool` chooses the pool from `Book.pool_candidates` (exact-current balances
+  grouped by support; moved from the pool picker, which now calls it), `bk pace cycle`
+  edits the current preset through `Period.set_preset` (moved from the cycle editor:
+  replace or add a preset, refuse unless today's single cycle is that preset's, new
+  refusal `other-preset:<name>`; `Period.print` writes the file back), `bk pace if`
+  and `bk pace target` reuse the What-if and target-plan functions. Settings files are
+  replaced only if they still hold what was read (`Shell_files.write_config`, now
+  addressed by the book path).
+- Samples: `test/periods/set.answers` (9 hand-written edits: extend, no cycle,
+  another preset, malformed, new file, two presets) and a pool candidates line in
+  `test/loci`; all passed on the first run. CLI checks pin both saved files and a
+  hand-computed what-if (-4,995 a day); a wrong answer made it fail. `./tools/check`
+  exited 0.
+
 ## bk check and bk loci (2026-11-08)
 
 - `bk check` saves balances seen outside (Observe). A balance resting on the records (zero

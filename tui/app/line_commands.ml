@@ -1020,6 +1020,209 @@ let loci io (session : F.t) action =
                       ];
                     ])))
 
+(* 13. Daily Pace settings and questions. `pool` chooses the accounts Daily Pace
+   spends from (Book.pool_candidates), `cycle` edits the current preset's
+   boundaries (Period.set_preset), `if` prices a purchase or income against today's
+   pace and `target` plans a daily spend that keeps a target pace. Settings files are
+   replaced only if they still hold what was read. *)
+let save_config io (session : F.t) name ~expected content ~title rows =
+  say io "";
+  say io ("  " ^ title);
+  print_table io rows;
+  say io "";
+  match String.lowercase_ascii (ask io ~default:"y" "Save? (y / n)") with
+  | "y" | "yes" -> (
+      match
+        Shell_files.write_config ~config_home:None ~book_path:session.path name ~expected content
+      with
+      | Ok () ->
+          say io "Saved.";
+          `Saved
+      | Error why ->
+          say io ("Not saved: " ^ why);
+          `Stopped)
+  | _ ->
+      say io "Nothing was saved.";
+      `Stopped
+
+let pace_pool io (session : F.t) =
+  let book = session.book in
+  let measure = measure_of book in
+  match config session "daily-pace.tsv" with
+  | Error why ->
+      say io ("daily-pace.tsv cannot be read: " ^ why);
+      `Stopped
+  | Ok expected -> (
+      let chosen =
+        Daily_pace_pool.chosen (Daily_pace_pool.prepare ~book ~measure ~config:(Ok expected))
+      in
+      match B.pool_candidates book ~measure with
+      | [] ->
+          say io "No account has an exact balance yet; save one with bk check first.";
+          `Stopped
+      | candidates ->
+          print_table io
+            (List.mapi
+               (fun i locus ->
+                 [
+                   Right (string_of_int (i + 1));
+                   Left (name book locus);
+                   Right (current book measure locus);
+                   Left measure;
+                   Left (if List.mem locus chosen then "in pool" else "");
+                 ])
+               candidates);
+          let marked =
+            String.concat " "
+              (List.concat
+                 (List.mapi
+                    (fun i l -> if List.mem l chosen then [ string_of_int (i + 1) ] else [])
+                    candidates))
+          in
+          let rec pick () =
+            match
+              pick_numbers
+                (ask io ~default:marked "Pool accounts (numbers like 1 3-4)")
+                (List.length candidates)
+            with
+            | Some numbers when numbers <> [] ->
+                List.map (fun n -> List.nth candidates (n - 1)) numbers
+            | _ ->
+                say io "Enter numbers from the list, like 1 3-4.";
+                pick ()
+          in
+          let pool = pick () in
+          save_config io session "daily-pace.tsv" ~expected
+            (String.concat "" (List.map (fun l -> l ^ "\t" ^ measure ^ "\n") pool))
+            ~title:"Daily Pace pool"
+            (List.map
+               (fun l -> [ Left (name book l); Right (current book measure l); Left measure ])
+               pool))
+
+let pace_cycle io (session : F.t) ~today =
+  match config session "boundary-presets.tsv" with
+  | Error why ->
+      say io ("boundary-presets.tsv cannot be read: " ^ why);
+      `Stopped
+  | Ok expected -> (
+      let presets =
+        match expected with None -> Ok [] | Some text -> Bakhlo_household.Period.parse text
+      in
+      match presets with
+      | Error why ->
+          say io (Bakhlo_household.Period.message ~today why);
+          `Stopped
+      | Ok presets -> (
+          let name, dates =
+            match Bakhlo_household.Period.cycle presets ~day:today with
+            | Ok c ->
+                let start, stop = List.nth c.windows c.index in
+                say io
+                  (Printf.sprintf "Today's cycle: %s, %s .. %s (end excluded)" c.name start stop);
+                (c.name, List.assoc c.name presets)
+            | Error why ->
+                say io (Bakhlo_household.Period.message ~today why);
+                ("pay", [])
+          in
+          let name = ask io ~default:name "Preset" in
+          let dates =
+            ask io ~default:(String.concat " " dates) "Boundary dates (YYYY-MM-DD, spaces between)"
+            |> String.map (fun c -> if c = ',' then ' ' else c)
+            |> String.split_on_char ' '
+            |> List.filter (( <> ) "")
+          in
+          match Bakhlo_household.Period.set_preset presets ~name ~dates ~today with
+          | Error why ->
+              say io ("Not saved: " ^ Bakhlo_household.Period.message ~today why);
+              `Stopped
+          | Ok next ->
+              save_config io session "boundary-presets.tsv" ~expected
+                (Bakhlo_household.Period.print next)
+                ~title:"Cycle boundaries"
+                (List.map (fun (n, ds) -> Left n :: List.map (fun d -> Left d) ds) next)))
+
+let today_pace io (session : F.t) ~today =
+  let book = session.book in
+  match
+    Daily_pace_screen.today_pace ~book ~measure:(measure_of book) ~today ~config:(config session)
+  with
+  | Ok (p, _, _) -> Some p
+  | Error why ->
+      say io ("Daily Pace unavailable: " ^ why);
+      None
+
+let pace_if io (session : F.t) ~today words =
+  let book = session.book in
+  (match today_pace io session ~today with
+  | None -> ()
+  | Some p -> (
+      let amount =
+        match words with
+        | [] -> ask io "Amount (a purchase; +amount for income)"
+        | _ -> String.concat "" words
+      in
+      match Daily_pace_what_if.project ~book p amount with
+      | Error why -> say io why
+      | Ok r ->
+          print_table io
+            [
+              [
+                Left "today";
+                Right (money book p.measure r.current_per_day);
+                Left (p.measure ^ "/day");
+              ];
+              [
+                Left "after";
+                Right (money book p.measure r.projected_per_day);
+                Left (p.measure ^ "/day");
+              ];
+              [
+                Left "change";
+                Right (signed book p.measure r.change_per_day);
+                Left (p.measure ^ "/day");
+              ];
+              [
+                Left "free through cycle end";
+                Right (money book p.measure r.available_after);
+                Left p.measure;
+              ];
+            ]));
+  `Stopped
+
+let pace_target io (session : F.t) ~today =
+  let book = session.book in
+  (match today_pace io session ~today with
+  | None -> ()
+  | Some p -> (
+      let target = ask io "Target pace per day" in
+      let date = ask io "By date (Enter for a few horizons)" in
+      let purchase = ask io ~default:"0" "Spent today besides" in
+      let plan_row (x : Daily_pace_target.plan) =
+        [
+          Left x.target_date;
+          Right (string_of_int x.days ^ " days");
+          Right (money book p.measure x.daily_spend);
+          Left (p.measure ^ "/day");
+          Left (if x.reachable then "" else "not reachable");
+        ]
+      in
+      match date with
+      | "" -> (
+          match Daily_pace_target.options ~book p ~target ~purchase with
+          | Error why -> say io why
+          | Ok o -> (
+              print_table io
+                ([ Left "by"; Right ""; Right "spend"; Left ""; Left "" ]
+                :: List.map plan_row o.horizons);
+              match o.earliest with
+              | Some e -> say io ("Earliest day the target is reached: " ^ e.target_date)
+              | None -> say io "The target is not reached before the cycle ends."))
+      | date -> (
+          match Daily_pace_target.plan ~book p ~target ~date ~purchase with
+          | Error why -> say io why
+          | Ok x -> print_table io [ plan_row x ])));
+  `Stopped
+
 (* 8. After a saved record or payment, another one may follow on the saved book. *)
 let rec again io (session : F.t) ~today ~saved ~question step =
   match
@@ -1051,6 +1254,10 @@ let run io command (session : F.t) ~today =
     | `Shop terms -> shop io session terms
     | `Check -> check io session
     | `Loci action -> loci io session action
+    | `Pace_pool -> pace_pool io session
+    | `Pace_cycle -> pace_cycle io session ~today
+    | `Pace_if words -> pace_if io session ~today words
+    | `Pace_target -> pace_target io session ~today
   with Quit ->
     say io "Nothing was saved.";
     `Stopped

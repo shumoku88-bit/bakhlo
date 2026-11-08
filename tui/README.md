@@ -21,7 +21,9 @@ Mac実IME／フォント、LOAMの実行対照、P7・運用認定は別。
 `bk edit`（訂正）・`bk date`（日付だけ）・`bk refund`（返金）・`bk shop`（店の分類、1回だけ）は、`bk find`と同じ語で
 記録を絞り、新しい順の番号で選ぶ。`bk check`は見た残高（銀行アプリや財布）を口座ごとに入れる。記録から決まる
 残高（0から始まる・開始残高）は比べて差を見せるだけで保存しない（差は`bk r`で記帳）。`bk loci`は口座の一覧、
-`bk loci add`・`name`・`role`は追加・表示名・役割（役割は1回だけ）。`bk r`は実績を、`bk pay`は
+`bk loci add`・`name`・`role`は追加・表示名・役割（役割は1回だけ）。`bk pace pool`は今日の目安に入れる口座
+（残高が正確な口座から番号で選ぶ）、`bk pace cycle`は今の周期の境目の日付、`bk pace if <金額>`は買ったら
+（`+金額`は入金）今日の目安がどうなるか、`bk pace target`は目標のペースを守る1日の使える額。`bk r`は実績を、`bk pay`は
 予定の支払いを、画面を開かずに1行ずつ答えて記帳する（Locusは先頭の文字で選び、Enterで釣り合う金額、
 PreviewのあとEnterで保存。保存のあと「Record another?」/「Pay another?」で`y`なら続けて記帳。終わればいつもどおり
 commit・push）。`bk bal`はBalances（Current）の行を、

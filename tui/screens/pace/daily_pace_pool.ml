@@ -38,42 +38,10 @@ let rows_from measure text =
   in
   loop [] lines
 
-(* Declaration order is the picker's display order, not a ranking of reliability:
-   all three groups have exact current balances. *)
-type balance_group = From_zero | From_opening | From_observation
-
-let balance_group book ~measure locus =
-  match B.quantity book ~locus ~measure with
-  | Some { support = Zero_origin; _ } -> Some From_zero
-  | Some { support = Opening _; _ } -> Some From_opening
-  | Some { support = Counted _; _ } -> Some From_observation
-  | None -> None
-
-(* Keep first appearance rather than alphabetical order to match the balance list
-   the household already sees. Loci without entries follow in admitted order. *)
-let appearance_order book ~measure =
-  let add acc l = if List.mem l acc then acc else l :: acc in
-  let seen =
-    List.fold_left
-      (fun acc (e : B.entry) ->
-        List.fold_left
-          (fun acc (posting : B.posting) ->
-            if posting.B.measure = measure then add acc posting.B.locus else acc)
-          acc e.effects)
-      [] (B.entries book)
-  in
-  List.rev (List.fold_left add seen (Option.value ~default:[] (B.approved_loci book)))
-
+(* Candidates and their order are Book's ([pool_candidates]): every one has an exact
+   current balance; the order is display order, not a ranking of reliability. *)
 let prepare ~book ~measure ~config =
-  let grouped_loci =
-    List.filter_map
-      (fun locus -> Option.map (fun group -> (group, locus)) (balance_group book ~measure locus))
-      (appearance_order book ~measure)
-  in
-  (* Group as LOAM does, without disturbing first appearance within each group. *)
-  let candidates =
-    List.stable_sort (fun (left, _) (right, _) -> compare left right) grouped_loci |> List.map snd
-  in
+  let candidates = B.pool_candidates book ~measure in
   let previous =
     match config with
     | Error why -> Error ("Pool configuration was unreadable: " ^ why)

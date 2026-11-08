@@ -13,6 +13,12 @@ let commands =
     ([ "pay" ], fixed `Pay, "pay a plan");
     ([ "bal" ], fixed `Balances, "balances");
     ([ "pace" ], fixed `Pace, "today's pace and its breakdown");
+    ([ "pace"; "pool" ], fixed `Pace_pool, "choose the accounts Daily Pace spends from");
+    ([ "pace"; "cycle" ], fixed `Pace_cycle, "edit the current cycle's boundary dates");
+    ( [ "pace"; "if" ],
+      terms (fun t -> `Pace_if t),
+      "today's pace after a purchase (+amount: income)" );
+    ([ "pace"; "target" ], fixed `Pace_target, "plan a daily spend that keeps a target pace");
     ([ "plans" ], fixed (`Plans `List), "plans in series: how far each is filled");
     ([ "plans"; "more" ], fixed (`Plans `More), "fill the coming months of a series");
     ([ "plans"; "amount" ], fixed (`Plans `Amount), "change a series' amount from a day on");

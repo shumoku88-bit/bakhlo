@@ -14,10 +14,11 @@ let answer use (q : question) =
   | "ROLE" :: locus :: _ -> [ row ([ "ROLE"; locus ] @ verdict (B.role_refusal book locus)) ]
   | "OBSERVE" :: locus :: measure :: _ ->
       [ row ([ "OBSERVE"; locus; measure ] @ verdict (B.observation_refusal book ~locus ~measure)) ]
+  | "POOL" :: measure :: _ -> [ row ("POOL" :: measure :: B.pool_candidates book ~measure) ]
   | _ -> bad ("question " ^ row q.header)
 
 let%expect_test "Locus rules give their listed answers" =
   let counts = create () in
   check counts ~dir:"loci" ~file:"rules.answers" ~blocks:[] ~answer;
   Printf.printf "%d answers, %d failures\n" counts.answers counts.failures;
-  [%expect {| 7 answers, 0 failures |}]
+  [%expect {| 8 answers, 0 failures |}]
