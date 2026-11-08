@@ -45,6 +45,19 @@ type snapshot = {
       (** The id and the day of each opening entry left out of the flows. *)
 }
 
+type refusal =
+  | Bad_day  (** A window endpoint is not a real YYYY-MM-DD day. *)
+  | Empty_window  (** The start is not before the end. *)
+  | No_selection
+  | Mixed_measures  (** A tracked cell is in another Measure than the report's. *)
+  | Duplicate_selection
+
+val code : refusal -> string
+(** The language-neutral reason, e.g. ["no-selection"] (test/reports). *)
+
+val message : refusal -> string
+(** The reader-facing reason. *)
+
 val compute :
   Book.t ->
   measure:string ->
@@ -52,7 +65,7 @@ val compute :
   liability_coords:(string * string) list ->
   start:string ->
   stop:string ->
-  (snapshot, string) result
+  (snapshot, refusal) result
 (** Reconstructs the window [\[start, stop)] on the supported routes: zero-origin,
     bounded history ([Book.pool_at_end_of_day]) or an opening entry, whose balance
     is exact from the opening entry's own day and anchored on the exact current

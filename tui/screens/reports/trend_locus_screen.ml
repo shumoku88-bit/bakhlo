@@ -123,7 +123,8 @@ let default_coordinates (env : Screen.env) t ~boundary =
   | None -> []
   | Some observed_at -> (
       match
-        Result.bind boundary (fun text -> R.history_start ~observed_at ~boundary_presets_text:text)
+        Result.bind boundary (fun text ->
+            Result.map_error R.message (R.history_start ~observed_at ~boundary_presets_text:text))
       with
       | Error _ -> []
       | Ok start_day -> (
@@ -152,7 +153,8 @@ let compute (env : Screen.env) t =
         | Some observed_at ->
             Result.bind boundary (fun boundary_presets_text ->
                 R.project env.book ~observed_at ~boundary_presets_text ~grain:t.grain
-                  ~scope:(effective_scope t) ~coordinates:plotted)
+                  ~scope:(effective_scope t) ~coordinates:plotted
+                |> Result.map_error R.message)
       in
       { book = env.book; boundary; measure = env.measure; query; plotted; outcome }
 

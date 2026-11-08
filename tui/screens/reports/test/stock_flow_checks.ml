@@ -40,6 +40,7 @@ let self_check () =
   let compute ?(liabilities = []) book tracked_coords =
     SF.compute book ~measure:"jpy" ~tracked_coords ~liability_coords:liabilities
       ~start:period.start_day ~stop:period.end_exclusive
+    |> Result.map_error SF.message
   in
   let only locus (report : SF.snapshot) =
     List.find (fun (c : SF.coordinate_activity) -> c.locus = locus) report.coordinates
@@ -93,9 +94,10 @@ let self_check () =
   in
   let before =
     get
-      (SF.compute bounded ~measure:"jpy"
-         ~tracked_coords:[ ("a", "jpy") ]
-         ~liability_coords:[] ~start:before_period.start_day ~stop:before_period.end_exclusive)
+      (Result.map_error SF.message
+      @@ SF.compute bounded ~measure:"jpy"
+           ~tracked_coords:[ ("a", "jpy") ]
+           ~liability_coords:[] ~start:before_period.start_day ~stop:before_period.end_exclusive)
   in
   let a = only "a" before in
   require
@@ -150,18 +152,20 @@ let self_check () =
   in
   let all_zero =
     get
-      (SF.compute zero ~measure:"jpy"
-         ~tracked_coords:[ ("a", "jpy") ]
-         ~liability_coords:[] ~start:all_time.start_day ~stop:all_time.end_exclusive)
+      (Result.map_error SF.message
+      @@ SF.compute zero ~measure:"jpy"
+           ~tracked_coords:[ ("a", "jpy") ]
+           ~liability_coords:[] ~start:all_time.start_day ~stop:all_time.end_exclusive)
   in
   require
     ((only "a" all_zero).SF.start_balance = Some Z.zero)
     "an All Time zero-origin start is exactly zero";
   let all_bounded =
     get
-      (SF.compute bounded ~measure:"jpy"
-         ~tracked_coords:[ ("a", "jpy") ]
-         ~liability_coords:[] ~start:all_time.start_day ~stop:all_time.end_exclusive)
+      (Result.map_error SF.message
+      @@ SF.compute bounded ~measure:"jpy"
+           ~tracked_coords:[ ("a", "jpy") ]
+           ~liability_coords:[] ~start:all_time.start_day ~stop:all_time.end_exclusive)
   in
   require
     ((only "a" all_bounded).SF.start_balance = None
@@ -246,9 +250,10 @@ let self_check () =
   in
   let early =
     get
-      (SF.compute opening_book ~measure:"jpy"
-         ~tracked_coords:[ ("debt", "jpy") ]
-         ~liability_coords:[] ~start:before_open.start_day ~stop:before_open.end_exclusive)
+      (Result.map_error SF.message
+      @@ SF.compute opening_book ~measure:"jpy"
+           ~tracked_coords:[ ("debt", "jpy") ]
+           ~liability_coords:[] ~start:before_open.start_day ~stop:before_open.end_exclusive)
   in
   let debt = only "debt" early in
   require
@@ -274,9 +279,10 @@ let self_check () =
      cancel. *)
   let inside_opening =
     get
-      (SF.compute opening_book ~measure:"jpy"
-         ~tracked_coords:[ ("debt", "jpy"); ("opening-equity", "jpy") ]
-         ~liability_coords:[] ~start:before_open.start_day ~stop:before_open.end_exclusive)
+      (Result.map_error SF.message
+      @@ SF.compute opening_book ~measure:"jpy"
+           ~tracked_coords:[ ("debt", "jpy"); ("opening-equity", "jpy") ]
+           ~liability_coords:[] ~start:before_open.start_day ~stop:before_open.end_exclusive)
   in
   require
     (Z.equal inside_opening.SF.increases_across_events Z.zero
@@ -315,9 +321,10 @@ let self_check () =
      "Net change in tracked balance" line stay unknown. *)
   let counterpart_only =
     get
-      (SF.compute opening_book ~measure:"jpy"
-         ~tracked_coords:[ ("opening-equity", "jpy") ]
-         ~liability_coords:[] ~start:before_open.start_day ~stop:before_open.end_exclusive)
+      (Result.map_error SF.message
+      @@ SF.compute opening_book ~measure:"jpy"
+           ~tracked_coords:[ ("opening-equity", "jpy") ]
+           ~liability_coords:[] ~start:before_open.start_day ~stop:before_open.end_exclusive)
   in
   let equity = only "opening-equity" counterpart_only in
   require
@@ -354,9 +361,10 @@ let self_check () =
      never removes this Measure's flows. *)
   let other_measure =
     get
-      (SF.compute opening_book ~measure:"jpy"
-         ~tracked_coords:[ ("cash", "jpy") ]
-         ~liability_coords:[] ~start:before_open.start_day ~stop:before_open.end_exclusive)
+      (Result.map_error SF.message
+      @@ SF.compute opening_book ~measure:"jpy"
+           ~tracked_coords:[ ("cash", "jpy") ]
+           ~liability_coords:[] ~start:before_open.start_day ~stop:before_open.end_exclusive)
   in
   let cash = only "cash" other_measure in
   require
@@ -373,9 +381,10 @@ let self_check () =
   in
   let earlier =
     get
-      (SF.compute opening_book ~measure:"jpy"
-         ~tracked_coords:[ ("debt", "jpy") ]
-         ~liability_coords:[] ~start:before_open.start_day ~stop:before_open.end_exclusive)
+      (Result.map_error SF.message
+      @@ SF.compute opening_book ~measure:"jpy"
+           ~tracked_coords:[ ("debt", "jpy") ]
+           ~liability_coords:[] ~start:before_open.start_day ~stop:before_open.end_exclusive)
   in
   let debt = only "debt" earlier in
   require
@@ -398,9 +407,10 @@ let self_check () =
   let on_open : I.period = { period with start_day = "2026-09-01"; end_exclusive = "2026-10-01" } in
   let exact_day =
     get
-      (SF.compute opening_book ~measure:"jpy"
-         ~tracked_coords:[ ("debt", "jpy") ]
-         ~liability_coords:[] ~start:on_open.start_day ~stop:on_open.end_exclusive)
+      (Result.map_error SF.message
+      @@ SF.compute opening_book ~measure:"jpy"
+           ~tracked_coords:[ ("debt", "jpy") ]
+           ~liability_coords:[] ~start:on_open.start_day ~stop:on_open.end_exclusive)
   in
   let debt = only "debt" exact_day in
   require

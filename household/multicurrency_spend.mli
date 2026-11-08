@@ -51,12 +51,23 @@ type snapshot = {
 (** Immutable projection of the explicit window. Totals are lexical by Measure
     token; effect lists follow entry date then stable ID, then recorded order. *)
 
-val compute : Book.t -> start:string -> stop:string -> (snapshot, string) result
+type refusal =
+  | Bad_start  (** The start is not a real YYYY-MM-DD day. *)
+  | Bad_end  (** Nor is the exclusive end. *)
+  | Empty_window  (** The end is not after the start. *)
+
+val code : refusal -> string
+(** The language-neutral reason, e.g. ["empty-window"] (test/reports). *)
+
+val message : refusal -> string
+(** The reader-facing reason. *)
+
+val compute : Book.t -> start:string -> stop:string -> (snapshot, refusal) result
 (** The entries dated in [\[start, stop)]
     after checking both bounds are real canonical dates and start precedes end.
     The book's roles classify only explicitly; absent roles stay unresolved. Ordinary and
     exchange-associated Expense are independent per-Measure signed sums.
     OriginalAmount evidence is counted once for a non-exchange entry with any
     positive Expense Effect; every other original is retained as an unresolved or
-    non-counted witness. An exchange whose selected Effect key is missing refuses
-    the whole window instead of dropping or guessing a leg. *)
+    non-counted witness. Book names both legs of every admitted exchange, so no leg
+    is ever dropped or guessed. *)

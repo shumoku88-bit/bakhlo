@@ -178,7 +178,9 @@ let query (env : Screen.env) t =
           Bakhlo_household.Multicurrency_spend.compute env.book ~start:t.start_day ~stop:t.end_day
         with
         | Ok snapshot -> ({ t with answer = Some (Ok snapshot); notice = ""; scroll = 0 }, None)
-        | Error why -> ({ t with answer = Some (Error why); notice = why; scroll = 0 }, Some why))
+        | Error refusal ->
+            let why = Bakhlo_household.Multicurrency_spend.message refusal in
+            ({ t with answer = Some (Error why); notice = why; scroll = 0 }, Some why))
 
 let apply_source (env : Screen.env) kind t =
   match kind with

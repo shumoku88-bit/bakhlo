@@ -62,7 +62,8 @@ let result (env : Screen.env) t =
                       (fun report -> (period, report))
                       (Bakhlo_household.Stock_flow.compute env.book ~measure ~tracked_coords
                          ~liability_coords:(liability_coords measure) ~start:period.start_day
-                         ~stop:period.end_exclusive))))
+                         ~stop:period.end_exclusive
+                      |> Result.map_error Bakhlo_household.Stock_flow.message))))
 
 let help_form () =
   Frame.help_form ~title:"Stock–Flow / Help"

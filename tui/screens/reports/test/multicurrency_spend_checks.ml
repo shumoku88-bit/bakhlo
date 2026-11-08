@@ -84,7 +84,9 @@ let total_of measure totals =
   | None -> None
 
 let check_families () =
-  let snapshot = get (MS.compute mixed_book ~start:"2026-10-01" ~stop:"2026-11-01") in
+  let snapshot =
+    get (Result.map_error MS.message @@ MS.compute mixed_book ~start:"2026-10-01" ~stop:"2026-11-01")
+  in
   require
     (total_of "jpy" snapshot.MS.ordinary_expense = Some (z 800))
     "ordinary Expense nets the refund within its own Measure";
@@ -142,7 +144,11 @@ let originals_book =
        ~entries:originals_entries ~plans:"" ())
 
 let check_originals () =
-  let snapshot = get (MS.compute originals_book ~start:"2026-10-01" ~stop:"2026-11-01") in
+  let snapshot =
+    get
+      (Result.map_error MS.message
+      @@ MS.compute originals_book ~start:"2026-10-01" ~stop:"2026-11-01")
+  in
   require
     (total_of "usd" snapshot.MS.original_expense = Some (z 45000))
     "both qualified originals sum in the original Measure only";
@@ -186,7 +192,11 @@ let exchange_entries =
 let exchange_book = read (book ~entries:exchange_entries ~plans:"" ())
 
 let check_exchanges () =
-  let snapshot = get (MS.compute exchange_book ~start:"2026-10-01" ~stop:"2026-11-01") in
+  let snapshot =
+    get
+      (Result.map_error MS.message
+      @@ MS.compute exchange_book ~start:"2026-10-01" ~stop:"2026-11-01")
+  in
   require (List.length snapshot.MS.exchanges = 2) "every exchange occurrence is retained";
   let first = List.hd snapshot.MS.exchanges in
   require
@@ -216,7 +226,9 @@ let check_exchanges () =
     "every exchange occurrence in the window is retained exactly once"
 
 let check_render () =
-  let snapshot = get (MS.compute mixed_book ~start:"2026-10-01" ~stop:"2026-11-01") in
+  let snapshot =
+    get (Result.map_error MS.message @@ MS.compute mixed_book ~start:"2026-10-01" ~stop:"2026-11-01")
+  in
   let text =
     String.concat "\n" (List.map (fun (_, line) -> line) (R.render_lines ~book:mixed_book snapshot))
   in

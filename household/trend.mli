@@ -30,13 +30,30 @@ type snapshot = {
   series : series array;
 }
 
+type refusal =
+  | Bad_observation_day  (** Not a real YYYY-MM-DD day. *)
+  | No_locus
+  | No_measure
+  | Too_many_loci  (** More than five. *)
+  | Unknown_measure of string  (** Not a Measure of the book. *)
+  | Empty_locus
+  | Mixed_measures
+  | Duplicate_locus of string
+  | Period of Period.refusal  (** No single cycle for the day, or the calendar ran out. *)
+
+val code : refusal -> string
+(** The language-neutral reason, e.g. ["no-cycle:2026-12-01"] (test/reports). *)
+
+val message : refusal -> string
+(** The reader-facing reason. *)
+
 val catalog : Book.t -> measure:string -> coordinate list
 (** Admitted Loci plus Loci of recorded Effects in Measures exactly [measure],
     paired with that Measure, deduplicated and sorted for a deterministic order.
     Labels are not part of the coordinate. *)
 
 val history_start :
-  observed_at:string -> boundary_presets_text:string option -> (string, string) result
+  observed_at:string -> boundary_presets_text:string option -> (string, refusal) result
 (** The first boundary of the explicit preset containing the observation day. *)
 
 val initial_series :
@@ -52,7 +69,7 @@ val project :
   grain:grain ->
   scope:scope ->
   coordinates:coordinate list ->
-  (snapshot, string) result
+  (snapshot, refusal) result
 (** Exact recorded Effect flow for 1..5 unique Loci of one common, configured
     Measure, clipped to [historyStart, observed_at+1). [historyStart] is the first
     boundary of the unique explicit preset containing [observed_at]; every scope

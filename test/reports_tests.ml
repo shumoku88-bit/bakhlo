@@ -81,12 +81,12 @@ let transactions_flow book ~start ~stop =
 (* 4. Stock–Flow of the TRACK and LIABILITY Loci in one Measure over [start, end). *)
 let stock_flow book ~measure ~start ~stop ~track ~liabilities =
   let module S = Bakhlo_household.Stock_flow in
-  let pairs = List.map (fun l -> (l, measure)) in
   match
-    S.compute book ~measure ~tracked_coords:(pairs track) ~liability_coords:(pairs liabilities)
+    S.compute book ~measure ~tracked_coords:track
+      ~liability_coords:(List.map (fun l -> (l, measure)) liabilities)
       ~start ~stop
   with
-  | Error why -> refused why
+  | Error why -> refused (S.code why)
   | Ok r ->
       let support = function
         | S.Zero_origin -> "zero-origin"
@@ -128,7 +128,7 @@ let stock_flow book ~measure ~start ~stop ~track ~liabilities =
       @ List.map (fun (id, day) -> "EXCLUDED-OPENING\t" ^ id ^ "\t" ^ day) r.excluded_openings
 
 (* 5. Trend / Locus: the chosen Loci's recorded flow by Cycle, Month or Day. *)
-let trend book ~presets ~measure ~observed_at ~grain ~scope ~loci =
+let trend book ~presets ~observed_at ~grain ~scope ~coordinates =
   let module T = Bakhlo_household.Trend in
   let grain =
     match grain with
@@ -152,9 +152,9 @@ let trend book ~presets ~measure ~observed_at ~grain ~scope ~loci =
   in
   match
     T.project book ~observed_at ~boundary_presets_text:presets ~grain ~scope
-      ~coordinates:(List.map (fun locus -> { T.locus; measure }) loci)
+      ~coordinates:(List.map (fun (locus, measure) -> { T.locus; measure }) coordinates)
   with
-  | Error why -> refused why
+  | Error why -> refused (T.code why)
   | Ok s ->
       String.concat "\t" [ "SCOPE"; s.scope_start; s.scope_end_exclusive; scope_name s.scope ]
       :: List.concat_map
@@ -184,7 +184,7 @@ let trend_default book ~measure ~start ~stop =
 let liquidity book ~today ~through ~pool =
   let module L = Bakhlo_household.Liquidity in
   match L.compute book ~today ~coords:pool ~assumed_complete_through:through with
-  | Error why -> refused why
+  | Error why -> refused (L.code why)
   | Ok s ->
       ("CURRENT\t" ^ money s.current_selected)
       :: List.map
@@ -197,7 +197,7 @@ let liquidity book ~today ~through ~pool =
 let multicurrency book ~start ~stop =
   let module M = Bakhlo_household.Multicurrency_spend in
   match M.compute book ~start ~stop with
-  | Error why -> refused why
+  | Error why -> refused (M.code why)
   | Ok s ->
       let totals kind =
         List.map (fun (t : M.total) -> String.concat "\t" [ kind; t.measure; money t.quanta ])
@@ -231,10 +231,16 @@ let multicurrency book ~start ~stop =
       @ List.map (witness "UNRESOLVED-ORIGINAL") s.unresolved_original
       @ List.map (witness "UNCOUNTED-ORIGINAL") s.uncounted_original
 
-(* The input lines a question carries after its header, by keyword. *)
+(* The input lines a question carries after its header, by keyword: a Locus, or a
+   (Locus, Measure) cell. *)
 let inputs keyword body =
   List.filter_map
     (fun l -> match fields l with [ k; v ] when k = keyword -> Some v | _ -> None)
+    body
+
+let cells keyword body =
+  List.filter_map
+    (fun l -> match fields l with [ k; locus; m ] when k = keyword -> Some (locus, m) | _ -> None)
     body
 
 let answer ~presets book header body =
@@ -243,18 +249,12 @@ let answer ~presets book header body =
   | [ "INCOME-EXPENSE"; start; stop ] -> income_expense book ~start ~stop
   | [ "TRANSACTIONS-FLOW"; start; stop ] -> transactions_flow book ~start ~stop
   | [ "STOCK-FLOW"; measure; start; stop ] ->
-      stock_flow book ~measure ~start ~stop ~track:(inputs "TRACK" body)
+      stock_flow book ~measure ~start ~stop ~track:(cells "TRACK" body)
         ~liabilities:(inputs "LIABILITY" body)
-  | [ "TREND"; measure; observed_at; grain; scope ] ->
-      trend book ~presets ~measure ~observed_at ~grain ~scope ~loci:(inputs "LOCUS" body)
+  | [ "TREND"; observed_at; grain; scope ] ->
+      trend book ~presets ~observed_at ~grain ~scope ~coordinates:(cells "LOCUS" body)
   | [ "TREND-DEFAULT"; measure; start; stop ] -> trend_default book ~measure ~start ~stop
-  | [ "LIQUIDITY"; today; through ] ->
-      let pool =
-        List.filter_map
-          (fun l -> match fields l with [ "POOL"; locus; m ] -> Some (locus, m) | _ -> None)
-          body
-      in
-      liquidity book ~today ~through ~pool
+  | [ "LIQUIDITY"; today; through ] -> liquidity book ~today ~through ~pool:(cells "POOL" body)
   | [ "MULTICURRENCY"; start; stop ] -> multicurrency book ~start ~stop
   | _ -> bad ("question " ^ header)
 
@@ -304,4 +304,4 @@ let%expect_test "every report sample gives its listed answer" =
       | _ -> fail row "bad cases row")
     (List.tl (lines (read "cases.tsv")));
   Printf.printf "%d report answers, %d failures\n" !answers !failures;
-  [%expect {| 29 report answers, 0 failures |}]
+  [%expect {| 55 report answers, 0 failures |}]

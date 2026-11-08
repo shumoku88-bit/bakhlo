@@ -96,17 +96,29 @@ let observation_exact ~book ~(coordinate : Book.coordinate) =
   | Some { support = Book.T.Counted _; _ } -> true
   | _ -> false
 
+type refusal = Bad_day | Empty_window | No_selection | Mixed_measures | Duplicate_selection
+
+let code = function
+  | Bad_day -> "bad-day"
+  | Empty_window -> "empty-window"
+  | No_selection -> "no-selection"
+  | Mixed_measures -> "mixed-measures"
+  | Duplicate_selection -> "duplicate-selection"
+
+let message = function
+  | Bad_day -> "Stock–Flow endpoints must be real YYYY-MM-DD calendar dates."
+  | Empty_window -> "Stock–Flow start must be earlier than end."
+  | No_selection -> "Stock–Flow requires a nonempty configured coordinate selection."
+  | Mixed_measures -> "Stock–Flow selected balances span multiple measures."
+  | Duplicate_selection -> "Stock–Flow selected coordinates contain duplicates."
+
 let compute book ~measure ~tracked_coords ~liability_coords ~start ~stop =
-  if (not (Day.is_valid start)) || not (Day.is_valid stop) then
-    Error "loam: stock-flow endpoints must be real YYYY-MM-DD calendar dates"
-  else if String.compare start stop >= 0 then
-    Error "loam: stock-flow start must be earlier than end"
-  else if tracked_coords = [] then
-    Error "Stock–Flow requires a nonempty configured coordinate selection."
-  else if List.exists (fun (_, m) -> m <> measure) tracked_coords then
-    Error "Stock–Flow selected balances span multiple measures."
+  if (not (Day.is_valid start)) || not (Day.is_valid stop) then Error Bad_day
+  else if String.compare start stop >= 0 then Error Empty_window
+  else if tracked_coords = [] then Error No_selection
+  else if List.exists (fun (_, m) -> m <> measure) tracked_coords then Error Mixed_measures
   else if List.length (List.sort_uniq compare tracked_coords) <> List.length tracked_coords then
-    Error "Stock–Flow selected coordinates contain duplicates."
+    Error Duplicate_selection
   else
     let pool =
       List.fold_left
@@ -136,7 +148,7 @@ let compute book ~measure ~tracked_coords ~liability_coords ~start ~stop =
     let dated = Hashtbl.create (List.length pool) in
     let cells = Hashtbl.create (List.length pool) in
     let rec scan = function
-      | [] -> Ok ()
+      | [] -> ()
       | (entry : Book.entry) :: rest ->
           Hashtbl.clear cells;
           List.iter
@@ -146,9 +158,7 @@ let compute book ~measure ~tracked_coords ~liability_coords ~start ~stop =
                 let prior = Option.value ~default:Z.zero (Hashtbl.find_opt cells locus) in
                 Hashtbl.replace cells locus (Z.add prior posting.amount))
             entry.effects;
-          if Hashtbl.length cells > 0 && not (Day.is_valid entry.day) then
-            Error ("Invalid occurrence date: " ^ entry.id)
-          else begin
+          begin
             Hashtbl.iter
               (fun locus quantity ->
                 let previous = Option.value ~default:[] (Hashtbl.find_opt dated locus) in
@@ -187,165 +197,164 @@ let compute book ~measure ~tracked_coords ~liability_coords ~start ~stop =
         Z.zero
         (Option.value ~default:[] (Hashtbl.find_opt dated locus))
     in
-    Result.map
-      (fun () ->
-        let classify (locus, _) =
-          let positive, negative = Hashtbl.find activities locus in
-          let current_balance =
-            Option.map (fun (q : Book.T.quantity) -> q.amount) (Book.quantity book ~locus ~measure)
-          in
-          let base support start_balance end_balance =
-            (* The Net cell is the balance motion between the two boundaries: it
+    scan (Book.entries book);
+    Ok
+      (let classify (locus, _) =
+         let positive, negative = Hashtbl.find activities locus in
+         let current_balance =
+           Option.map (fun (q : Book.T.quantity) -> q.amount) (Book.quantity book ~locus ~measure)
+         in
+         let base support start_balance end_balance =
+           (* The Net cell is the balance motion between the two boundaries: it
                stays unknown when a boundary is unknown, and when an excluded
                opening entry still sits in Start and End. *)
-            let net_change =
-              match (start_balance, end_balance) with
-              | Some start, Some stop when not (Hashtbl.mem excluded_loci locus) ->
-                  Some (Z.sub stop start)
-              | _ -> None
-            in
-            {
-              locus;
-              support;
-              start_balance;
-              increases = positive;
-              decreases = negative;
-              net_change;
-              end_balance;
-              current_balance;
-            }
-          in
-          let zero = Book.has_zero_origin book ~locus ~measure in
-          let bounded = Book.bounded_history_start book ~locus ~measure in
-          match coordinate_of ~measure locus with
-          | Error why -> base (Unsupported why) None None
-          | Ok coordinate -> (
-              match (zero, bounded) with
-              | true, Some _ ->
-                  base (Unsupported "zero-origin and bounded history overlap") None None
-              | true, None ->
-                  (* Zero-origin: no Effect can precede the first calendar day, so a
+           let net_change =
+             match (start_balance, end_balance) with
+             | Some start, Some stop when not (Hashtbl.mem excluded_loci locus) ->
+                 Some (Z.sub stop start)
+             | _ -> None
+           in
+           {
+             locus;
+             support;
+             start_balance;
+             increases = positive;
+             decreases = negative;
+             net_change;
+             end_balance;
+             current_balance;
+           }
+         in
+         let zero = Book.has_zero_origin book ~locus ~measure in
+         let bounded = Book.bounded_history_start book ~locus ~measure in
+         match coordinate_of ~measure locus with
+         | Error why -> base (Unsupported why) None None
+         | Ok coordinate -> (
+             match (zero, bounded) with
+             | true, Some _ ->
+                 base (Unsupported "zero-origin and bounded history overlap") None None
+             | true, None ->
+                 (* Zero-origin: no Effect can precede the first calendar day, so a
                      window that starts before all history starts at exactly zero. *)
-                  let start_result =
-                    match start_day with
-                    | None -> Ok Z.zero
-                    | Some day -> balance_at ~book ~measure ~coordinate ~day:(Some day)
-                  in
-                  let end_result = balance_at ~book ~measure ~coordinate ~day:end_day in
-                  base Zero_origin
-                    (match start_result with Ok value -> Some value | Error _ -> None)
-                    (match end_result with Ok value -> Some value | Error _ -> None)
-              | false, None -> (
-                  (* An opening entry or an observation makes the coordinate exact
+                 let start_result =
+                   match start_day with
+                   | None -> Ok Z.zero
+                   | Some day -> balance_at ~book ~measure ~coordinate ~day:(Some day)
+                 in
+                 let end_result = balance_at ~book ~measure ~coordinate ~day:end_day in
+                 base Zero_origin
+                   (match start_result with Ok value -> Some value | Error _ -> None)
+                   (match end_result with Ok value -> Some value | Error _ -> None)
+             | false, None -> (
+                 (* An opening entry or an observation makes the coordinate exact
                      without zero-origin/bounded history. *)
-                  match opening_day ~book ~coordinate with
-                  | Some opening ->
-                      (* The balance at a boundary day d is Core's exact current
+                 match opening_day ~book ~coordinate with
+                 | Some opening ->
+                     (* The balance at a boundary day d is Core's exact current
                          quantity minus the recorded Effects dated on or after d.
                          It is exact only from the opening entry's own day, so a
                          window starting on that day has an unknown start. *)
-                      let boundary day =
-                        match current_balance with
-                        | None -> None
-                        | Some quantity ->
-                            if day <= opening then None
-                            else Some (Z.sub quantity (recorded_on_or_after locus day))
-                      in
-                      (* A window that contains the opening entry has no flow for
+                     let boundary day =
+                       match current_balance with
+                       | None -> None
+                       | Some quantity ->
+                           if day <= opening then None
+                           else Some (Z.sub quantity (recorded_on_or_after locus day))
+                     in
+                     (* A window that contains the opening entry has no flow for
                          it: the opening posting sets the balance. *)
-                      let contains_opening = start <= opening && opening < stop in
-                      let support =
-                        if start > opening then Opening opening
-                        else if start = opening then Opening_on opening
-                        else if contains_opening then Opening_inside opening
-                        else Opening_after opening
-                      in
-                      base support (boundary start) (boundary stop)
-                  | None ->
-                      if observation_exact ~book ~coordinate then base Observation_undated None None
-                      else
-                        base (Unsupported "no zero-origin, bounded, opening or observation support")
-                          None None)
-              | false, Some first_day -> (
-                  let start_result =
-                    match start_day with
-                    | None -> Error "history-precedes-bounded-start"
-                    | Some day -> balance_at ~book ~measure ~coordinate ~day:(Some day)
-                  in
-                  let end_result = balance_at ~book ~measure ~coordinate ~day:end_day in
-                  let support =
-                    match start_result with
-                    | Error "history-precedes-bounded-start" -> Before_start first_day
-                    | Error code -> Unsupported (support_reason code)
-                    | Ok _ -> Bounded first_day
-                  in
-                  match support with
-                  | Unsupported _ -> base support None None
-                  | Zero_origin | Bounded _ | Before_start _ | Opening _ | Opening_after _
-                  | Opening_on _ | Opening_inside _ | Observation_undated ->
-                      base support
-                        (match start_result with Ok value -> Some value | Error _ -> None)
-                        (match end_result with Ok value -> Some value | Error _ -> None)))
-        in
-        let coordinates = List.map classify pool in
-        let supported, unsupported =
-          List.partition
-            (fun (c : coordinate_activity) ->
-              match c.support with Unsupported _ -> false | _ -> true)
-            coordinates
-        in
-        let unsupported =
-          List.map
-            (fun (c : coordinate_activity) ->
-              match c.support with
-              | Unsupported reason -> (c.locus, reason)
-              | Zero_origin | Bounded _ | Before_start _ | Opening _ | Opening_after _
-              | Opening_on _ | Opening_inside _ | Observation_undated ->
-                  (c.locus, ""))
-            unsupported
-        in
-        let sum_known pick =
-          List.fold_left
-            (fun total (c : coordinate_activity) ->
-              match pick c with Some value -> Z.add total value | None -> total)
-            Z.zero supported
-        in
-        let increases_across_events =
-          List.fold_left (fun total c -> Z.add total c.increases) Z.zero supported
-        in
-        let decreases_across_events =
-          List.fold_left (fun total c -> Z.add total c.decreases) Z.zero supported
-        in
-        let unknown_starts =
-          List.fold_left
-            (fun total (c : coordinate_activity) ->
-              match c.start_balance with Some _ -> total | None -> total + 1)
-            0 supported
-        in
-        let liabilities =
-          List.filter
-            (fun (c : coordinate_activity) -> List.mem_assoc c.locus liability_coords)
-            coordinates
-        in
-        {
-          start_day = start;
-          end_exclusive = stop;
-          measure;
-          reconstructed_start = sum_known (fun c -> c.start_balance);
-          reconstructed_end = sum_known (fun c -> c.end_balance);
-          unknown_starts;
-          increases_across_events;
-          decreases_across_events;
-          net_change =
-            (* The motion is unknown when an opening entry was left out of the
+                     let contains_opening = start <= opening && opening < stop in
+                     let support =
+                       if start > opening then Opening opening
+                       else if start = opening then Opening_on opening
+                       else if contains_opening then Opening_inside opening
+                       else Opening_after opening
+                     in
+                     base support (boundary start) (boundary stop)
+                 | None ->
+                     if observation_exact ~book ~coordinate then base Observation_undated None None
+                     else
+                       base (Unsupported "no zero-origin, bounded, opening or observation support")
+                         None None)
+             | false, Some first_day -> (
+                 let start_result =
+                   match start_day with
+                   | None -> Error "history-precedes-bounded-start"
+                   | Some day -> balance_at ~book ~measure ~coordinate ~day:(Some day)
+                 in
+                 let end_result = balance_at ~book ~measure ~coordinate ~day:end_day in
+                 let support =
+                   match start_result with
+                   | Error "history-precedes-bounded-start" -> Before_start first_day
+                   | Error code -> Unsupported (support_reason code)
+                   | Ok _ -> Bounded first_day
+                 in
+                 match support with
+                 | Unsupported _ -> base support None None
+                 | Zero_origin | Bounded _ | Before_start _ | Opening _ | Opening_after _
+                 | Opening_on _ | Opening_inside _ | Observation_undated ->
+                     base support
+                       (match start_result with Ok value -> Some value | Error _ -> None)
+                       (match end_result with Ok value -> Some value | Error _ -> None)))
+       in
+       let coordinates = List.map classify pool in
+       let supported, unsupported =
+         List.partition
+           (fun (c : coordinate_activity) ->
+             match c.support with Unsupported _ -> false | _ -> true)
+           coordinates
+       in
+       let unsupported =
+         List.map
+           (fun (c : coordinate_activity) ->
+             match c.support with
+             | Unsupported reason -> (c.locus, reason)
+             | Zero_origin | Bounded _ | Before_start _ | Opening _ | Opening_after _ | Opening_on _
+             | Opening_inside _ | Observation_undated ->
+                 (c.locus, ""))
+           unsupported
+       in
+       let sum_known pick =
+         List.fold_left
+           (fun total (c : coordinate_activity) ->
+             match pick c with Some value -> Z.add total value | None -> total)
+           Z.zero supported
+       in
+       let increases_across_events =
+         List.fold_left (fun total c -> Z.add total c.increases) Z.zero supported
+       in
+       let decreases_across_events =
+         List.fold_left (fun total c -> Z.add total c.decreases) Z.zero supported
+       in
+       let unknown_starts =
+         List.fold_left
+           (fun total (c : coordinate_activity) ->
+             match c.start_balance with Some _ -> total | None -> total + 1)
+           0 supported
+       in
+       let liabilities =
+         List.filter
+           (fun (c : coordinate_activity) -> List.mem_assoc c.locus liability_coords)
+           coordinates
+       in
+       {
+         start_day = start;
+         end_exclusive = stop;
+         measure;
+         reconstructed_start = sum_known (fun c -> c.start_balance);
+         reconstructed_end = sum_known (fun c -> c.end_balance);
+         unknown_starts;
+         increases_across_events;
+         decreases_across_events;
+         net_change =
+           (* The motion is unknown when an opening entry was left out of the
                flows: Start and End still carry it. *)
-            (if !excluded_openings = [] then
-               Some (Z.add increases_across_events decreases_across_events)
-             else None);
-          current_tracked = sum_known (fun c -> c.current_balance);
-          coordinates = supported;
-          liabilities;
-          unsupported;
-          excluded_openings = List.sort compare !excluded_openings;
-        })
-      (scan (Book.entries book))
+           (if !excluded_openings = [] then
+              Some (Z.add increases_across_events decreases_across_events)
+            else None);
+         current_tracked = sum_known (fun c -> c.current_balance);
+         coordinates = supported;
+         liabilities;
+         unsupported;
+         excluded_openings = List.sort compare !excluded_openings;
+       })

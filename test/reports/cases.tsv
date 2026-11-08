@@ -7,3 +7,5 @@ trend	base.txt	presets.tsv	推移：科目ごとの記帳の合計を周期・�
 liquidity	base.txt	-	流動性：今の残高から、指定日までのまだの予定を日付順に足す。期限切れの予定があれば拒否
 multicurrency	base.txt	-	多通貨：通貨を換算せず、普通の支出・元の金額・両替に伴う支出を通貨ごとに分けて出す
 originals	originals.txt	-	多通貨の元の金額：正の支出がある普通の実績だけ数え、役割のない実績・正の支出がない実績・両替は数えずに理由を出す
+trend-unconfigured	base.txt	-	推移の周期がない：boundary-presets.tsvがなければ周期の履歴を決めず not-configured で拒否する
+trend-ambiguous	base.txt	two-presets.tsv	推移の周期が2つ重なる日：どちらも選ばず ambiguous で拒否する。重ならない日は1つのpresetの窓で答える

@@ -54,14 +54,49 @@ type bounds = {
   windows : (string * string * string) list;
 }
 
+type refusal =
+  | Bad_observation_day
+  | No_locus
+  | No_measure
+  | Too_many_loci
+  | Unknown_measure of string
+  | Empty_locus
+  | Mixed_measures
+  | Duplicate_locus of string
+  | Period of Period.refusal
+
+let code = function
+  | Bad_observation_day -> "bad-observation-day"
+  | No_locus -> "no-locus"
+  | No_measure -> "no-measure"
+  | Too_many_loci -> "too-many-loci"
+  | Unknown_measure m -> "unknown-measure:" ^ m
+  | Empty_locus -> "empty-locus"
+  | Mixed_measures -> "mixed-measures"
+  | Duplicate_locus l -> "duplicate-locus:" ^ l
+  | Period why -> Period.code why
+
+let message = function
+  | Bad_observation_day -> "Observation day is not a real Gregorian date."
+  | No_locus -> "Select at least one Locus."
+  | No_measure -> "No Measure is selected."
+  | Too_many_loci -> "At most five Loci can be compared."
+  | Unknown_measure m -> "Measure is not configured in the book: " ^ m
+  | Empty_locus -> "A selected Locus is empty."
+  | Mixed_measures -> "Every selected Locus must use the same Measure."
+  | Duplicate_locus l -> "Locus is selected twice: " ^ l
+  | Period (No_cycle _) -> "No explicit boundary preset contains the observation day."
+  | Period (Ambiguous _) ->
+      "Multiple boundary presets contain the observation day; selection is ambiguous."
+  | Period why -> Period.message why
+
+let out_of_range = Period Period.Out_of_range
+
 (* One explicit preset must own the observation day; its first boundary is the
    only history start, and every scope is clipped to it. *)
 let configured_bounds ~observed_at ~text =
   match Result.bind (Period.read text) (Period.cycle ~day:observed_at) with
-  | Error (No_cycle _) -> Error "No explicit boundary preset contains the observation day."
-  | Error (Ambiguous _) ->
-      Error "Multiple boundary presets contain the observation day; selection is ambiguous."
-  | Error why -> Error (Period.message why)
+  | Error why -> Error (Period why)
   | Ok cycle ->
       let cycle_start = fst (List.nth cycle.windows cycle.index) in
       Ok
@@ -129,21 +164,20 @@ let initial_series book ~measure ~start_day ~end_exclusive =
 
 let validate_coordinates ~book ~(coordinates : coordinate list) =
   match coordinates with
-  | [] -> Error "Select at least one Locus."
+  | [] -> Error No_locus
   | first :: _ ->
       let measure = first.measure in
-      if measure = "" then Error "No Measure is selected."
-      else if List.length coordinates > 5 then Error "At most five Loci can be compared."
+      if measure = "" then Error No_measure
+      else if List.length coordinates > 5 then Error Too_many_loci
       else if not (List.exists (fun (name, _) -> name = measure) (Book.measures book)) then
-        Error ("Measure is not configured in the book: " ^ measure)
+        Error (Unknown_measure measure)
       else
         let rec loop seen = function
           | [] -> Ok measure
           | { locus; measure = selected } :: rest ->
-              if locus = "" then Error "A selected Locus is empty."
-              else if selected <> measure then
-                Error "Every selected Locus must use the same Measure."
-              else if List.mem locus seen then Error ("Locus is selected twice: " ^ locus)
+              if locus = "" then Error Empty_locus
+              else if selected <> measure then Error Mixed_measures
+              else if List.mem locus seen then Error (Duplicate_locus locus)
               else loop (locus :: seen) rest
         in
         loop [] coordinates
@@ -160,11 +194,11 @@ let window_total (days, sums) start_day end_exclusive =
   Z.sub sums.(lower_bound days end_exclusive) sums.(lower_bound days start_day)
 
 let project book ~observed_at ~boundary_presets_text ~grain ~scope ~coordinates =
-  if not (canonical_date observed_at) then Error "Observation day is not a real Gregorian date."
+  if not (canonical_date observed_at) then Error Bad_observation_day
   else
     let* measure = validate_coordinates ~book ~coordinates in
     let* scope_end_exclusive =
-      match Day.shift_days observed_at 1 with Ok day -> Ok day | Error why -> Error why
+      match Day.shift_days observed_at 1 with Ok day -> Ok day | Error _ -> Error out_of_range
     in
     let effective_scope = match grain with Day -> scope | Cycle | Month -> All_history in
     let* bounds = configured_bounds ~observed_at ~text:boundary_presets_text in
@@ -176,7 +210,7 @@ let project book ~observed_at ~boundary_presets_text ~grain ~scope ~coordinates 
       | Last_30_days -> (
           match Day.shift_days observed_at (-29) with
           | Ok from -> Ok (max from bounds.history_start)
-          | Error why -> Error why)
+          | Error _ -> Error out_of_range)
     in
     let* windows =
       match grain with
@@ -185,7 +219,7 @@ let project book ~observed_at ~boundary_presets_text ~grain ~scope ~coordinates 
             if day >= scope_end_exclusive then Ok (List.rev acc)
             else
               match Day.shift_days day 1 with
-              | Error why -> Error why
+              | Error _ -> Error out_of_range
               | Ok next -> loop next ((day, next, day, next) :: acc)
           in
           loop scope_start []
@@ -194,7 +228,7 @@ let project book ~observed_at ~boundary_presets_text ~grain ~scope ~coordinates 
             if natural_start >= scope_end_exclusive then Ok (List.rev acc)
             else
               match Day.shift_months natural_start 1 with
-              | Error why -> Error why
+              | Error _ -> Error out_of_range
               | Ok natural_end ->
                   let start_day = max natural_start scope_start in
                   let end_exclusive = min natural_end scope_end_exclusive in

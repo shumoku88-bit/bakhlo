@@ -78,7 +78,7 @@ let flow_book = read (book ~support:support_flow ~entries:flow_entries ~plans:fl
 let coords_wallet_bank = [ ("wallet", "jpy"); ("bank", "jpy") ]
 
 let compute ?(today = "2026-10-20") ?(through = "2026-10-31") ?(coords = coords_wallet_bank) book =
-  L.compute book ~today ~coords ~assumed_complete_through:through
+  L.compute book ~today ~coords ~assumed_complete_through:through |> Result.map_error L.message
 
 let expect_error label result = require (is_error result) (label ^ " must refuse")
 

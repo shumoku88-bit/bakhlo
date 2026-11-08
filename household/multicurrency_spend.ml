@@ -79,134 +79,126 @@ let selected_key key (posting : Book.posting) =
 
 let exchange_of_entry (entry : Book.entry) =
   match entry.exchange with
-  | None -> Ok None
+  | None -> None
   | Some (source_key, destination_key) -> (
       match
         ( List.find_opt (selected_key source_key) entry.effects,
           List.find_opt (selected_key destination_key) entry.effects )
       with
       | Some source, Some destination ->
-          Ok
-            (Some
-               {
-                 event = entry.id;
-                 date = entry.day;
-                 description = entry.memo;
-                 source;
-                 destination;
-                 extra_effects =
-                   List.filter
-                     (fun posting ->
-                       (not (selected_key source_key posting))
-                       && not (selected_key destination_key posting))
-                     entry.effects;
-               })
-      | None, _ ->
-          Error
-            (Printf.sprintf
-               "Exchange source Effect key %s is missing from retained entry %s; no partial \
-                occurrence is used."
-               source_key entry.id)
-      | _, None ->
-          Error
-            (Printf.sprintf
-               "Exchange destination Effect key %s is missing from retained entry %s; no partial \
-                occurrence is used."
-               destination_key entry.id))
+          Some
+            {
+              event = entry.id;
+              date = entry.day;
+              description = entry.memo;
+              source;
+              destination;
+              extra_effects =
+                List.filter
+                  (fun posting ->
+                    (not (selected_key source_key posting))
+                    && not (selected_key destination_key posting))
+                  entry.effects;
+            }
+      | _ ->
+          (* Book names both legs of every admitted exchange (Book.entry_of_tx). *)
+          invalid_arg ("Multicurrency_spend: exchange leg missing in " ^ entry.id))
 
 let step ~role_map (acc : acc) (entry : Book.entry) =
-  match exchange_of_entry entry with
-  | Error _ as error -> error
-  | Ok occurrence ->
-      let expense_effects =
-        List.filter
-          (fun (posting : Book.posting) ->
-            M.find_opt (effect_locus posting) role_map = Some Book.T.Expense)
-          entry.effects
-      in
-      let unresolved_nonzero =
-        List.filter
-          (fun posting ->
-            M.find_opt (effect_locus posting) role_map = None && Z.sign posting.amount <> 0)
-          entry.effects
-      in
-      let add_expenses totals =
-        List.fold_left
-          (fun totals posting -> add (effect_measure posting) posting.amount totals)
-          totals expense_effects
-      in
-      let unresolved effects =
-        List.map (fun posting -> { event = entry.id; date = entry.day; posting }) effects
-      in
-      let classified =
-        match occurrence with
-        | Some occurrence ->
-            {
-              acc with
-              exchange = add_expenses acc.exchange;
-              exchanges = occurrence :: acc.exchanges;
-              unresolved_exchange =
-                List.rev_append (unresolved unresolved_nonzero) acc.unresolved_exchange;
-            }
-        | None ->
-            {
-              acc with
-              ordinary = add_expenses acc.ordinary;
-              unresolved_ordinary =
-                List.rev_append (unresolved unresolved_nonzero) acc.unresolved_ordinary;
-            }
-      in
-      let original =
-        match entry.original_amount with
-        | None -> classified
-        | Some (measure, quanta) -> (
-            let witness reason : original_witness =
-              { event = entry.id; date = entry.day; measure; quanta; reason }
-            in
-            match occurrence with
-            | Some _ ->
-                {
-                  classified with
-                  uncounted_original = witness Exchange_event :: classified.uncounted_original;
-                }
-            | None -> (
-                if
-                  List.exists
-                    (fun (posting : Book.posting) -> Z.sign posting.amount > 0)
-                    expense_effects
-                then { classified with original = add measure quanta classified.original }
-                else
-                  match unresolved_nonzero with
-                  | _ :: _ ->
-                      {
-                        classified with
-                        unresolved_original =
-                          witness Unresolved_roles :: classified.unresolved_original;
-                      }
-                  | [] ->
-                      {
-                        classified with
-                        uncounted_original =
-                          witness No_positive_expense :: classified.uncounted_original;
-                      }))
-      in
-      Ok original
+  let occurrence = exchange_of_entry entry in
+  begin
+    let expense_effects =
+      List.filter
+        (fun (posting : Book.posting) ->
+          M.find_opt (effect_locus posting) role_map = Some Book.T.Expense)
+        entry.effects
+    in
+    let unresolved_nonzero =
+      List.filter
+        (fun posting ->
+          M.find_opt (effect_locus posting) role_map = None && Z.sign posting.amount <> 0)
+        entry.effects
+    in
+    let add_expenses totals =
+      List.fold_left
+        (fun totals posting -> add (effect_measure posting) posting.amount totals)
+        totals expense_effects
+    in
+    let unresolved effects =
+      List.map (fun posting -> { event = entry.id; date = entry.day; posting }) effects
+    in
+    let classified =
+      match occurrence with
+      | Some occurrence ->
+          {
+            acc with
+            exchange = add_expenses acc.exchange;
+            exchanges = occurrence :: acc.exchanges;
+            unresolved_exchange =
+              List.rev_append (unresolved unresolved_nonzero) acc.unresolved_exchange;
+          }
+      | None ->
+          {
+            acc with
+            ordinary = add_expenses acc.ordinary;
+            unresolved_ordinary =
+              List.rev_append (unresolved unresolved_nonzero) acc.unresolved_ordinary;
+          }
+    in
+    let original =
+      match entry.original_amount with
+      | None -> classified
+      | Some (measure, quanta) -> (
+          let witness reason : original_witness =
+            { event = entry.id; date = entry.day; measure; quanta; reason }
+          in
+          match occurrence with
+          | Some _ ->
+              {
+                classified with
+                uncounted_original = witness Exchange_event :: classified.uncounted_original;
+              }
+          | None -> (
+              if
+                List.exists
+                  (fun (posting : Book.posting) -> Z.sign posting.amount > 0)
+                  expense_effects
+              then { classified with original = add measure quanta classified.original }
+              else
+                match unresolved_nonzero with
+                | _ :: _ ->
+                    {
+                      classified with
+                      unresolved_original =
+                        witness Unresolved_roles :: classified.unresolved_original;
+                    }
+                | [] ->
+                    {
+                      classified with
+                      uncounted_original =
+                        witness No_positive_expense :: classified.uncounted_original;
+                    }))
+    in
+    original
+  end
 
-let rec run ~role_map acc = function
-  | [] -> Ok acc
-  | entry :: rest -> (
-      match step ~role_map acc entry with
-      | Error _ as error -> error
-      | Ok acc -> run ~role_map acc rest)
+type refusal = Bad_start | Bad_end | Empty_window
+
+let code = function
+  | Bad_start -> "bad-start"
+  | Bad_end -> "bad-end"
+  | Empty_window -> "empty-window"
+
+let message = function
+  | Bad_start -> "Multicurrency Spend requires a real canonical Start date (YYYY-MM-DD)."
+  | Bad_end -> "The exclusive End date must be a real YYYY-MM-DD calendar date."
+  | Empty_window -> "The exclusive End date must be after the Start date."
 
 let compute book ~start:start_day ~stop:end_exclusive =
   let roles = Book.roles book in
-  if not (Day.is_valid start_day) then
-    Error "Multicurrency Spend requires a real canonical Start date (YYYY-MM-DD)."
-  else if not (Day.is_valid end_exclusive) then
-    Error "The exclusive End date must be a real YYYY-MM-DD calendar date."
-  else if start_day >= end_exclusive then
-    Error "The exclusive End date must be after the Start date."
+  if not (Day.is_valid start_day) then Error Bad_start
+  else if not (Day.is_valid end_exclusive) then Error Bad_end
+  else if start_day >= end_exclusive then Error Empty_window
   else
     let role_map =
       List.fold_left
@@ -231,19 +223,17 @@ let compute book ~start:start_day ~stop:end_exclusive =
         uncounted_original = [];
       }
     in
-    match run ~role_map empty entries with
-    | Error _ as error -> error
-    | Ok acc ->
-        Ok
-          {
-            start_day;
-            end_exclusive;
-            ordinary_expense = totals_of acc.ordinary;
-            original_expense = totals_of acc.original;
-            exchange_expense = totals_of acc.exchange;
-            exchanges = List.rev acc.exchanges;
-            unresolved_ordinary = List.rev acc.unresolved_ordinary;
-            unresolved_exchange = List.rev acc.unresolved_exchange;
-            unresolved_original = List.rev acc.unresolved_original;
-            uncounted_original = List.rev acc.uncounted_original;
-          }
+    let acc = List.fold_left (step ~role_map) empty entries in
+    Ok
+      {
+        start_day;
+        end_exclusive;
+        ordinary_expense = totals_of acc.ordinary;
+        original_expense = totals_of acc.original;
+        exchange_expense = totals_of acc.exchange;
+        exchanges = List.rev acc.exchanges;
+        unresolved_ordinary = List.rev acc.unresolved_ordinary;
+        unresolved_exchange = List.rev acc.unresolved_exchange;
+        unresolved_original = List.rev acc.unresolved_original;
+        uncounted_original = List.rev acc.uncounted_original;
+      }

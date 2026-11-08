@@ -41,6 +41,7 @@ let primary =
 let project ?(config = Some config) ?(grain = T.Cycle) ?(scope = T.All_history) book observed
     coordinates =
   T.project book ~observed_at:observed ~boundary_presets_text:config ~grain ~scope ~coordinates
+  |> Result.map_error T.message
 
 let series_of snapshot ~locus =
   match Array.find_opt (fun (s : T.series) -> s.coordinate.locus = locus) snapshot.T.series with

@@ -15,5 +15,35 @@ LOW	360700
 ENDLIQUIDITY
 LIQUIDITY	2027-02-10	2027-02-28
 POOL	bank	jpy
-REFUSED	Selected Scheduled plan phone-2027-02 is overdue (2027-02-05 before today 2027-02-10); Liquidity refuses to move or settle it.
+REFUSED	overdue:phone-2027-02
+ENDLIQUIDITY
+LIQUIDITY	2027-02-30	2027-03-01
+POOL	bank	jpy
+REFUSED	bad-today
+ENDLIQUIDITY
+LIQUIDITY	2027-02-03	2027-02-30
+POOL	bank	jpy
+REFUSED	bad-horizon
+ENDLIQUIDITY
+LIQUIDITY	2027-02-03	2027-02-02
+POOL	bank	jpy
+REFUSED	horizon-before-today
+ENDLIQUIDITY
+LIQUIDITY	2027-02-03	2027-02-28
+REFUSED	no-selection
+ENDLIQUIDITY
+LIQUIDITY	2027-02-03	2027-02-28
+POOL	bank	jpy
+POOL	bank	jpy
+REFUSED	duplicate-selection
+ENDLIQUIDITY
+LIQUIDITY	2027-02-03	2027-02-28
+POOL	bank	jpy
+POOL	cash-usd	usd
+REFUSED	mixed-measures
+ENDLIQUIDITY
+LIQUIDITY	2027-02-03	2027-02-28
+POOL	wallet	jpy
+POOL	mystery	jpy
+REFUSED	unknown-balance:mystery
 ENDLIQUIDITY

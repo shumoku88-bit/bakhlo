@@ -14,17 +14,33 @@ type snapshot = {
   points : point list;  (** In day order. *)
 }
 
+type refusal =
+  | Bad_today  (** Today is not a real YYYY-MM-DD day. *)
+  | Bad_horizon  (** Nor is the assumed complete-through day. *)
+  | Horizon_before_today
+  | No_selection
+  | Duplicate_selection
+  | Mixed_measures  (** The chosen cells span more than one Measure. *)
+  | Unknown_balance of string * string  (** This (Locus, Measure) has no known balance. *)
+  | Overdue of { plan : string; due : string; today : string }
+      (** An open plan on the chosen cells was due before today. *)
+
+val code : refusal -> string
+(** The language-neutral reason, e.g. ["overdue:phone-2027-02"] (test/reports). *)
+
+val message : refusal -> string
+(** The reader-facing reason. *)
+
 val compute :
   Book.t ->
   today:string ->
   coords:(string * string) list ->
   assumed_complete_through:string ->
-  (snapshot, string) result
+  (snapshot, refusal) result
 (** Exact sum of every chosen (Locus, Measure) under one Measure, then every open
     plan change for the chosen Loci of that Measure up to and including
     [assumed_complete_through]. Duplicates, mixed Measures, an unknown balance,
-    invalid dates and overdue chosen changes refuse the whole query with a
-    reader-facing reason. Incoming plans raise the path; paid and cancelled plans
+    invalid dates and overdue chosen changes refuse the whole query. Incoming plans raise the path; paid and cancelled plans
     are absent. *)
 
 val final_at_horizon : snapshot -> Z.t

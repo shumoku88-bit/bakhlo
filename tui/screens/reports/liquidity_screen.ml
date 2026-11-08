@@ -54,7 +54,8 @@ let result (env : Screen.env) t =
     | Some horizon ->
         Result.bind (selection env) (fun coords ->
             Bakhlo_household.Liquidity.compute env.book ~today:env.today ~coords
-              ~assumed_complete_through:horizon)
+              ~assumed_complete_through:horizon
+            |> Result.map_error Bakhlo_household.Liquidity.message)
 
 let invalidate t draft = { t with draft; requested = false; notice = ""; scroll = 0 }
 let saved _env _geometry _result t = (t, Screen.Stay)

@@ -18,20 +18,57 @@ type snapshot = {
   points : point list;
 }
 
+type refusal =
+  | Bad_today
+  | Bad_horizon
+  | Horizon_before_today
+  | No_selection
+  | Duplicate_selection
+  | Mixed_measures
+  | Unknown_balance of string * string
+  | Overdue of { plan : string; due : string; today : string }
+
+let code = function
+  | Bad_today -> "bad-today"
+  | Bad_horizon -> "bad-horizon"
+  | Horizon_before_today -> "horizon-before-today"
+  | No_selection -> "no-selection"
+  | Duplicate_selection -> "duplicate-selection"
+  | Mixed_measures -> "mixed-measures"
+  | Unknown_balance (locus, _) -> "unknown-balance:" ^ locus
+  | Overdue { plan; _ } -> "overdue:" ^ plan
+
+let message = function
+  | Bad_today -> "Liquidity requires a real canonical today date."
+  | Bad_horizon -> "The assumed complete-through date must be a real YYYY-MM-DD calendar date."
+  | Horizon_before_today ->
+      "The assumed complete-through date is inclusive and cannot precede today."
+  | No_selection -> "Liquidity requires a nonempty balance-view.tsv selection."
+  | Duplicate_selection ->
+      "Liquidity selection contains duplicate coordinates; no partial sum is used."
+  | Mixed_measures -> "Liquidity selection spans multiple Measures; exactly one is required."
+  | Unknown_balance (locus, measure) ->
+      Printf.sprintf
+        "Selected coordinate %s (%s) has no supported current quantity; Liquidity never infers \
+         zero."
+        locus measure
+  | Overdue { plan; due; today } ->
+      Printf.sprintf
+        "Selected Scheduled plan %s is overdue (%s before today %s); Liquidity refuses to move or \
+         settle it."
+        plan due today
+
 let compute book ~today ~coords ~assumed_complete_through =
   let horizon = assumed_complete_through in
-  if not (Day.is_valid today) then Error "Liquidity requires a real canonical today date."
-  else if not (Day.is_valid horizon) then
-    Error "The assumed complete-through date must be a real YYYY-MM-DD calendar date."
-  else if String.compare horizon today < 0 then
-    Error "The assumed complete-through date is inclusive and cannot precede today."
-  else if coords = [] then Error "Liquidity requires a nonempty balance-view.tsv selection."
+  if not (Day.is_valid today) then Error Bad_today
+  else if not (Day.is_valid horizon) then Error Bad_horizon
+  else if String.compare horizon today < 0 then Error Horizon_before_today
+  else if coords = [] then Error No_selection
   else if List.length (List.sort_uniq compare coords) <> List.length coords then
-    Error "Liquidity selection contains duplicate coordinates; no partial sum is used."
+    Error Duplicate_selection
   else
     let measure = snd (List.hd coords) in
-    if List.exists (fun (_, m) -> m <> measure) coords then
-      Error "Liquidity selection spans multiple Measures; exactly one is required."
+    if List.exists (fun (_, m) -> m <> measure) coords then Error Mixed_measures
     else
       let selected = Hashtbl.create (List.length coords) in
       List.iter (fun (locus, _) -> Hashtbl.add selected locus ()) coords;
@@ -40,12 +77,7 @@ let compute book ~today ~coords ~assumed_complete_through =
         | (locus, _) :: rest -> (
             match Book.quantity book ~locus ~measure with
             | Some q -> quantities (Z.add total q.amount) rest
-            | None ->
-                Error
-                  (Printf.sprintf
-                     "Selected coordinate %s (%s) has no supported current quantity; Liquidity \
-                      never infers zero."
-                     locus measure))
+            | None -> Error (Unknown_balance (locus, measure)))
       in
       Result.bind (quantities Z.zero coords) (fun current_selected ->
           let rec changes acc = function
@@ -60,17 +92,8 @@ let compute book ~today ~coords ~assumed_complete_through =
                       Z.zero plan.changes
                 in
                 if Z.equal net Z.zero then changes acc rest
-                else if not (Day.is_valid plan.day) then
-                  Error
-                    (Printf.sprintf
-                       "Selected Scheduled plan %s has an invalid due date; Liquidity refuses."
-                       plan.id)
                 else if String.compare plan.day today < 0 then
-                  Error
-                    (Printf.sprintf
-                       "Selected Scheduled plan %s is overdue (%s before today %s); Liquidity \
-                        refuses to move or settle it."
-                       plan.id plan.day today)
+                  Error (Overdue { plan = plan.id; due = plan.day; today })
                 else if String.compare plan.day horizon > 0 then changes acc rest
                 else changes ((plan.day, net) :: acc) rest
           in

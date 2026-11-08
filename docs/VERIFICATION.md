@@ -137,6 +137,24 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
   book and the latest copy at 120×36/80×24: 69 flows each, 414 captures, all
   byte-identical; 49 and 64 distinct screens per size (samples, latest), so the
   flows were reached. Digests unchanged; owned tmux closed; `clean-copies`: exit 0.
+- Follow-up, at the user's request: report refusals as codes. Liquidity,
+  Multicurrency Spend, Stock–Flow and Trend / Locus refuse with a variant whose
+  `code` is language-neutral (`overdue:<plan>`, `no-cycle:<day>`, …) and whose
+  `message` is the screen's sentence, unchanged except two Stock–Flow date
+  sentences that still began with "loam:". Refusals an admitted book cannot reach
+  (an invalid plan or entry day, a missing exchange leg) were removed instead of
+  coded; Book refuses those on read and save. Samples: TRACK and LOCUS lines now
+  name their Measure (the TREND header lost its own), 25 new refusal questions (28 in
+  all) and two cases (no presets; two overlapping presets, with one day only one
+  covers) were written by hand. 55 report
+  answers, 0 failures on the first run; a wrong code failed, then was restored.
+- `./tools/check`, `./tools/tui --self-check`, `./tools/format --check`: exit 0.
+  Before (`4a01e8a` build) and after, fresh `./tools/compare refresh`, the same
+  `capture.sh`: 414 captures byte-identical (69 flows per dataset and size). The
+  copy and fixture digests are unchanged. The original book.txt digest changed
+  during the run: the user recorded through `./tools/household` (file 11:17:43,
+  its commit 11:17:45, the user's session still open); the AI only opened copies.
+  Owned tmux closed; `clean-copies`: exit 0.
 
 ## Record and Preview typography (2026-11-07)
 

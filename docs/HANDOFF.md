@@ -28,6 +28,8 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   (`household/income_expense.ml`, `transactions_flow.ml`, `stock_flow.ml`, `trend.ml`,
   `liquidity.ml`, `multicurrency_spend.ml`); the screens only name and format, and
   `test/reports_tests.ml` checks the samples against the core alone.
+  Report refusals are codes in the samples (`overdue:<plan>`, `no-cycle:<day>`, …);
+  the screens keep their sentences.
   [Evidence](VERIFICATION.md#scheduled-answer-samples-2026-11-08).
 
 - 2026-11-07: Record/Preview typography finishes the series' next step: exact
