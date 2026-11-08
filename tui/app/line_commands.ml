@@ -123,9 +123,11 @@ let edit_rows io book measure (given : R.form_row list) =
       | None -> row n given acc
       | Some locus ->
           let rest_of_rows = Z.neg (balance book measure rows) in
+          (* An earlier row keeps its amount, except the last one, which balances
+             whatever was changed above it. *)
           let default =
             match previous with
-            | Some r when r.amount <> "" -> r.amount
+            | Some r when r.amount <> "" && (rest <> [] || Z.equal rest_of_rows Z.zero) -> r.amount
             | _ -> if Z.equal rest_of_rows Z.zero then "" else signed book measure rest_of_rows
           in
           let prompt =
@@ -209,10 +211,16 @@ let earlier_rows book memo =
         | Ok _ | Error _ -> found)
     [] (B.entries_rev book)
 
-let as_form_rows (draft : R.t) =
+(* A form row's signed amount, grouped by three like the lists. *)
+let signed_row book (draft : R.t) (r : R.row) =
+  let sign = if r.negative then "-" else "+" in
+  match B.parse_amount book ~measure:draft.measure r.amount with
+  | Ok q -> sign ^ money book draft.measure q
+  | Error _ -> sign ^ r.amount
+
+let as_form_rows book (draft : R.t) =
   List.map
-    (fun (r : R.row) ->
-      { R.key = None; locus = r.locus; amount = (if r.negative then "-" else "+") ^ r.amount })
+    (fun (r : R.row) -> { R.key = None; locus = r.locus; amount = signed_row book draft r })
     draft.rows
 
 let record io (session : F.t) ~today =
@@ -229,11 +237,7 @@ let record io (session : F.t) ~today =
              (fun i (d : R.t) ->
                Right (string_of_int (i + 1))
                :: List.concat_map
-                    (fun (r : R.row) ->
-                      [
-                        Left (name book r.locus);
-                        Right ((if r.negative then "-" else "+") ^ r.amount);
-                      ])
+                    (fun (r : R.row) -> [ Left (name book r.locus); Right (signed_row book d r) ])
                     d.rows)
              earlier);
         Option.bind
@@ -247,7 +251,7 @@ let record io (session : F.t) ~today =
     | None, (first, _) :: _ -> ask io ~default:first "Measure"
     | None, [] -> ""
   in
-  let rows = match chosen with Some d -> as_form_rows d | None -> [] in
+  let rows = match chosen with Some d -> as_form_rows book d | None -> [] in
   compose io session ~mode:R.New ~day ~memo ~original_amount:None measure rows
 
 (* 5. `bk pay`. Open plans oldest first, by day, Loci and amounts (the plan's ID is
@@ -262,11 +266,17 @@ let plan_cells book (p : B.plan) ~today =
   @ [ Left p.measure ]
   @ if p.day < today then [ Left "overdue" ] else []
 
+let nothing_matches answer =
+  Printf.sprintf "Nothing matches %S. Type a number or the start of a name; Ctrl-D quits." answer
+
 let rec choose_plan io book plans ~today =
   let shown = List.filteri (fun i _ -> i < 9) plans in
   print_table io
     (List.mapi (fun i p -> Right (string_of_int (i + 1)) :: plan_cells book p ~today) shown);
   if List.length plans > 9 then say io "  … type the start of a name to narrow";
+  ask_plan io book plans shown ~today
+
+and ask_plan io book plans shown ~today =
   let answer = ask io ~default:"1" "Plan" in
   match int_of_string_opt answer with
   | Some n when n >= 1 && n <= List.length shown -> Some (List.nth shown (n - 1))
@@ -279,8 +289,8 @@ let rec choose_plan io book plans ~today =
       in
       match List.filter moves plans with
       | [] ->
-          say io (Printf.sprintf "No open plan moves a Locus starting with %S." answer);
-          choose_plan io book plans ~today
+          say io (nothing_matches answer);
+          ask_plan io book plans shown ~today
       | [ p ] -> Some p
       | narrowed -> choose_plan io book narrowed ~today)
 
@@ -308,12 +318,12 @@ let pay io (session : F.t) ~today =
               | Error error ->
                   say io error.Draft.message;
                   compose io session ~mode ~day ~memo ~original_amount:None draft.measure
-                    (as_form_rows draft)
+                    (as_form_rows book draft)
               | Ok tx -> (
                   match save io session tx with
                   | `Edit ->
                       compose io session ~mode ~day ~memo ~original_amount:None draft.measure
-                        (as_form_rows draft)
+                        (as_form_rows book draft)
                   | (`Saved | `Stopped) as finished -> finished))))
 
 (* 6. `bk bal` and `bk pace` print what the Balances screen (Current) and Daily
@@ -420,6 +430,9 @@ let rec choose_series io book rows ~today all =
     :: List.mapi (fun i s -> Right (string_of_int (i + 1)) :: series_cells book rows ~today s) shown
     );
   if List.length all > 9 then say io "  … type the start of a name to narrow";
+  ask_series io book rows ~today all shown
+
+and ask_series io book rows ~today all shown =
   let answer = ask io ~default:"1" "Series" in
   match int_of_string_opt answer with
   | Some n when n >= 1 && n <= List.length shown -> List.nth shown (n - 1)
@@ -432,8 +445,8 @@ let rec choose_series io book rows ~today all =
       in
       match List.filter (fun s -> moves (List.hd s)) all with
       | [] ->
-          say io (Printf.sprintf "No series moves a Locus starting with %S." answer);
-          choose_series io book rows ~today all
+          say io (nothing_matches answer);
+          ask_series io book rows ~today all shown
       | [ s ] -> s
       | narrowed -> choose_series io book rows ~today narrowed)
 

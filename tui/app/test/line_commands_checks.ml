@@ -80,6 +80,25 @@ let run_all () =
   require
     (contains after "DESC\tlunch\nEFFECT\twallet\tjpy\t-900\nEFFECT\tfood\tjpy\t900\nENDTX\nPLAN")
     "bk-r-reuses-earlier-rows";
+  (* Changing the first earlier row makes the last one offer the balance. *)
+  let result, out, after =
+    run "bk-r-changed" `Record [ ""; "lunch"; "1"; ""; "-1000"; ""; ""; ""; "" ]
+  in
+  require
+    (result = `Saved && contains out "Amount 2 [+1,000]"
+    && contains after "DESC\tlunch\nEFFECT\twallet\tjpy\t-1000\nEFFECT\tfood\tjpy\t1000\nENDTX")
+    "bk-r-last-earlier-row-balances";
+  (* An answer that matches nothing says how to quit and does not reprint the list. *)
+  let result, out, after = run "bk-pay-quit" `Pay [ "q" ] in
+  require
+    (result = `Stopped && after = book_text
+    && out
+       = "  1  2026-11-05  Bank  -80,000  Food   +80,000  jpy  overdue\n\
+         \  2  2026-11-20  Bank   -3,000  Water   +3,000  jpy\n\
+          Plan [1]: Nothing matches \"q\". Type a number or the start of a name; Ctrl-D quits.\n\
+          Plan [1]: \n\
+          Nothing was saved.\n")
+    "bk-pay-no-match-asks-again";
   (* A refused amount is worded as on the screen and the rows can be fixed. *)
   let result, out, _ =
     run "bk-r-refused" `Record

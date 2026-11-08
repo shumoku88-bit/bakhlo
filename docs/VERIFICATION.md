@@ -20,6 +20,13 @@ Solo5-SPT engine boot) at `90a5867:docs/VERIFICATION.md`.
   a missing 31st, a re-price from a day, an unchanged re-price writing nothing, and a
   chosen cancellation. All passed on the first run; a wrong missing month made the list
   check fail. `./tools/check` exited 0. Not executed: household use.
+- Follow-up from first household use (a transfer copied from earlier rows with a new
+  amount, and trying `q` to leave the plan list): the last earlier row now offers the
+  balance of the rows above it, earlier-row amounts are grouped, and an answer that
+  matches no plan or series says how to quit (Ctrl-D) without reprinting the list.
+  Checks pin both; a wrong hand line count was replaced by the whole expected text.
+  CI for `8d172e7` passed on its fifth attempt (attempts 1-4 failed at `setup-ocaml`
+  with HTTP 504, before any build step).
 
 ## Plans in series move to the core (2026-11-08)
 
