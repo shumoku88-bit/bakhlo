@@ -86,16 +86,15 @@ let config_lines text =
 let config_token s = s <> "" && String.for_all (fun c -> Char.code c > 32 && Char.code c <> 127) s
 let captured_text payload = String.sub payload 8 (String.length payload - 8)
 
-let resolve_window (env : Screen.env) =
-  Result.bind (env.config boundary_file) (function
+let window_of ~config ~today =
+  Result.bind (config boundary_file) (function
     | None -> Error "Period not configured (boundary-presets.tsv missing)."
     | Some text -> (
-        match Result.bind (Period.parse text) (Period.cycle ~day:env.today) with
-        | Error why -> Error (Period.message ~today:env.today why)
+        match Result.bind (Period.parse text) (Period.cycle ~day:today) with
+        | Error why -> Error (Period.message ~today why)
         | Ok cycle -> Ok (List.nth cycle.windows cycle.index)))
 
-let resolve_pool (env : Screen.env) =
-  let measure = env.measure in
+let pool_of ~config ~measure =
   let rec coordinates acc = function
     | [] -> if acc = [] then Error "Daily Pace pool is empty." else Ok (List.rev acc)
     | line :: rest -> (
@@ -106,20 +105,25 @@ let resolve_pool (env : Screen.env) =
                 else coordinates (coordinate :: acc) rest)
         | _ -> Error "Malformed daily-pace.tsv or mismatched Measure; no rows were skipped.")
   in
-  Result.bind (env.config pool_file) (function
+  Result.bind (config pool_file) (function
     | None -> Error "Daily Pace pool not configured (daily-pace.tsv missing)."
     | Some text -> coordinates [] (config_lines text))
 
 (* Queries *)
 
-let current_pace (env : Screen.env) =
-  Result.bind (resolve_pool env) (fun pool ->
-      Result.bind (resolve_window env) (fun (start_day, end_exclusive) ->
+let resolve_window (env : Screen.env) = window_of ~config:env.config ~today:env.today
+let resolve_pool (env : Screen.env) = pool_of ~config:env.config ~measure:env.measure
+
+let today_pace ~book ~measure ~today ~config =
+  Result.bind (pool_of ~config ~measure) (fun pool ->
+      Result.bind (window_of ~config ~today) (fun (start_day, end_exclusive) ->
           Result.map
             (fun p -> (p, start_day, end_exclusive))
             (Result.map_error Trend.format_pace_error
-               (B.daily_pace env.book ~measure:env.measure ~pool ~observed_at:env.today
-                  ~end_exclusive))))
+               (B.daily_pace book ~measure ~pool ~observed_at:today ~end_exclusive))))
+
+let current_pace (env : Screen.env) =
+  today_pace ~book:env.book ~measure:env.measure ~today:env.today ~config:env.config
 
 let samples (env : Screen.env) t =
   Result.bind (resolve_pool env) (fun pool_coords ->

@@ -6,8 +6,10 @@ let main ~run =
   try
     match Array.to_list Sys.argv with
     | [ _; "--book"; path ] -> run path
-    | [ _; "--book"; path; (("r" | "pay") as command) ] ->
-        let command = if command = "r" then `Record else `Pay in
+    | [ _; "--book"; path; (("r" | "pay" | "bal" | "pace") as command) ] ->
+        let command =
+          match command with "r" -> `Record | "pay" -> `Pay | "bal" -> `Balances | _ -> `Pace
+        in
         let today =
           let tm = Unix.localtime (Unix.time ()) in
           Printf.sprintf "%04d-%02d-%02d" (tm.Unix.tm_year + 1900) (tm.Unix.tm_mon + 1)
@@ -27,8 +29,8 @@ let main ~run =
            explicit."
     | _ ->
         prerr_endline
-          "Usage: tools/tui --book FILE [r | pay] | --check FILE | --copy-from SOURCE --book \
-           FRESH_FILE | --restore-copy-from SOURCE --book FRESH_FILE";
+          "Usage: tools/tui --book FILE [r | pay | bal | pace] | --check FILE | --copy-from SOURCE \
+           --book FRESH_FILE | --restore-copy-from SOURCE --book FRESH_FILE";
         exit 2
   with
   | F.Refused why when Array.length Sys.argv > 1 && List.mem Sys.argv.(1) [ "--restore-copy-from" ]

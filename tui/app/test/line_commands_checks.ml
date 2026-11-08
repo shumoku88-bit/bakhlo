@@ -25,6 +25,10 @@ let book_text =
       "CHANGE\tbank\t-3000";
       "CHANGE\twater\t3000";
       "ENDPLAN";
+      "ZERO-ORIGIN\twallet\tjpy";
+      "ZERO-ORIGIN\twater\tjpy";
+      "ZERO-ORIGIN\tfood\tjpy";
+      "ZERO-ORIGIN\tbank\tjpy";
       "END";
       "";
     ]
@@ -119,6 +123,36 @@ let run_all () =
     && contains (Buffer.contents out) "The book changed while you were typing"
     && F.read path = changed)
     "bk-r-conflict-writes-nothing";
+  (* `bk bal` and `bk pace` print the screens' rows from the book's config files.
+     Hand-worked: wallet -900, food +900; the pool (bank 0, wallet -900) less both
+     plans before 2026-11-25 (80,000 overdue, 3,000) leaves -83,900 over 17 days:
+     -4,935.29… floors to -4,936 a day. *)
+  Unix.mkdir "scratch/bk-print" 0o700;
+  Unix.mkdir "scratch/bk-print/config" 0o700;
+  let write name text =
+    Out_channel.with_open_bin name (fun c -> Out_channel.output_string c text)
+  in
+  write "scratch/bk-print/book.txt" book_text;
+  write "scratch/bk-print/config/daily-pace.tsv" "bank\tjpy\nwallet\tjpy\n";
+  write "scratch/bk-print/config/boundary-presets.tsv" "pay\t2026-10-25\t2026-11-25\t2026-12-25\n";
+  let printed command =
+    let io, out = script [] in
+    let result = L.run io command (F.load "scratch/bk-print/book.txt") ~today:"2026-11-08" in
+    (result, Buffer.contents out)
+  in
+  let result, out = printed `Balances in
+  require
+    (result = `Stopped && contains out "Wallet [wallet]" && contains out "-900 jpy"
+   && contains out "+900 jpy")
+    "bk-bal-prints-current-balances";
+  let result, out = printed `Pace in
+  require
+    (result = `Stopped
+    && contains out "Daily Pace 2026-11-08  (cycle 2026-10-25 .. 2026-11-25, end excluded)"
+    && contains out "-4,936 jpy/day" && contains out "-83,900 free" && contains out "17 days left")
+    "bk-pace-prints-the-breakdown";
+  require (F.read "scratch/bk-print/book.txt" = book_text) "bk-bal-and-pace-write-nothing";
   print_endline
-    "PASS: bk r and bk pay pick Loci and plans, balance rows, reuse earlier rows, word refusals as \
-     the screens, and save only after the Preview (EOF, n and conflicts write nothing)."
+    "PASS: bk r, pay, bal and pace: pick Loci and plans, balance rows, reuse earlier rows, word \
+     refusals as the screens, and save only after the Preview (EOF, n and conflicts write \
+     nothing)."

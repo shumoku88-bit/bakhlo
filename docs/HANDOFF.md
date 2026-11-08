@@ -40,7 +40,8 @@ The dated log of earlier passes is in Git at `5b48008:docs/HANDOFF.md`; evidence
   are in the [UI gap ledger](LOAM_UI_GAP_LEDGER.ja.md). Latest-data speed (2026-10-23):
   Home ~51 ms (LOAM ~242), Actual All `j` 8.8 / 7.3 ms, Daily Pace `d` 9.5 / 6.6 ms;
   synthetic 109.5k Actual Down+paint is still ~235 ms.
-- **Trial (2026-11-08):** `bk r` and `bk pay` record and pay with one-line answers instead
+- **Trial (2026-11-08):** `bk r` and `bk pay` record and pay with one-line answers, and
+  `bk bal` / `bk pace` print balances and today's pace, instead
   of the TUI. The user tries them for a week or two; TUI screens not opened in that time
   are candidates for removal.
 - **Unqualified:** P7 (persistent post-save acknowledgement), power loss, real macOS

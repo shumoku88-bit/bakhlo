@@ -250,8 +250,39 @@ let pay io (session : F.t) ~today =
                         (as_form_rows draft)
                   | (`Saved | `Stopped) as finished -> finished))))
 
+(* 6. `bk bal` and `bk pace` print what the Balances screen (Current) and Daily
+   Pace's breakdown (`?`) show, from the same configuration files, and exit. *)
+let config (session : F.t) name =
+  Shell_files.read_config ~config_home:None ~book_path:session.path name
+
+let balances io (session : F.t) =
+  let book = session.book in
+  List.iter
+    (fun item -> say io (Balance_items.balance_item_line ~book item))
+    (Balances_screen.current_items ~book ~balance_view_text:(config session "balance-view.tsv"));
+  `Stopped
+
+let pace io (session : F.t) ~today =
+  let book = session.book in
+  let measure = match B.measures book with (m, _) :: _ -> m | [] -> "" in
+  (match Daily_pace_screen.today_pace ~book ~measure ~today ~config:(config session) with
+  | Error why -> say io ("Daily Pace unavailable: " ^ why)
+  | Ok (p, start_day, end_exclusive) ->
+      say io
+        (Printf.sprintf "Daily Pace %s  (cycle %s .. %s, end excluded)" today start_day
+           end_exclusive);
+      List.iter
+        (fun (_, line) -> say io line)
+        (Daily_pace_why.lines ~width_of:Notty_render.width_of ~width:80 ~book p));
+  `Stopped
+
 let run io command (session : F.t) ~today =
-  try match command with `Record -> record io session ~today | `Pay -> pay io session ~today
+  try
+    match command with
+    | `Record -> record io session ~today
+    | `Pay -> pay io session ~today
+    | `Balances -> balances io session
+    | `Pace -> pace io session ~today
   with Quit ->
     say io "Nothing was saved.";
     `Stopped

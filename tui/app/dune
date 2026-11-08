@@ -7,6 +7,10 @@
  (libraries
   bakhlo_tui_kit
   bakhlo_tui_book
+  bakhlo_tui_shell
+  bakhlo_tui_terminal
+  bakhlo_screen_balances
+  bakhlo_screen_pace
   bakhlo.household
   bakhlo.store
   unix

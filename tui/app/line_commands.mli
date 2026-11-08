@@ -7,7 +7,14 @@
 type io = { read : unit -> string option; print : string -> unit }
 (** [read] gives one answer line, [None] at end of input. *)
 
-val run : io -> [ `Record | `Pay ] -> Book_file.t -> today:string -> [ `Saved | `Stopped ]
+val run :
+  io ->
+  [ `Record | `Pay | `Balances | `Pace ] ->
+  Book_file.t ->
+  today:string ->
+  [ `Saved | `Stopped ]
+(** [`Balances] and [`Pace] print the Balances (Current) rows and Daily Pace's
+    breakdown and save nothing. *)
 
 val terminal : io
 (** Standard input and output. *)

@@ -19,8 +19,9 @@
 # failed build keeps it and names the commit; without any binary the launcher
 # refuses. The line that names the commit names the installed one only: without
 # the stamp it says the commit is unknown.
-# Arguments go to the binary after --book: `r` records an Actual and `pay` pays a
-# plan with one-line answers (tui/app/line_commands.ml) instead of the TUI.
+# Arguments go to the binary after --book: `r` records an Actual, `pay` pays a
+# plan (one-line answers) and `bal` / `pace` print balances and today's pace
+# (tui/app/line_commands.ml) instead of opening the TUI.
 # BAKHLO_HOUSEHOLD overrides the household directory (default: ../bakhlo-data).
 set -u
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)

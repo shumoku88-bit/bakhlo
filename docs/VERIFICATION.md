@@ -23,6 +23,15 @@ Solo5-SPT engine boot) at `90a5867:docs/VERIFICATION.md`.
   a book changed meanwhile refused as a conflict. `./tools/check` exited 0. A first run
   failed on the refusal case because the editor duplicated the balance rule; the rule
   was left to the core. Not executed: IME composition in a real terminal, household use.
+- Follow-up (user request): `bk bal` prints the Balances Current rows and `bk pace` today's
+  Daily Pace with its `?` breakdown, from the same config files (the screens' pool/window
+  resolution and Current rows are now callable without a screen). A synthetic check
+  pins hand-worked answers (-83,900 free over 17 days, -4,936 a day); changing that
+  answer made the check fail.
+  One `./tools/check` run right after editing `tools/household` failed in the architecture
+  check (`Sys_error ../../tools/household`): it walks the whole tree but declares only
+  `tui/` and dune files as inputs, so it raced Dune refreshing that copy. The rerun
+  exited 0; the check's inputs are not changed in this slice.
 
 ## Lighter docs (2026-11-08)
 

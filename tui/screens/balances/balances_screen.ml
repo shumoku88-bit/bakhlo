@@ -133,13 +133,15 @@ let balance_view_coords balance_view_text =
           Ok (Some (List.map (fun (c : BalView.coordinate) -> (c.locus, c.measure)) coords))
       | Error why -> Error why)
 
+let current_items ~book ~balance_view_text =
+  match balance_view_coords balance_view_text with
+  | Ok coords -> Balance_items.current_balance_items ~book ~coords
+  | Error why -> [ Balance_items.Header_row ("Balance view unavailable: " ^ why) ]
+
 let items ~book ~measure:_ ~roles ~balance_view_text t =
   match t.mode with
   | `Accounting -> Balance_items.role_balance_items ~book ~roles
-  | `Current -> (
-      match balance_view_coords balance_view_text with
-      | Ok coords -> Balance_items.current_balance_items ~book ~coords
-      | Error why -> [ Balance_items.Header_row ("Balance view unavailable: " ^ why) ])
+  | `Current -> current_items ~book ~balance_view_text
 
 let selected_coordinate ~book ~measure ~roles ~balance_view_text t =
   let all_items = items ~book ~measure ~roles ~balance_view_text t in

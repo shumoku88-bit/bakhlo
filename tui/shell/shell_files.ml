@@ -2,8 +2,10 @@
    files (captured reads and admission-checked atomic saves). Screens only see captured bytes through Screen.env. *)
 open Shell_state
 
-let config_file_path state name =
-  let dir = Option.value ~default:(Filename.dirname state.session.F.path) state.config_home in
+(* A configuration file sits in config/ beside the book (or under the configured home)
+   when that directory holds it, else beside the book. *)
+let config_path ~config_home ~book_path name =
+  let dir = Option.value ~default:(Filename.dirname book_path) config_home in
   let nested = Filename.concat (Filename.concat dir "config") name in
   let present =
     try
@@ -15,8 +17,11 @@ let config_file_path state name =
   in
   if present then nested else Filename.concat dir name
 
-let read_pace_config state name =
-  let path = config_file_path state name in
+let config_file_path state name =
+  config_path ~config_home:state.config_home ~book_path:state.session.F.path name
+
+let read_config ~config_home ~book_path name =
+  let path = config_path ~config_home ~book_path name in
   try
     let exists =
       try
@@ -29,6 +34,9 @@ let read_pace_config state name =
   | F.Refused why | Sys_error why -> Error why
   | Unix.Unix_error (err, fn, arg) ->
       Error (Printf.sprintf "%s (%s %s)" (Unix.error_message err) fn arg)
+
+let read_pace_config state name =
+  read_config ~config_home:state.config_home ~book_path:state.session.F.path name
 
 let write_config_file state name ~expected content =
   let path = config_file_path state name in
