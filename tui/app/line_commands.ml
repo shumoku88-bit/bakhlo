@@ -37,6 +37,37 @@ let ask io ?(default = "") prompt =
 let money book measure q = Book_display.format_money book measure q
 let signed book measure q = (if Z.sign q > 0 then "+" else "") ^ money book measure q
 
+(* Lists are tables padded by display width (a wide character takes two cells):
+   text to the left, amounts to the right, two spaces between columns. *)
+type cell = Left of string | Right of string
+
+let table rows =
+  let text = function Left s | Right s -> s in
+  let width = Notty_render.width_of in
+  let widths = Array.make (List.fold_left (fun n row -> max n (List.length row)) 0 rows) 0 in
+  List.iter (List.iteri (fun i c -> widths.(i) <- max widths.(i) (width (text c)))) rows;
+  let rec trim s =
+    let n = String.length s in
+    if n > 0 && s.[n - 1] = ' ' then trim (String.sub s 0 (n - 1)) else s
+  in
+  List.map
+    (fun row ->
+      trim
+        ("  "
+        ^ String.concat "  "
+            (List.mapi
+               (fun i c ->
+                 let gap = String.make (widths.(i) - width (text c)) ' ' in
+                 match c with Left s -> s ^ gap | Right s -> gap ^ s)
+               row)))
+    rows
+
+let print_table io rows = List.iter (say io) (table rows)
+
+let name book locus =
+  let label = B.label book locus in
+  if label = "" || label = locus then locus else label
+
 (* 1. Choosing a Locus: the screens' candidates (approved Loci whose ID or label
    starts with the answer, an exact ID first). One candidate is taken at once;
    several are numbered, and the next answer is a number or a longer start. *)
@@ -49,9 +80,10 @@ let rec choose_locus io book query =
       None
   | many -> (
       let shown = List.filteri (fun i _ -> i < 9) many in
-      List.iteri
-        (fun i id -> say io (Printf.sprintf "  %d  %s  %s" (i + 1) id (B.label book id)))
-        shown;
+      print_table io
+        (List.mapi
+           (fun i id -> [ Right (string_of_int (i + 1)); Left id; Left (name book id) ])
+           shown);
       if List.length many > 9 then say io "  … type more letters to narrow";
       let answer = ask io "Number or more letters" in
       match int_of_string_opt answer with
@@ -169,16 +201,18 @@ let record io (session : F.t) ~today =
     match earlier with
     | [] -> None
     | _ ->
-        List.iteri
-          (fun i (d : R.t) ->
-            say io
-              (Printf.sprintf "  %d  %s" (i + 1)
-                 (String.concat "  "
-                    (List.map
-                       (fun (r : R.row) ->
-                         r.locus ^ " " ^ (if r.negative then "-" else "+") ^ r.amount)
-                       d.rows))))
-          earlier;
+        print_table io
+          (List.mapi
+             (fun i (d : R.t) ->
+               Right (string_of_int (i + 1))
+               :: List.concat_map
+                    (fun (r : R.row) ->
+                      [
+                        Left (name book r.locus);
+                        Right ((if r.negative then "-" else "+") ^ r.amount);
+                      ])
+                    d.rows)
+             earlier);
         Option.bind
           (int_of_string_opt (ask io "Same rows as before? (number, Enter for new)"))
           (fun n -> List.nth_opt earlier (n - 1))
@@ -195,17 +229,18 @@ let record io (session : F.t) ~today =
 
 (* 5. `bk pay`. Open plans oldest first; the chosen plan's rows are the
    defaults, so Enter through the Preview pays it as planned. *)
-let plan_line book (p : B.plan) ~today =
-  let rows =
-    String.concat "  "
-      (List.map (fun (locus, q) -> locus ^ " " ^ signed book p.measure q) p.changes)
-  in
-  Printf.sprintf "%s  %s  %s %s%s" p.day p.id rows p.measure
-    (if p.day < today then "  overdue" else "")
+let plan_cells book (p : B.plan) ~today =
+  [ Left p.day; Left p.id ]
+  @ List.concat_map
+      (fun (locus, q) -> [ Left (name book locus); Right (signed book p.measure q) ])
+      p.changes
+  @ [ Left p.measure ]
+  @ if p.day < today then [ Left "overdue" ] else []
 
 let rec choose_plan io book plans ~today =
   let shown = List.filteri (fun i _ -> i < 9) plans in
-  List.iteri (fun i p -> say io (Printf.sprintf "  %d  %s" (i + 1) (plan_line book p ~today))) shown;
+  print_table io
+    (List.mapi (fun i p -> Right (string_of_int (i + 1)) :: plan_cells book p ~today) shown);
   if List.length plans > 9 then say io "  … type the start of an ID to narrow";
   let answer = ask io ~default:"1" "Plan" in
   match int_of_string_opt answer with
@@ -257,8 +292,28 @@ let config (session : F.t) name =
 
 let balances io (session : F.t) =
   let book = session.book in
-  List.iter
-    (fun item -> say io (Balance_items.balance_item_line ~book item))
+  let account = function
+    | Balance_items.Account_row { locus; measure; value; _ } ->
+        let label = B.label book locus in
+        let shown = if label = "" || label = locus then locus else label ^ " [" ^ locus ^ "]" in
+        Some
+          (match value with
+          | Book_display.Exact n -> [ Left shown; Right (signed book measure n); Left measure ]
+          | Book_display.Unsupported -> [ Left shown; Right "?"; Left measure; Left "unsupported" ])
+    | _ -> None
+  in
+  (* Accounts are one table; anything else (a refused balance view) is printed as is. *)
+  let rec print pending = function
+    | [] -> print_table io (List.rev pending)
+    | item :: rest -> (
+        match account item with
+        | Some row -> print (row :: pending) rest
+        | None ->
+            print_table io (List.rev pending);
+            say io (Balance_items.balance_item_line ~width_of:Notty_render.width_of ~book item);
+            print [] rest)
+  in
+  print []
     (Balances_screen.current_items ~book ~balance_view_text:(config session "balance-view.tsv"));
   `Stopped
 

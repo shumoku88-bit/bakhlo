@@ -13,6 +13,7 @@ let book_text =
       "LOCUS\twater\tWater\t";
       "LOCUS\tfood\tFood\t";
       "LOCUS\tbank\tBank\t";
+      "LOCUS\tcard\tカード\t";
       "TX\tt1\t2026-11-01\tDESC\tlunch";
       "EFFECT\twallet\tjpy\t-900";
       "EFFECT\tfood\tjpy\t900";
@@ -29,6 +30,7 @@ let book_text =
       "ZERO-ORIGIN\twater\tjpy";
       "ZERO-ORIGIN\tfood\tjpy";
       "ZERO-ORIGIN\tbank\tjpy";
+      "ZERO-ORIGIN\tcard\tjpy";
       "END";
       "";
     ]
@@ -64,7 +66,7 @@ let run_all () =
     run "bk-r" `Record [ ""; "ramen"; "wa"; "1"; "-1200"; "fo"; ""; ""; "" ]
   in
   require (result = `Saved) "bk-r-saves";
-  require (contains out "  1  wallet  Wallet\n  2  water  Water") "bk-r-numbers-several-loci";
+  require (contains out "  1  wallet  Wallet\n  2  water   Water") "bk-r-numbers-several-loci";
   require (contains out "Amount 2 [+1,200]") "bk-r-offers-the-balancing-amount";
   require
     (contains after
@@ -72,7 +74,9 @@ let run_all () =
     "bk-r-writes-the-entry";
   (* A memo recorded before offers its rows. *)
   let result, out, after = run "bk-r-again" `Record [ ""; "lunch"; "1"; ""; ""; ""; ""; ""; "" ] in
-  require (result = `Saved && contains out "  1  wallet -900  food +900") "bk-r-offers-earlier-rows";
+  require
+    (result = `Saved && contains out "  1  Wallet  -900  Food  +900")
+    "bk-r-offers-earlier-rows";
   require
     (contains after "DESC\tlunch\nEFFECT\twallet\tjpy\t-900\nEFFECT\tfood\tjpy\t900\nENDTX\nPLAN")
     "bk-r-reuses-earlier-rows";
@@ -94,7 +98,10 @@ let run_all () =
   (* Enter through `bk pay` pays the oldest open plan as planned. *)
   let result, out, after = run "bk-pay" `Pay [ ""; ""; ""; "" ] in
   require
-    (result = `Saved && contains out "rent-11  bank -80,000  food +80,000 jpy  overdue")
+    (result = `Saved
+    && contains out
+         "  1  2026-11-05  rent-11   Bank  -80,000  Food   +80,000  jpy  overdue\n\
+         \  2  2026-11-20  phone-11  Bank   -3,000  Water   +3,000  jpy\n")
     "bk-pay-lists-overdue-first";
   require (contains after "CHANGE\tfood\t80000\nPAID-BY\t") "bk-pay-links-the-plan";
   (* `e` edits the plan's rows before saving: another amount still completes it. *)
@@ -126,7 +133,7 @@ let run_all () =
   (* `bk bal` and `bk pace` print the screens' rows from the book's config files.
      Hand-worked: wallet -900, food +900; the pool (bank 0, wallet -900) less both
      plans before 2026-11-25 (80,000 overdue, 3,000) leaves -83,900 over 17 days:
-     -4,935.29… floors to -4,936 a day. *)
+     -4,935.29â¦ floors to -4,936 a day. *)
   Unix.mkdir "scratch/bk-print" 0o700;
   Unix.mkdir "scratch/bk-print/config" 0o700;
   let write name text =
@@ -142,8 +149,10 @@ let run_all () =
   in
   let result, out = printed `Balances in
   require
-    (result = `Stopped && contains out "Wallet [wallet]" && contains out "-900 jpy"
-   && contains out "+900 jpy")
+    (result = `Stopped
+    && contains out "  Wallet [wallet]  -900  jpy\n"
+    && contains out "  Food [food]      +900  jpy\n"
+    && contains out "  カード [card]       0  jpy\n")
     "bk-bal-prints-current-balances";
   let result, out = printed `Pace in
   require

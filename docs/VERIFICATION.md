@@ -32,6 +32,12 @@ Solo5-SPT engine boot) at `90a5867:docs/VERIFICATION.md`.
   check (`Sys_error ../../tools/household`): it walks the whole tree but declares only
   `tui/` and dune files as inputs, so it raced Dune refreshing that copy. The rerun
   exited 0; the check's inputs are not changed in this slice.
+- Follow-up (user report: `bk bal` and the plan lists were hard to read): lists are now
+  tables padded by display width (a wide character takes two cells), text left and
+  amounts right, so Japanese names no longer shift the columns and long names are not
+  cut. Covers `bk bal`, the plan list of `bk pay`, the Locus choices and earlier rows of
+  `bk r`. The synthetic checks pin hand-built lines, including a Japanese-named Locus;
+  one extra space there made the check fail.
 
 ## Lighter docs (2026-11-08)
 
