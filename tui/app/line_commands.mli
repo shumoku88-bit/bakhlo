@@ -1,7 +1,7 @@
 (** [bk r] and [bk pay]: record an Actual or pay a plan with one-line answers.
 
-    The household core decides (Record), the screens' wording and Preview are
-    reused (Draft, Book_display) and Book_file saves against the session as it
+    The household core decides (Record), the screens' wording is reused (Draft),
+    lists and the Preview name Loci by display name and Book_file saves against the session as it
     was loaded. Nothing is saved before the Preview is confirmed. *)
 
 type io = { read : unit -> string option; print : string -> unit }

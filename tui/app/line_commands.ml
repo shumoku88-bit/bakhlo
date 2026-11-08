@@ -12,7 +12,7 @@
 
    Each answer is a whole line, so an input method composes it as usual. The
    rules are the household core's (Record), the refusals are worded as on the
-   screens (Draft), the Preview is the screens' Preview and the save is
+   screens (Draft), the Preview names things by display name only and the save is
    Book_file's, against the book as it was loaded: a book changed meanwhile is a
    conflict, never overwritten. Nothing is saved before the Preview is
    confirmed; end of input (Ctrl-D) leaves the book as it was. *)
@@ -138,11 +138,27 @@ let edit_rows io book measure (given : R.form_row list) =
   in
   row 1 given []
 
-(* 3. Preview and save. The Preview lines are the screens'; Enter saves. *)
+(* 3. Preview and save. The Preview names what is saved by display names only (the
+   IDs are internal): the plan it pays, the day and memo, and each row. Enter saves. *)
+let preview io book (tx : R.transaction) =
+  let e = tx.entry in
+  (match tx.plan with
+  | None -> ()
+  | Some id -> (
+      match List.find_opt (fun (p : B.plan) -> p.id = id) (B.plans book) with
+      | Some p -> say io ("  Pays the plan due " ^ p.day)
+      | None -> say io "  Pays a plan"));
+  say io (Printf.sprintf "  %s  %s" e.day (Option.value ~default:"(no memo)" e.memo));
+  print_table io
+    (List.map
+       (fun (p : B.posting) ->
+         [ Left (name book p.locus); Right (signed book p.measure p.amount); Left p.measure ])
+       e.effects)
+
 let save io (session : F.t) (tx : R.transaction) =
   let book = session.book in
   say io "";
-  List.iter (fun (_, line) -> say io ("  " ^ line)) (Book_display.preview_rows book tx);
+  preview io book tx;
   say io "";
   match String.lowercase_ascii (ask io ~default:"y" "Save? (y / n / e to edit)") with
   | "y" | "yes" -> (
@@ -150,7 +166,7 @@ let save io (session : F.t) (tx : R.transaction) =
         F.publish session [ B.Put_entry { replace = tx.replace; entry = tx.entry; plan = tx.plan } ]
       with
       | F.Written _ ->
-          say io ("Saved " ^ tx.entry.id ^ ".");
+          say io "Saved.";
           `Saved
       | F.Conflict ->
           say io "The book changed while you were typing; nothing was saved. Run it again.";

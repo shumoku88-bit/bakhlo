@@ -104,6 +104,18 @@ let run_all () =
          \  2  2026-11-20  Bank   -3,000  Water   +3,000  jpy\n")
     "bk-pay-lists-overdue-first";
   require (contains after "CHANGE\tfood\t80000\nPAID-BY\t") "bk-pay-links-the-plan";
+  (* The Preview names the plan by its due day and each row by display name; no IDs. *)
+  require
+    (contains out
+       "\n\
+       \  Pays the plan due 2026-11-05\n\
+       \  2026-11-08  (no memo)\n\
+       \  Bank  -80,000  jpy\n\
+       \  Food  +80,000  jpy\n\n\
+        Save? (y / n / e to edit) [y]: Saved.\n"
+    && (not (contains out "rent-11"))
+    && not (contains out "entry-"))
+    "bk-pay-preview-without-ids";
   (* `e` edits the plan's rows before saving: another amount still completes it. *)
   let result, _, after =
     run "bk-pay-edit" `Pay [ "wat"; ""; "phone"; "e"; ""; "-2800"; ""; "+2800"; ""; "" ]

@@ -47,6 +47,10 @@ Solo5-SPT engine boot) at `90a5867:docs/VERIFICATION.md`.
   plans moving a Locus whose display name or ID starts with the answer. Narrowing by a
   plan ID prefix no longer selects (checked by reverting the check's input). The
   Preview still names the plan, as on the screen.
+- Follow-up (user request): `bk` has its own Preview without IDs: the plan it pays by
+  its due day, the day and memo, and each row by display name (the screens' Preview,
+  with plan, entry and Locus IDs, is unchanged in the TUI); "Saved." no longer names
+  the new entry ID. A hand-written Preview is pinned; a wrong due day made it fail.
 
 ## Lighter docs (2026-11-08)
 
