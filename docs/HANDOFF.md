@@ -18,8 +18,8 @@ The dated log of earlier passes is in Git at `5b48008:docs/HANDOFF.md`; evidence
 - **Storage.** One `book.txt` in the common format with LOAM (`docs/COMMON_FORMAT.ja.md`,
   reader/printer `book_txt/`), rewritten whole on every save after `Book_txt.change` admits
   only what changed; a save orders the new file with `F_BARRIERFSYNC` and flushes the drive
-  cache once with `F_FULLFSYNC` (~21 ms). Synthetic save 26 ms at 1,000 entries (about the
-  household's size; target 100 ms), 150 ms at 109,500 (recorded only); cold load 1.9 s at
+  cache once with `F_FULLFSYNC` (~21 ms). Synthetic save 26 ms at 1,000 entries, 150 ms at 109,500
+  (the target is 100 ms at the household's size; the 30-year size is recorded only); cold load 1.9 s at
   109,500 (reviewed only when felt slow).
 - **Household core.** `household/` owns every household rule: `Book` (entries, plans,
   balances, Daily Pace, past paces), `Record` (the Record form), `Amount`, `Day`, `Period`

@@ -47,8 +47,7 @@ human acceptance and P7/power loss apart. What changed and why is that commit's 
 - qemacs's save (read in `buffer.c`): renames the old file to `file~`, writes in place,
   requests no flush and detects outside changes by mtime and size only. None of it is
   adopted: Bakhlo's flushes and content checks are user decisions or intentional.
-- Not executed: a save on a copy of the household book (a write flow); its size is
-  close to the 1,000-entry book.
+- Not executed: a save on a copy of the household book (a write flow).
 
 ## Display widths against Unicode 16.0 (2026-11-09)
 
