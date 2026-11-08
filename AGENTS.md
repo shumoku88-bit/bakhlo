@@ -70,20 +70,22 @@ HANDOFF or the ledgers and evidence in `docs/VERIFICATION.md`, never here.
 
 ## Product
 
-- Reproduce LOAM's user-facing non-budget functionality, appearance and interaction
-  (recording/editing, plans, balances, Daily Pace, reports, hierarchical Commands).
-  User decision (2026-10-22): no Calendar; the bonsai Home opens Actual, whose period
-  windows (Cycle / Month / Year) are where periods are browsed and chosen.
+- User decision (2026-11-08): the household uses Bakhlo through `bk` line commands, not a
+  full-screen TUI. The TUI is removed once every operation the household uses has a
+  command; LOAM's screens are no longer reproduced. LOAM stays the behavioral reference
+  for what can be recorded and seen (recording/editing, plans, balances, Daily Pace,
+  reports), not for appearance. Commands ask one line at a time, show a Preview before
+  every save, name things by display name (IDs are internal), align tables by display
+  width and word refusals in one place. Universally useful defaults known from hledger
+  (queries by account, period, memo and amount; a register with running balances; period
+  columns) are welcome, implemented in Bakhlo with nothing depending on hledger.
   Budget allocation/transfer/consumption/routing and the Budget Window wait until
   actually needed — no speculative budget code. Fava and
   hledger export are out of scope (other output/diagnostics are not, without a
   separate decision). Internal structures need not match LOAM; observable results and
   safety behavior must. Cutover is a separate decision (`docs/CUTOVER_CHECKLIST.ja.md`).
-- Today's spending guide is LOAM Home `d` Daily Pace. `docs/UI_DIRECTION.ja.md` owns UI
-  policy: English first (Japanese undecided), Notty terminal (user decision 2026-10-21:
-  Bonsai_term was replaced; Bonsai is explored outside Bakhlo), quiet colors, stable
-  geometry, preserved drafts/selection, visible safety errors. Share UI mechanics only
-  when current callers justify it (`tui/README.md`).
+- Today's spending guide is Daily Pace (`bk pace`). Until the TUI is removed,
+  `docs/UI_DIRECTION.ja.md` and `tui/README.md` describe it; English first.
 - Reports (user decision 2026-10-22): improve on LOAM rather than copy it, keeping
   what LOAM did well (Trend look, I&E summary with Scheduled split, period compare).
   Order reports by what the household's data shows matters; default to the configured
@@ -92,8 +94,8 @@ HANDOFF or the ledgers and evidence in `docs/VERIFICATION.md`, never here.
 - Exact quantities, distinct currencies, unknown versus zero, real refunds and
   cancellations matter. Never guess facts, round amounts, trim identities or skip
   unsupported input. Preserve payment-plan links and stable IDs.
-- Use observed household needs to order work, not to drop LOAM features from the
-  parity inventory. Do not infer missing operations from memo/sign/amount, or treat
+- Order work by what the household uses; a LOAM feature the household never uses is
+  dropped only by the user's decision. Do not infer missing operations from memo/sign/amount, or treat
   retained rows as UI usage frequency.
 
 ## Storage (user decision: 2026-10-20)
