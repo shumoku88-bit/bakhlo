@@ -7,9 +7,19 @@ toolchain. This file keeps the last week's entries (from 2026-11-02); entries fr
 2026-10-31 are in Git at `5b48008:docs/VERIFICATION.md`, earlier ones (including the bounded
 Solo5-SPT engine boot) at `90a5867:docs/VERIFICATION.md`.
 
-From 2026-11-09 (user decision) an entry names its commit and says what ran and its
+From 2026-11-09 (user decision) an entry names its commit (or comes in it) and says what ran and its
 result, keeping synthetic checks, CI, latest-data paired comparison, physical terminal/IME,
 human acceptance and P7/power loss apart. What changed and why is that commit's message.
+
+## Display widths against Unicode 16.0 (2026-11-09)
+
+- Compared `Width.cells` with widths from Unicode 16.0.0 `EastAsianWidth.txt` (SHA-256
+  `43adc76c…5d5b`; W/F two, Mn/Me none, the rest one, as qemacs's generator): about
+  10,900 code points in 464 ranges differ (scripts and file in ignored scratch).
+- Latest-data check, read only: a fresh `./tools/compare refresh` copy of the household
+  book.txt and config has no character whose width differs. The household was unchanged;
+  `clean-copies` ran afterwards.
+- Not executed: alignment in a physical terminal (WezTerm's own width rules).
 
 ## The startup probe is built by dune (a15187d, 2026-11-09)
 

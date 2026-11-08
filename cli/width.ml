@@ -1,6 +1,12 @@
 (* How many terminal cells a string takes, so tables line up. East Asian wide and
    fullwidth characters (kanji, kana, hangul, fullwidth forms, most emoji) take two
-   cells, combining marks and zero-width characters none, everything else one. *)
+   cells, combining marks and zero-width characters none, everything else one.
+
+   The ranges are picked by hand, not generated. Against Unicode 16.0's
+   EastAsianWidth.txt (wide or fullwidth: two; a combining mark: none) they differ
+   for about 10,900 code points, for example ☕ U+2615 (two, here one), the kana
+   voicing marks U+3099–309A (none, here two) and the ideographic variation
+   selectors U+E0100–E01EF (none, here one). *)
 let wide =
   [
     (0x1100, 0x115F);

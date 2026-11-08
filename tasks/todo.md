@@ -12,7 +12,6 @@
 ## 次
 
 - qemacsの作者たちの開発から学んで直す（2026-11-09から、順に）：
-  - 5 依存を持たないこと：Unicodeの表をデータから生成するqemacsと、`cli/width.ml`の表示幅の表を比べる。
   - 6 小ささと速さ：保存は合成109,500件で164 ms（目標100 msを超える）、起動1.9 s。qemacsの
     バッファ表現（ページ・mmap）を参考に、測ってから見る。
   - 最後に、Bellardの作品（QuickJS・TCCなど）を読む。
@@ -27,6 +26,8 @@
 - `bk`の速さ：遅く感じたら、全件走査・sortの費用を測ってから決める。追加のGADT化は勧めない
   （調査はGitの`5b48008:docs/PERFORMANCE_AND_GADT_STUDY.ja.md`）。
 - 予算配分・振替・消化・routing・Budget Window：必要になるまで作らない。
+- 表示幅：表が1文字でもずれたら、`cli/width.ml`の手で選んだ範囲を、qemacsのように版の名前つきで
+  EastAsianWidth.txtから生成した表に替える（違いはそのファイルの冒頭）。
 
 ## 要判断
 
