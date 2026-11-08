@@ -234,10 +234,12 @@ let record io (session : F.t) ~today =
   let rows = match chosen with Some d -> as_form_rows d | None -> [] in
   compose io session ~mode:R.New ~day ~memo ~original_amount:None measure rows
 
-(* 5. `bk pay`. Open plans oldest first; the chosen plan's rows are the
-   defaults, so Enter through the Preview pays it as planned. *)
+(* 5. `bk pay`. Open plans oldest first, by day, Loci and amounts (the plan's ID is
+   internal and not shown); the chosen plan's rows are the defaults, so Enter
+   through the Preview pays it as planned. A name narrows the list to the plans
+   moving a Locus whose display name or ID starts with it. *)
 let plan_cells book (p : B.plan) ~today =
-  [ Left p.day; Left p.id ]
+  [ Left p.day ]
   @ List.concat_map
       (fun (locus, q) -> [ Left (name book locus); Right (signed book p.measure q) ])
       p.changes
@@ -248,14 +250,20 @@ let rec choose_plan io book plans ~today =
   let shown = List.filteri (fun i _ -> i < 9) plans in
   print_table io
     (List.mapi (fun i p -> Right (string_of_int (i + 1)) :: plan_cells book p ~today) shown);
-  if List.length plans > 9 then say io "  … type the start of an ID to narrow";
+  if List.length plans > 9 then say io "  … type the start of a name to narrow";
   let answer = ask io ~default:"1" "Plan" in
   match int_of_string_opt answer with
   | Some n when n >= 1 && n <= List.length shown -> Some (List.nth shown (n - 1))
   | _ -> (
-      match List.filter (fun (p : B.plan) -> String.starts_with ~prefix:answer p.id) plans with
+      let starts text =
+        String.starts_with ~prefix:(String.lowercase_ascii answer) (String.lowercase_ascii text)
+      in
+      let moves (p : B.plan) =
+        List.exists (fun (locus, _) -> starts locus || starts (B.label book locus)) p.changes
+      in
+      match List.filter moves plans with
       | [] ->
-          say io (Printf.sprintf "No open plan starts with %S." answer);
+          say io (Printf.sprintf "No open plan moves a Locus starting with %S." answer);
           choose_plan io book plans ~today
       | [ p ] -> Some p
       | narrowed -> choose_plan io book narrowed ~today)

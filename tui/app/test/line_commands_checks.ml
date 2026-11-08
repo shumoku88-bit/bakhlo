@@ -100,13 +100,13 @@ let run_all () =
   require
     (result = `Saved
     && contains out
-         "  1  2026-11-05  rent-11   Bank  -80,000  Food   +80,000  jpy  overdue\n\
-         \  2  2026-11-20  phone-11  Bank   -3,000  Water   +3,000  jpy\n")
+         "  1  2026-11-05  Bank  -80,000  Food   +80,000  jpy  overdue\n\
+         \  2  2026-11-20  Bank   -3,000  Water   +3,000  jpy\n")
     "bk-pay-lists-overdue-first";
   require (contains after "CHANGE\tfood\t80000\nPAID-BY\t") "bk-pay-links-the-plan";
   (* `e` edits the plan's rows before saving: another amount still completes it. *)
   let result, _, after =
-    run "bk-pay-edit" `Pay [ "ph"; ""; "phone"; "e"; ""; "-2800"; ""; "+2800"; ""; "" ]
+    run "bk-pay-edit" `Pay [ "wat"; ""; "phone"; "e"; ""; "-2800"; ""; "+2800"; ""; "" ]
   in
   require
     (result = `Saved

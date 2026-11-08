@@ -42,6 +42,11 @@ Solo5-SPT engine boot) at `90a5867:docs/VERIFICATION.md`.
   a Locus by its display name only; the ID (the book's internal name) is added only when
   two Loci share a label, and a Locus whose label is its ID shows the ID. Pinned by a
   synthetic book with a shared label; one extra space there made the check fail.
+- Follow-up (user decision): the `bk pay` list drops the plan ID (internal, e.g. an
+  imported `scheduled-NN`): a plan is its day, Loci and amounts, and typing narrows to
+  plans moving a Locus whose display name or ID starts with the answer. Narrowing by a
+  plan ID prefix no longer selects (checked by reverting the check's input). The
+  Preview still names the plan, as on the screen.
 
 ## Lighter docs (2026-11-08)
 
