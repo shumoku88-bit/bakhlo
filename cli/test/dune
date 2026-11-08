@@ -1,10 +1,27 @@
-; Every bk command on synthetic books (cli_checks.ml).
+; Every bk command on synthetic books (cli_checks.ml), and what every read-only
+; command shows on one synthetic year (views.ml against views.expected).
 
 (executable
  (name cli_checks)
+ (modules cli_checks line_commands_checks)
  (libraries bakhlo_cli bakhlo.household bakhlo.store base unix zarith))
 
 (rule
  (alias runtest)
  (action
   (run %{exe:cli_checks.exe})))
+
+(executable
+ (name views)
+ (modules views)
+ (libraries bakhlo_cli bakhlo.store unix))
+
+(rule
+ (with-stdout-to
+  views.out
+  (run %{exe:views.exe})))
+
+(rule
+ (alias runtest)
+ (action
+  (diff views.expected views.out)))

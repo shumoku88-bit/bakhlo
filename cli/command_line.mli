@@ -1,33 +1,12 @@
-val commands :
-  (string list
-  * (string list ->
-    [ `Record
-    | `Pay
-    | `Balances
-    | `Pace
-    | `Plans of [ `List | `More | `Amount | `Cancel ]
-    | `Find of string list
-    | `Edit of string list
-    | `Date of string list
-    | `Refund of string list
-    | `Shop of string list
-    | `Check
-    | `Loci of [ `List | `Add | `Name | `Role ]
-    | `Pace_pool
-    | `Pace_cycle
-    | `Pace_if of string list
-    | `Pace_target
-    | `Fx
-    | `Todo of [ `List | `Add | `Done | `Drop ]
-    | `Register of string list
-    | `Month of string list
-    | `Report_ie of string list
-    | `Day of string list ]
-    option)
-  * string)
-  list
+type command = Line_commands.command
+(** What a bk command runs. *)
+
+val commands : (string list * (string list -> command option) * string) list
 (** The bk commands after the book: their words, what runs given the words after
     them ([None] when they take none) and one line about it. *)
+
+val line_command : string list -> command option
+(** The command the words after the book name, as [bk] reads them. *)
 
 val help : string
 (** Every command with its line, for [bk help] and an unknown command. *)

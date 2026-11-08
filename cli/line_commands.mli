@@ -7,8 +7,7 @@
 type io = { read : unit -> string option; print : string -> unit }
 (** [read] gives one answer line, [None] at end of input. *)
 
-val run :
-  io ->
+type command =
   [ `Record
   | `Pay
   | `Balances
@@ -30,10 +29,10 @@ val run :
   | `Register of string list
   | `Month of string list
   | `Report_ie of string list
-  | `Day of string list ] ->
-  Book_file.t ->
-  today:string ->
-  [ `Saved | `Stopped ]
+  | `Day of string list ]
+(** What a bk command runs. *)
+
+val run : io -> command -> Book_file.t -> today:string -> [ `Saved | `Stopped ]
 (** [`Balances] and [`Pace] print the Balances (Current) rows and Daily Pace's
     breakdown and save nothing. [`Plans] lists plans in series, or fills,
     re-prices or cancels one series after a Preview. *)

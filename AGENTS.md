@@ -57,10 +57,12 @@ and what ran with its result in `docs/VERIFICATION.md`, never here.
   workflow is in Git up to `dafc35c`).
 - `./tools/household-copy refresh` copies `../bakhlo-data/book.txt` and `config/` into a
   new generation under `scratch/household-copy` (read only; a household changed while
-  copying is refused and the previous CURRENT stays). For a Core change affecting
-  displayed answers, run the affected bk commands (`./ui`) on that one generation before
-  and after. Read-only flows only unless the user explicitly asks for writes; verify the
-  household's bytes are unchanged afterwards.
+  copying is refused and the previous CURRENT stays). Every view's before and after on
+  a synthetic year is `cli/test/views.expected` (user decision 2026-11-09, as FFmpeg
+  diffs its outputs against a reference); run the affected bk commands (`./ui`) on a
+  household copy before and after only when real data can show what the synthetic
+  year cannot. Read-only flows only unless the user explicitly asks for writes; verify
+  the household's bytes are unchanged afterwards.
 - Then close only the AI's processes and run `./tools/household-copy clean-copies` (keeps
   the selected generation). Never fall back to originals or an old copy.
 - Keep private inputs and results in ignored scratch; record only build identity,

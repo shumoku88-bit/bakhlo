@@ -67,4 +67,6 @@
 ```
 
 `cli/test/line_commands_checks.ml` が全コマンドを合成の帳簿と台本の入力で確かめる。
+`cli/test/views.ml` は合成した1年分の家計で、読むだけのコマンドの表示を全部
+`cli/test/views.expected` と比べる（表示を変えたら差分を読んで `dune promote`）。
 実際の端末での日本語入力（IME）は確かめていない。

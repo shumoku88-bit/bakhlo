@@ -7,12 +7,11 @@
 
 ## 不具合
 
-- 今は知られていない。
+- `bk loci` は全口座を帳簿の最初のMeasureでしか出さない：ドル建ての口座が「unknown jpy」になり、
+  ドルの残高が見えない（`cli/test/views.expected` の `$ bk loci`、`USD cash`の行）。
 
 ## 次
 
-- qemacsの作者たちの開発から学んで直す（2026-11-09から、順に）：
-  - 最後に、Bellardの作品（QuickJS・TCCなど）を読む。
 - 家計で日々足りないと感じたもの（気づいたらここに足す）。
 - 認められたMeasure・Locusの型（2026-10-28に設計で止めた）：再開はGitの
   `5b48008:docs/ADMITTED_TYPES_STUDY.ja.md`から。

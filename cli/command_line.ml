@@ -2,6 +2,8 @@
    checked copies. *)
 module F = Book_file
 
+type command = Line_commands.command
+
 (* The bk commands: one table both dispatches them and lists them (bk help). A
    command either takes no more words or takes the rest as find terms. *)
 let fixed command = function [] -> Some command | _ :: _ -> None

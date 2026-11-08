@@ -11,6 +11,17 @@ From 2026-11-09 (user decision) an entry names its commit (or comes in it) and s
 result, keeping synthetic checks, CI, latest-data checks, physical terminal/IME,
 human acceptance and P7/power loss apart. What changed and why is that commit's message.
 
+## Every view against a synthetic year (2026-11-09)
+
+- `cli/test/views.ml` generated its year (305 records, 33 plans, an exchange, an
+  original amount, a refund, matters and the four settings files) and printed 18
+  read-only commands; all admitted and ran, 272 lines, written to `views.expected`.
+- `./tools/check` passed with it; with one character of `views.expected` changed it
+  failed (exit 1) on the diff, and `dune promote` restored the reference.
+  `./tools/format --check` and `./tools/privacy-scan` passed.
+- Found by reading the output: `bk loci` shows a dollar account as "unknown jpy"
+  (in tasks/todo.md).
+
 ## A barrier before the rename, one full flush (2026-11-09)
 
 - Throwaway step timings (scratch, median of 21, two runs each): the first sync as

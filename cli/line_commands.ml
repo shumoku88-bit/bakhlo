@@ -22,6 +22,30 @@ module F = Book_file
 
 type io = { read : unit -> string option; print : string -> unit }
 
+type command =
+  [ `Record
+  | `Pay
+  | `Balances
+  | `Pace
+  | `Plans of [ `List | `More | `Amount | `Cancel ]
+  | `Find of string list
+  | `Edit of string list
+  | `Date of string list
+  | `Refund of string list
+  | `Shop of string list
+  | `Check
+  | `Loci of [ `List | `Add | `Name | `Role ]
+  | `Pace_pool
+  | `Pace_cycle
+  | `Pace_if of string list
+  | `Pace_target
+  | `Fx
+  | `Todo of [ `List | `Add | `Done | `Drop ]
+  | `Register of string list
+  | `Month of string list
+  | `Report_ie of string list
+  | `Day of string list ]
+
 exception Quit
 
 let say io line = io.print (line ^ "\n")
@@ -1644,7 +1668,7 @@ let rec again io (session : F.t) ~today ~saved ~question step =
       | _ -> `Saved)
   | `Stopped -> if saved then `Saved else `Stopped
 
-let run io command (session : F.t) ~today =
+let run io (command : command) (session : F.t) ~today =
   try
     match command with
     | `Record -> again io session ~today ~saved:false ~question:"Record another? (y / n)" record
