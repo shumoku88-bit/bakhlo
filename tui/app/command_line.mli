@@ -1,14 +1,21 @@
 val commands :
   (string list
-  * [ `Record
+  * (string list ->
+    [ `Record
     | `Pay
     | `Balances
     | `Pace
     | `Plans of [ `List | `More | `Amount | `Cancel ]
-    | `Find of string list ]
+    | `Find of string list
+    | `Edit of string list
+    | `Date of string list
+    | `Refund of string list
+    | `Shop of string list ]
+    option)
   * string)
   list
-(** The bk commands after the book: their words, what runs and one line about it. *)
+(** The bk commands after the book: their words, what runs given the words after
+    them ([None] when they take none) and one line about it. *)
 
 val help : string
 (** Every command with its line, for [bk help] and an unknown command. *)

@@ -47,3 +47,9 @@ val build_plan :
   day:string ->
   draft:t ->
   (B.plan * bool, error) result
+
+val refund :
+  book:B.t -> new_id:(unit -> string) -> id:string -> day:string -> (B.entry, string) result
+(** The refund of record [id] on [day]: every row negated, linked by [reversal_of],
+    memo ["Refund: <memo>"] (or ["Refund"]). Refuses [unknown-entry], [already-refund]
+    (a refund is not refunded) and [already-refunded]. Book admits or refuses it. *)

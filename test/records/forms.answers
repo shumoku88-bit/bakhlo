@@ -261,3 +261,39 @@ ROW	-	old	5
 ENDINPUT
 REFUSED	admission:locus-unapproved
 ENDFORM
+# 返金：元の各行を逆にした新しい記録をREVERSAL-OFで元につなぐ。メモは「Refund: 元のメモ」（なければRefund）。
+# 元の記録は残す。原額・店は返金に引き継がない。返金そのものと、もう返金した記録は返金しない。
+USE	BOOK	base.txt
+REFUND	seed	2027-01-12	r1
+TX	r1	2027-01-12	DESC	Refund: meal
+EFFECT	bank	jpy	100	b
+EFFECT	food	jpy	-100	f
+REVERSAL-OF	seed
+ENDTX
+ENDREFUND
+REFUND	tail	2027-01-12	r1
+TX	r1	2027-01-12	DESC	Refund
+EFFECT	bank	jpy	20
+EFFECT	food	jpy	-20
+REVERSAL-OF	tail
+ENDTX
+ENDREFUND
+REFUND	nope	2027-01-12	r1
+REFUSED	unknown-entry
+ENDREFUND
+USE	BOOK	new-split.after.txt
+REFUND	split	2027-01-13	r2
+TX	r2	2027-01-13	DESC	Refund: shared meal
+EFFECT	bank	jpy	75
+EFFECT	food	jpy	-30
+EFFECT	food	jpy	-45
+REVERSAL-OF	split
+ENDTX
+ENDREFUND
+USE	BOOK	refund-paid.after.txt
+REFUND	seed	2027-01-13	r3
+REFUSED	already-refunded
+ENDREFUND
+REFUND	refund	2027-01-13	r3
+REFUSED	already-refund
+ENDREFUND

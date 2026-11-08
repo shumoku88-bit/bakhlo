@@ -7,6 +7,21 @@ toolchain. This file keeps the last week's entries (from 2026-11-02); entries fr
 2026-10-31 are in Git at `5b48008:docs/VERIFICATION.md`, earlier ones (including the bounded
 Solo5-SPT engine boot) at `90a5867:docs/VERIFICATION.md`.
 
+## Record corrections as commands (2026-11-08)
+
+- `bk edit` / `date` / `refund` / `shop` choose a record with `bk find` terms, newest first
+  (number, or more terms to narrow). Edit corrects rows (keys kept), memo and date through
+  Record; date moves only the date; shop sets the shop once. The refund rule moved from
+  `tui/shell/publication.ml` into `Record.refund` (the TUI calls it, wording unchanged);
+  its memo is now "Refund: <memo>" instead of naming the original's internal ID (the
+  link stays in `REVERSAL-OF`). Book refusals are worded in one place in the CLI.
+- Samples: six hand-written REFUND answers in `test/records/forms.answers` (refund with
+  keys, without memo, with original and shop not carried, unknown, already refunded, a
+  refund itself), all passing on the first run. CLI checks pin each correction's book
+  text and a worded refusal; a wrong refund memo made the check fail. The command table
+  now builds commands from the words after them, so help and dispatch stay one table.
+  `./tools/check` exited 0.
+
 ## bk find (2026-11-08)
 
 - User decision: TUI replaced by `bk` commands (AGENTS Product, `tasks/todo.md`). First

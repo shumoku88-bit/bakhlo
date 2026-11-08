@@ -187,3 +187,28 @@ let build_plan ~new_id ~book ~editing ~day ~draft =
   match B.put_plan book ~replace plan with
   | Ok _ -> Ok (plan, replace)
   | Error reason -> Error (Admission { reason; id = plan.id })
+
+(* A refund adds a fact; it never erases the record. Every row of the original is
+   negated in a new record linked to it ([REVERSAL-OF]); Book still decides whether
+   that record is admissible. A refund is not refunded again, and a record is
+   refunded once. *)
+let refund ~book ~new_id ~id ~day =
+  match B.find_entry book id with
+  | None -> Error "unknown-entry"
+  | Some (target : B.entry) ->
+      if target.reversal_of <> None then Error "already-refund"
+      else if List.exists (fun (e : B.entry) -> e.reversal_of = Some id) (B.entries book) then
+        Error "already-refunded"
+      else
+        Ok
+          {
+            B.id = new_id ();
+            day;
+            memo = Some (match target.memo with Some m -> "Refund: " ^ m | None -> "Refund");
+            effects =
+              List.map (fun (p : B.posting) -> { p with amount = Z.neg p.amount }) target.effects;
+            reversal_of = Some id;
+            exchange = None;
+            original_amount = None;
+            merchant = None;
+          }

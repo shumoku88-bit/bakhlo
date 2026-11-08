@@ -355,10 +355,46 @@ let run_all () =
     (found [ "2026-02-30" ]
    = "Not a period: \"2026-02-30\". Use 2026, 2026-10, 2026-10-05 or A..B.\n")
     "bk-find-words-a-bad-period";
+  (* Corrections choose the record with find terms. The book's lunch: t1 2026-11-01,
+     Wallet -900, Food +900, no shop yet. *)
+  let fix name command answers =
+    let path = fresh name in
+    let io, out = script answers in
+    ignore (L.run io command (F.load path) ~today:"2026-11-08");
+    (Buffer.contents out, F.read path)
+  in
+  let _, after = fix "bk-edit" (`Edit [ "lunch" ]) [ ""; ""; ""; ""; "-1000"; ""; ""; ""; "" ] in
+  require
+    (contains after
+       "TX\tt1\t2026-11-01\tDESC\tlunch\nEFFECT\twallet\tjpy\t-1000\nEFFECT\tfood\tjpy\t1000\nENDTX")
+    "bk-edit-corrects-in-place";
+  let _, after = fix "bk-date" (`Date [ "lunch" ]) [ ""; "2026-11-03"; "" ] in
+  require
+    (contains after "TX\tt1\t2026-11-03\tDESC\tlunch\nEFFECT\twallet\tjpy\t-900")
+    "bk-date-moves-only-the-date";
+  let _, after = fix "bk-refund" (`Refund [ "lunch" ]) [ ""; "2026-11-05"; "" ] in
+  require
+    (contains after
+       "\t2026-11-05\tDESC\tRefund: lunch\n\
+        EFFECT\twallet\tjpy\t900\n\
+        EFFECT\tfood\tjpy\t-900\n\
+        REVERSAL-OF\tt1\n\
+        ENDTX"
+    && contains after "TX\tt1\t2026-11-01\tDESC\tlunch\nEFFECT\twallet\tjpy\t-900")
+    "bk-refund-adds-a-linked-refund";
+  let out, after = fix "bk-shop-space" (`Shop [ "lunch" ]) [ ""; "sample cafe"; "" ] in
+  require
+    (contains out "Not saved: a shop name is one word, without spaces or tabs." && after = book_text)
+    "bk-shop-words-a-refusal";
+  let _, after = fix "bk-shop" (`Shop [ "lunch" ]) [ ""; "-"; "" ] in
+  require (contains after "EFFECT\tfood\tjpy\t900\nNONMERCHANT\nENDTX") "bk-shop-sets-not-a-shop";
+  let out, after = fix "bk-edit-none" (`Edit [ "nothing-here" ]) [] in
+  require (out = "No record matches.\n" && after = book_text) "bk-edit-without-a-match";
   (* bk help lists every command, and every listed command runs: with no answers
      it stops and writes nothing. *)
   List.iter
-    (fun (words, command, what) ->
+    (fun (words, make, what) ->
+      let command = Option.get (make []) in
       let name = String.concat " " ("bk" :: words) in
       require
         (contains Command_line.help name && contains Command_line.help what)

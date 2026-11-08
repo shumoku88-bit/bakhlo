@@ -2,26 +2,38 @@
    checked copies. [run] opens the TUI on a household book. *)
 module F = Book_file
 
-(* The bk commands: one table both dispatches them and lists them (bk help). *)
+(* The bk commands: one table both dispatches them and lists them (bk help). A
+   command either takes no more words or takes the rest as find terms. *)
+let fixed command = function [] -> Some command | _ :: _ -> None
+let terms make words = Some (make words)
+
 let commands =
   [
-    ([ "r" ], `Record, "record an Actual");
-    ([ "pay" ], `Pay, "pay a plan");
-    ([ "bal" ], `Balances, "balances");
-    ([ "pace" ], `Pace, "today's pace and its breakdown");
-    ([ "plans" ], `Plans `List, "plans in series: how far each is filled");
-    ([ "plans"; "more" ], `Plans `More, "fill the coming months of a series");
-    ([ "plans"; "amount" ], `Plans `Amount, "change a series' amount from a day on");
-    ([ "plans"; "cancel" ], `Plans `Cancel, "cancel plans of a series");
+    ([ "r" ], fixed `Record, "record an Actual");
+    ([ "pay" ], fixed `Pay, "pay a plan");
+    ([ "bal" ], fixed `Balances, "balances");
+    ([ "pace" ], fixed `Pace, "today's pace and its breakdown");
+    ([ "plans" ], fixed (`Plans `List), "plans in series: how far each is filled");
+    ([ "plans"; "more" ], fixed (`Plans `More), "fill the coming months of a series");
+    ([ "plans"; "amount" ], fixed (`Plans `Amount), "change a series' amount from a day on");
+    ([ "plans"; "cancel" ], fixed (`Plans `Cancel), "cancel plans of a series");
     ( [ "find" ],
-      `Find [],
+      terms (fun t -> `Find t),
       "records matching every term: a name or memo, 2026-10, A..B, acct:, memo:, amt:1000.." );
+    ([ "edit" ], terms (fun t -> `Edit t), "correct a record's rows, memo or date [find terms]");
+    ([ "date" ], terms (fun t -> `Date t), "move a record to another date [find terms]");
+    ([ "refund" ], terms (fun t -> `Refund t), "record the refund of a record [find terms]");
+    ([ "shop" ], terms (fun t -> `Shop t), "set where a record was bought, once [find terms]");
   ]
 
 let line_command words =
-  match words with
-  | "find" :: terms -> Some (`Find terms)
-  | _ -> List.find_map (fun (w, command, _) -> if w = words then Some command else None) commands
+  let rec after prefix words =
+    match (prefix, words) with
+    | [], rest -> Some rest
+    | p :: prefix, w :: words when p = w -> after prefix words
+    | _ -> None
+  in
+  List.find_map (fun (w, make, _) -> Option.bind (after w words) make) commands
 
 let help =
   let rows =

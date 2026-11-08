@@ -72,40 +72,17 @@ let plan_batch ?(replace = true) ~session ~base_revision (plans : B.plan list) :
 let cancel_plan ~session ~base_revision ~id ~day : outcome =
   onto ~session ~base_revision [ B.Cancel_plan { id; day } ]
 
-(* A real reversal adds a fact; it does not erase mistaken input. Keep the
-   original and negate each posting in a new linked entry. Book still decides
-   whether that candidate is admissible, including any exchange constraints. *)
+(* A refund adds a fact; it does not erase mistaken input. Record builds it. *)
 let reverse_entry ~session ~base_revision ~id ~day : outcome =
   if base_revision <> session.F.revision then Conflict_base_changed
   else
-    match B.find_entry session.book id with
-    | None -> Refused (tr "The Actual occurrence is unavailable.")
-    | Some target ->
-        if target.reversal_of <> None then
-          Refused (tr "This entry is already a Reversal; it cannot be reversed.")
-        else if
-          List.exists (fun (e : B.entry) -> e.reversal_of = Some target.id) (B.entries session.book)
-        then Refused (tr "This entry has already been reversed.")
-        else
-          let inverse_effects =
-            List.map (fun (e : B.posting) -> { e with amount = Z.neg e.amount }) target.effects
-          in
-          let reversal : B.entry =
-            {
-              id = F.new_id ();
-              day;
-              memo =
-                Some
-                  ("Reversal of " ^ target.id
-                  ^ match target.memo with Some m -> ": " ^ m | None -> "");
-              effects = inverse_effects;
-              reversal_of = Some target.id;
-              exchange = None;
-              original_amount = None;
-              merchant = None;
-            }
-          in
-          changes ~session [ B.Put_entry { replace = false; entry = reversal; plan = None } ]
+    match Bakhlo_household.Record.refund ~book:session.F.book ~new_id:F.new_id ~id ~day with
+    | Error "already-refund" ->
+        Refused (tr "This entry is already a Reversal; it cannot be reversed.")
+    | Error "already-refunded" -> Refused (tr "This entry has already been reversed.")
+    | Error _ -> Refused (tr "The Actual occurrence is unavailable.")
+    | Ok reversal ->
+        changes ~session [ B.Put_entry { replace = false; entry = reversal; plan = None } ]
 
 let correct_entry_date ~session ~base_revision ~id ~day : outcome =
   onto ~session ~base_revision [ B.Correct_entry_date { id; day } ]

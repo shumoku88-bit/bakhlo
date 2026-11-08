@@ -26,6 +26,23 @@ exception Quit
 
 let say io line = io.print (line ^ "\n")
 
+(* Book's refusals in words; the codes stay Book's (one place for the wording). *)
+let not_saved why =
+  "Not saved: "
+  ^
+  match why with
+  | "merchant-token" -> "a shop name is one word, without spaces or tabs."
+  | "merchant-classified" -> "this record's shop is already set."
+  | "merchant-unknown" | "unknown-entry" -> "the record is no longer in the book."
+  | "unknown-plan" -> "the plan is no longer in the book."
+  | "plan-already-paid" -> "the plan is already paid."
+  | "plan-cancelled" -> "the plan is cancelled."
+  | "invalid-date" -> "that is not a real date."
+  | "locus-unapproved" -> "an account is hidden or not in the book."
+  | why when String.starts_with ~prefix:"entry-admission" why ->
+      "the book refuses this record (" ^ why ^ ")."
+  | why -> why
+
 let ask io ?(default = "") prompt =
   io.print (if default = "" then prompt ^ ": " else Printf.sprintf "%s [%s]: " prompt default);
   match io.read () with
@@ -174,7 +191,7 @@ let save io (session : F.t) (tx : R.transaction) =
           say io "The book changed while you were typing; nothing was saved. Run it again.";
           `Stopped
       | F.Refused_input why ->
-          say io ("Not saved: " ^ why);
+          say io (not_saved why);
           `Stopped
       | F.Uncertain _ ->
           say io
@@ -189,7 +206,8 @@ let save io (session : F.t) (tx : R.transaction) =
 let rec compose io (session : F.t) ~mode ~day ~memo ~original_amount measure rows =
   let book = session.book in
   let rows = edit_rows io book measure rows in
-  let content = { R.day; memo; draft = R.form ~editing:None ~measure rows; original_amount } in
+  let editing = match mode with R.Edit e -> Some e | R.New | R.Pay _ -> None in
+  let content = { R.day; memo; draft = R.form ~editing ~measure rows; original_amount } in
   match Draft.build_transaction ~new_id:F.new_id ~book ~mode content with
   | Error error ->
       say io error.Draft.message;
@@ -218,9 +236,12 @@ let signed_row book (draft : R.t) (r : R.row) =
   | Ok q -> sign ^ money book draft.measure q
   | Error _ -> sign ^ r.amount
 
-let as_form_rows book (draft : R.t) =
+(* A correction keeps each row's key (Record drops it when the Locus changes); a
+   new record copied from earlier rows starts without keys. *)
+let as_form_rows ?(keys = false) book (draft : R.t) =
   List.map
-    (fun (r : R.row) -> { R.key = None; locus = r.locus; amount = signed_row book draft r })
+    (fun (r : R.row) ->
+      { R.key = (if keys then r.key else None); locus = r.locus; amount = signed_row book draft r })
     draft.rows
 
 let record io (session : F.t) ~today =
@@ -459,8 +480,8 @@ let plan_rows book plans =
            p.changes)
     plans
 
-(* Saving several plan changes: a Preview, then Enter saves them together. *)
-let publish_plans io (session : F.t) ~title changes rows =
+(* Saving several changes: a Preview, then Enter saves them together. *)
+let publish_changes io (session : F.t) ~title changes rows =
   say io "";
   say io ("  " ^ title);
   print_table io rows;
@@ -475,7 +496,7 @@ let publish_plans io (session : F.t) ~title changes rows =
           say io "The book changed while you were typing; nothing was saved. Run it again.";
           `Stopped
       | F.Refused_input why ->
-          say io ("Not saved: " ^ why);
+          say io (not_saved why);
           `Stopped
       | F.Uncertain _ ->
           say io
@@ -569,7 +590,7 @@ let plans_more io (session : F.t) book series rows =
           (fun day -> { source with B.id = F.new_id (); day; paid_by = None; cancelled_on = None })
           days
       in
-      publish_plans io session ~title:"New plans"
+      publish_changes io session ~title:"New plans"
         (List.map (fun plan -> B.Put_plan { replace = false; plan }) plans)
         (plan_rows book plans)
 
@@ -597,7 +618,7 @@ let plans_amount io (session : F.t) book series ~today =
           say io "A split plan cannot be changed in bulk; change it on its own.";
           `Stopped
       | Ok changed ->
-          publish_plans io session
+          publish_changes io session
             ~title:(Printf.sprintf "New amount %s from %s" (money book measure amount) from)
             (List.map (fun plan -> B.Put_plan { replace = true; plan }) changed)
             (List.map
@@ -632,7 +653,7 @@ let plans_cancel io (session : F.t) book series ~today =
   in
   let plans = chosen () in
   let day = ask_day io ~default:today "Cancelled on" in
-  publish_plans io session
+  publish_changes io session
     ~title:(Printf.sprintf "Cancel %d plan(s) on %s" (List.length plans) day)
     (List.map (fun (p : B.plan) -> B.Cancel_plan { id = p.id; day }) plans)
     (plan_rows book plans)
@@ -697,6 +718,124 @@ let find io (session : F.t) words =
            (if List.length found = 1 then "" else "s")));
   `Stopped
 
+(* 10. Correcting records. A record is chosen with the same terms as `bk find`,
+   newest first: a number takes it, more terms narrow the list. `edit` corrects
+   rows, memo and date (Record), `date` moves only the date, `refund` adds the
+   refund (Record), `shop` sets the shop once (Book). *)
+let rec choose_entry io book entries =
+  let shown = List.filteri (fun i _ -> i < 9) entries in
+  print_table io (List.mapi (fun i e -> Right (string_of_int (i + 1)) :: entry_cells book e) shown);
+  if List.length entries > 9 then say io "  … type more terms to narrow";
+  ask_entry io book entries shown
+
+and ask_entry io book entries shown =
+  let answer = ask io ~default:"1" "Record" in
+  match int_of_string_opt answer with
+  | Some n when n >= 1 && n <= List.length shown -> Some (List.nth shown (n - 1))
+  | _ -> (
+      let words = List.filter (( <> ) "") (String.split_on_char ' ' answer) in
+      match Bakhlo_household.Query.parse words with
+      | Error why ->
+          say io (query_refusal why);
+          ask_entry io book entries shown
+      | Ok query -> (
+          match List.filter (Bakhlo_household.Query.matches book query) entries with
+          | [] ->
+              say io (nothing_matches answer);
+              ask_entry io book entries shown
+          | [ e ] -> Some e
+          | narrowed -> choose_entry io book narrowed))
+
+let chosen_entry io book terms =
+  match Bakhlo_household.Query.parse terms with
+  | Error why ->
+      say io (query_refusal why);
+      None
+  | Ok query -> (
+      match List.rev (Bakhlo_household.Query.find book query) with
+      | [] ->
+          say io "No record matches.";
+          None
+      | newest_first -> choose_entry io book newest_first)
+
+let edit io (session : F.t) terms =
+  let book = session.book in
+  match chosen_entry io book terms with
+  | None -> `Stopped
+  | Some e -> (
+      match Draft.open_edit ~book e with
+      | Error why ->
+          say io why;
+          `Stopped
+      | Ok draft ->
+          let day = ask_day io ~default:e.day "Date" in
+          let memo =
+            match ask io ~default:(Option.value ~default:"" e.memo) "Memo (- clears it)" with
+            | "-" -> ""
+            | memo -> memo
+          in
+          compose io session ~mode:(R.Edit e) ~day ~memo ~original_amount:e.original_amount
+            draft.measure
+            (as_form_rows ~keys:true book draft))
+
+let redate io (session : F.t) terms =
+  let book = session.book in
+  match chosen_entry io book terms with
+  | None -> `Stopped
+  | Some e ->
+      let day = ask_day io ~default:e.day "New date" in
+      if day = e.day then (
+        say io "The date is unchanged; nothing to save.";
+        `Stopped)
+      else
+        publish_changes io session ~title:(Printf.sprintf "Move to %s" day)
+          [ B.Correct_entry_date { id = e.id; day } ]
+          [ entry_cells book e ]
+
+let refund io (session : F.t) ~today terms =
+  let book = session.book in
+  match chosen_entry io book terms with
+  | None -> `Stopped
+  | Some e -> (
+      let day = ask_day io ~default:today "Refund date" in
+      match R.refund ~book ~new_id:F.new_id ~id:e.id ~day with
+      | Error "already-refund" ->
+          say io "This record is a refund; it is not refunded again.";
+          `Stopped
+      | Error "already-refunded" ->
+          say io "This record has already been refunded.";
+          `Stopped
+      | Error why ->
+          say io why;
+          `Stopped
+      | Ok r ->
+          publish_changes io session ~title:"Refund"
+            [ B.Put_entry { replace = false; entry = r; plan = None } ]
+            [ entry_cells book r ])
+
+let shop io (session : F.t) terms =
+  let book = session.book in
+  match chosen_entry io book terms with
+  | None -> `Stopped
+  | Some e -> (
+      match e.merchant with
+      | Some _ ->
+          say io "This record's shop is already set; it is not changed.";
+          `Stopped
+      | None ->
+          let disposition =
+            match ask io "Shop name (- if it is not a shop purchase)" with
+            | "-" -> B.Nonmerchant
+            | name -> B.Merchant name
+          in
+          publish_changes io session
+            ~title:
+              (match disposition with
+              | B.Nonmerchant -> "Not a shop purchase"
+              | B.Merchant name -> "Shop: " ^ name)
+            [ B.Classify_merchant { id = e.id; disposition } ]
+            [ entry_cells book e ])
+
 (* 8. After a saved record or payment, another one may follow on the saved book. *)
 let rec again io (session : F.t) ~today ~saved ~question step =
   match
@@ -720,6 +859,12 @@ let run io command (session : F.t) ~today =
     | `Pace -> pace io session ~today
     | `Plans action -> plans io session ~today action
     | `Find words -> find io session words
+    | `Edit terms ->
+        again io session ~today ~saved:false ~question:"Correct another? (y / n)"
+          (fun io session ~today:_ -> edit io session terms)
+    | `Date terms -> redate io session terms
+    | `Refund terms -> refund io session ~today terms
+    | `Shop terms -> shop io session terms
   with Quit ->
     say io "Nothing was saved.";
     `Stopped

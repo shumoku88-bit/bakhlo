@@ -14,7 +14,11 @@ val run :
   | `Balances
   | `Pace
   | `Plans of [ `List | `More | `Amount | `Cancel ]
-  | `Find of string list ] ->
+  | `Find of string list
+  | `Edit of string list
+  | `Date of string list
+  | `Refund of string list
+  | `Shop of string list ] ->
   Book_file.t ->
   today:string ->
   [ `Saved | `Stopped ]

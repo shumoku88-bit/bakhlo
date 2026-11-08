@@ -98,11 +98,17 @@ let answer use (q : question) =
             :: entry_lines tx.entry
       in
       (row q.header :: input) @ ("ENDINPUT" :: result)
+  | [ "REFUND"; id; day; fresh ] ->
+      row q.header
+      ::
+      (match R.refund ~book ~new_id:(fun () -> fresh) ~id ~day with
+      | Error why -> [ "REFUSED\t" ^ why ]
+      | Ok e -> entry_lines e)
   | _ -> bad ("question " ^ row q.header)
 
 let%expect_test "Record form samples use only the household core" =
   let counts = create () in
-  check counts ~dir:"records" ~file:"forms.answers" ~blocks:[ "OPEN"; "FORM" ] ~answer;
-  Printf.printf "%d OPEN, %d FORM, %d failures\n" (counted counts "OPEN") (counted counts "FORM")
-    counts.failures;
-  [%expect {| 10 OPEN, 18 FORM, 0 failures |}]
+  check counts ~dir:"records" ~file:"forms.answers" ~blocks:[ "OPEN"; "FORM"; "REFUND" ] ~answer;
+  Printf.printf "%d OPEN, %d FORM, %d REFUND, %d failures\n" (counted counts "OPEN")
+    (counted counts "FORM") (counted counts "REFUND") counts.failures;
+  [%expect {| 10 OPEN, 18 FORM, 6 REFUND, 0 failures |}]

@@ -17,7 +17,9 @@ Mac実IME／フォント、LOAMの実行対照、P7・運用認定は別。
 ## 起動
 
 普段の記帳は`./tools/household`（家計簿を開き、終了時にcommit・push）。`bk help`でコマンドの一覧（打ち間違えたときも一覧を出す）。`bk find`は記録の検索（口座名・メモ・
-期間`2026-10`・`A..B`、`acct:`・`memo:`・`amt:1000..`、どの語も満たす記録。書き方は`test/queries/README.md`）。`bk r`は実績を、`bk pay`は
+期間`2026-10`・`A..B`、`acct:`・`memo:`・`amt:1000..`、どの語も満たす記録。書き方は`test/queries/README.md`）。
+`bk edit`（訂正）・`bk date`（日付だけ）・`bk refund`（返金）・`bk shop`（店の分類、1回だけ）は、`bk find`と同じ語で
+記録を絞り、新しい順の番号で選ぶ。`bk r`は実績を、`bk pay`は
 予定の支払いを、画面を開かずに1行ずつ答えて記帳する（Locusは先頭の文字で選び、Enterで釣り合う金額、
 PreviewのあとEnterで保存。保存のあと「Record another?」/「Pay another?」で`y`なら続けて記帳。終わればいつもどおり
 commit・push）。`bk bal`はBalances（Current）の行を、
