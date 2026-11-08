@@ -2,7 +2,7 @@
 # Refuse repository content that repeats text from the private household copies.
 #
 # Tokens are the free-text fields (Locus names and help, memos, Merchants,
-# Attention) of the ignored book.txt copies of tools/compare under scratch/comparison, and the quoted
+# Attention) of the ignored book.txt copies of tools/household-copy under scratch/household-copy, and the quoted
 # strings of older S-expression copies under scratch/ while they exist. Generic words that also occur in the
 # repository (e.g. a Locus called "food") are listed in the ignored
 # scratch/privacy-baseline.txt after review, so nothing private is ever written
@@ -28,7 +28,7 @@ find scratch/loam-comparison scratch/daily_book_candidate_v1 -type f -name '*.se
   > "$work/fields" || true
 # The free-text fields (Locus labels and help, memos, Merchants, Attention text) that
 # an S-expression book would have quoted: those with more than a plain ASCII word.
-find scratch/comparison -type f -name book.txt -path '*/bakhlo/*' -exec cat {} + 2>/dev/null \
+find scratch/household-copy -type f -name book.txt -exec cat {} + 2>/dev/null \
   | LC_ALL=C awk -F '\t' '$1 == "LOCUS" { print $3; print $4 } $1 == "TX" && $4 == "DESC" { print $5 }
       $1 == "MERCHANT" { print $2 } $1 == "ITEM" { print $5 }' \
   | LC_ALL=C grep '[^A-Za-z0-9._:/+-]' >> "$work/fields" || true

@@ -62,7 +62,7 @@
 
 ```sh
 ./tools/check                    # ビルド、見本、bkの合成検査、privacy-scan
-./ui [COMMAND]                   # 比較用コピーでbkのコマンド（./tools/compare refresh の後）
+./ui [COMMAND]                   # 家計簿のコピーでbkのコマンド（./tools/household-copy refresh の後）
 ./ui --demo [COMMAND]            # 合成の帳簿で
 ```
 

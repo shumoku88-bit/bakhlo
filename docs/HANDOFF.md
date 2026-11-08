@@ -28,10 +28,10 @@ The dated log of earlier passes is in Git at `5b48008:docs/HANDOFF.md`; evidence
   User decisions (2026-11-08): HIDDEN only blocks new money flows (a correction keeping
   its Loci and a refund to its target's Loci are saved, unlike LOAM), and the refund of
   a plan's payment counts with the plan in History and Income & Expense.
-- **Specification for the rewrite.** `test/` holds language-neutral, hand-written answer
+- **Specification.** `test/` holds language-neutral, hand-written answer
   samples in one format (`test/README.md`): `amounts`, `common_format`, `periods`,
-  `reports`, `records`, `scheduled`. A rewrite in another language is done when it
-  passes them; `test/samples.ml` is the one reader.
+  `reports`, `records`, `scheduled`. Any implementation is right when it passes them;
+  `test/samples.ml` is the one reader.
 - **Commands, no TUI.** User decision (2026-11-08): the household uses `bk` line commands
   (`cli/`, [cli/README](../cli/README.md)); the TUI was removed on 2026-11-09 (in Git up to
   `a346668`), settlements with it (never used). Plain `bk` prints today's pace and the
@@ -63,8 +63,8 @@ The dated log of earlier passes is in Git at `5b48008:docs/HANDOFF.md`; evidence
 ./tools/check                 # build, samples, bk command checks, privacy scan
 ./tools/startup-probe         # synthetic load, save and response timings (1k / 36.5k / 109.5k)
 ./tools/privacy-scan [--all]  # no private household text in the repository (in check)
-./tools/compare refresh       # fresh copies of the household book.txt (see AGENTS.md)
-./ui [COMMAND] / ./ui loam     # a bk command and LOAM on those copies
+./tools/household-copy refresh  # a fresh copy of the household book.txt (see AGENTS.md)
+./ui [COMMAND]                  # a bk command on that copy
 ```
 
 Use a fresh ignored trial directory for manual runs; never overwrite a previous one.

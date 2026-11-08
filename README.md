@@ -24,8 +24,7 @@ Favaとhledgerへの出力は対象外。内部実装・保存構造までLOAM�
 bk                  # 今日の目安とコマンドの一覧（bk は ./tools/household を呼ぶ）
 bk r                # 記帳。bk help で全コマンド
 ./ui --demo [COMMAND] # 合成データだけで試す（scratch/ui-preview）
-./ui [COMMAND]      # 比較用：最後の取得世代のBakhloコピーでコマンド
-./ui loam           # 同じ世代のLOAMコピー（別の端末で）
+./ui [COMMAND]      # 確認用：最後に取った家計簿のコピーでコマンド
 ```
 
 バックアップの失敗は警告して異常終了する。ローカルの記帳は残り、pushできなかった
@@ -36,10 +35,9 @@ commitは次回に再送する。bakhlo自体が異常終了した場合は、�
 を使い、バイナリが1つもなければ起動を拒否する。ランチャー本体（このスクリプト）は
 作業ツリーから実行し、`origin/main`に固定されるのはbakhloのバイナリだけである。
 
-比較コピーは`scratch/comparison`内だけにあり、原本には書き込まない（家計簿の`book.txt`を
-Bakhlo用とLOAM用に1つずつ写す）。取り直すときは`./tools/compare refresh`、比較後は
-`./tools/compare clean-copies`。
-手順と制約は[AGENTS.md](AGENTS.md)の Latest-data comparison。
+家計簿のコピーは`scratch/household-copy`内だけにあり、原本には書き込まない（`book.txt`と
+`config/`を写す）。取り直すときは`./tools/household-copy refresh`、確認後は
+`./tools/household-copy clean-copies`。手順と制約は[AGENTS.md](AGENTS.md)の Latest-data checks。
 
 コマンドと保存の決まりは[cli/README](cli/README.md)。どのコマンドも保存の前にPreviewを見せ、
 Enterで保存する。金額欄では`500+300`、`(500+300)/2`などの式を正確に計算する。

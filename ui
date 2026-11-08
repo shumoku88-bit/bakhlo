@@ -1,26 +1,21 @@
 #!/bin/sh
-# Short comparison launcher. Never opens LOAM originals for writing.
+# A bk command on a copy: the latest household copy or a synthetic book. Never opens
+# the household itself.
 set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
 cd "$root"
 umask 077
 usage() {
-  printf '%s\n' './ui [COMMAND]          a bk command on the selected copy of the household book.txt' \
-    './ui loam              LOAM on its own copy of the same book.txt (no build)' \
+  printf '%s\n' './ui [COMMAND]          a bk command on the selected household copy (tools/household-copy)' \
     './ui --demo [COMMAND]  a bk command on a synthetic preview book'
 }
-mode=bakhlo
+mode=copy
 case "${1:-}" in
   --help|-h) usage; exit 0 ;;
-  loam) mode=loam; shift; if [ "$#" -ne 0 ]; then usage >&2; exit 2; fi ;;
   --demo) mode=--demo; shift ;;
 esac
-if [ "$mode" = loam ] && { [ ! -t 0 ] || [ ! -t 1 ]; }; then
-  printf '%s\n' 'Run ./ui loam in an interactive terminal.' >&2
-  exit 2
-fi
 if [ -L "$root/scratch" ]; then
-  printf '%s\n' 'Comparison directories must not be symlinks.' >&2; exit 2
+  printf '%s\n' 'Copy directories must not be symlinks.' >&2; exit 2
 fi
 ./tools/opam exec -- dune build --root . cli/bakhlo.exe
 bin=$root/_build/default/cli/bakhlo.exe
@@ -35,39 +30,29 @@ if [ "$mode" = --demo ]; then
     "$bin" --copy-from examples/book.txt --book "$trial/book.txt"
   fi
 else
-  state=$root/scratch/comparison
+  state=$root/scratch/household-copy
   if [ -L "$state" ] || [ -L "$state/CURRENT" ] || [ ! -f "$state/CURRENT" ]; then
-    printf '%s\n' 'No selected comparison copy. Run ./tools/compare refresh. No demo fallback.' >&2
+    printf '%s\n' 'No selected household copy. Run ./tools/household-copy refresh. No demo fallback.' >&2
     exit 2
   fi
-  IFS= read -r capture < "$state/CURRENT"
-  case "$capture" in
-    capture-*) ;;
-    *) printf '%s\n' 'Invalid comparison selector.' >&2; exit 2 ;;
+  IFS= read -r copy < "$state/CURRENT"
+  case "$copy" in
+    copy-*) ;;
+    *) printf '%s\n' 'Invalid copy selector.' >&2; exit 2 ;;
   esac
-  case "$capture" in
-    *[!a-zA-Z0-9-]*) printf '%s\n' 'Invalid comparison selector.' >&2; exit 2 ;;
+  case "$copy" in
+    *[!a-zA-Z0-9-]*) printf '%s\n' 'Invalid copy selector.' >&2; exit 2 ;;
   esac
   if [ "$(wc -l < "$state/CURRENT" | tr -d '[:space:]')" != 1 ]; then
-    printf '%s\n' 'Invalid comparison selector.' >&2; exit 2
+    printf '%s\n' 'Invalid copy selector.' >&2; exit 2
   fi
-  trial=$state/$capture
+  trial=$state/$copy
   if [ -L "$trial" ] || [ ! -f "$trial/COMPLETE" ]; then
-    printf '%s\n' 'Incomplete comparison copy; nothing opened.' >&2; exit 2
+    printf '%s\n' 'Incomplete household copy; nothing opened.' >&2; exit 2
   fi
-  if [ "$mode" = loam ]; then
-    loam=$root/../loam/.lake/build/bin/loam
-    if [ ! -x "$loam" ] || [ -L "$trial/loam" ] || [ ! -f "$trial/loam/book.txt" ]; then
-      printf '%s\n' 'Existing LOAM executable or comparison copy unavailable. No build or live fallback.' >&2
-      exit 2
-    fi
-    printf '%s\n' 'LOAM on a comparison copy only; the household is recorded in Bakhlo.'
-    exec "$loam" tui "$trial/loam"
-  fi
-  trial=$trial/bakhlo
 fi
 if [ ! -d "$trial" ] || [ -L "$trial/book.txt" ] || [ ! -f "$trial/book.txt" ]; then
-  printf '%s\n' 'Comparison book unavailable; existing trial was not replaced.' >&2
+  printf '%s\n' 'Book unavailable; existing trial was not replaced.' >&2
   exit 2
 fi
 exec "$bin" --book "$trial/book.txt" "$@"

@@ -26,8 +26,8 @@ and what ran with its result in `docs/VERIFICATION.md`, never here.
   examples and the reasons for the design; keep examples executable in tests.
   Prefer useful names/layout over comments that merely paraphrase the code.
 - Measure before optimizing; state the result as numbers, not adjectives.
-- Report outcomes faithfully: code connected, synthetic tests, latest-data paired
-  comparison, human/IME acceptance and P7/power-loss are separate claims.
+- Report outcomes faithfully: code connected, synthetic tests, latest-data check,
+  human/IME acceptance and P7/power-loss are separate claims.
 
 ## Development loop (user decision: 2026-10-18)
 
@@ -47,27 +47,25 @@ and what ran with its result in `docs/VERIFICATION.md`, never here.
   infer a missing balance or weaken Preview/save refusal.
 - After pushing, inspect the CI run for the **matching commit SHA**
   (`core.yml`: build, samples and bk command tests). Synthetic green ≠ physical-terminal,
-  IME, paired-parity or P7 acceptance. Investigate failures.
+  IME or P7 acceptance. Investigate failures.
 - Parallel AI work: agree file/function ownership first; shared Shell/API changes are
   serialized.
 
-## Latest-data comparison (user decision: 2026-10-19)
+## Latest-data checks (user decision: 2026-10-19)
 
-- User decision (2026-10-25): LOAM reads the shared `book.txt` itself, so both UIs open
-  copies of the same household `book.txt` (the LOAM import comparison is in Git up to
-  `502d570`). `./tools/compare refresh` copies `../bakhlo-data/book.txt` and `config/`
-  into a new generation under `scratch/comparison`, one copy per UI (read only; a
-  household changed while copying is refused and the previous CURRENT stays). Use that
-  one generation for before/after checks.
-- Compare Bakhlo (`./ui`) and LOAM (`./ui loam`) on their copies from the same
-  generation for changed screens and for Core changes affecting displayed answers, at
-  the user's normal and a narrow geometry. Read-only flows only unless the user
-  explicitly asks for writes; verify household/config bytes are unchanged afterwards.
-- Then close only the AI's processes and run `./tools/compare clean-copies` (keeps the
-  selected generation). Never fall back to originals or an old capture.
-- Keep private inputs, captures and results in ignored scratch; record only build
-  identity, freshness, dimensions, flows, non-private findings and limits. If copying
-  or a binary is unavailable, record **latest-data paired comparison not executed**.
+- User decision (2026-11-09): comparing with LOAM is no longer needed (the side-by-side
+  workflow is in Git up to `dafc35c`).
+- `./tools/household-copy refresh` copies `../bakhlo-data/book.txt` and `config/` into a
+  new generation under `scratch/household-copy` (read only; a household changed while
+  copying is refused and the previous CURRENT stays). For a Core change affecting
+  displayed answers, run the affected bk commands (`./ui`) on that one generation before
+  and after. Read-only flows only unless the user explicitly asks for writes; verify the
+  household's bytes are unchanged afterwards.
+- Then close only the AI's processes and run `./tools/household-copy clean-copies` (keeps
+  the selected generation). Never fall back to originals or an old copy.
+- Keep private inputs and results in ignored scratch; record only build identity,
+  freshness, flows, non-private findings and limits. If copying or a binary is
+  unavailable, record **latest-data check not executed**.
 - This workflow authorizes no scheduler or automatic sync.
 
 ## Product

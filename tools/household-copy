@@ -1,0 +1,88 @@
+#!/bin/sh
+# A fresh, read-only copy of the household's book.txt and config/, for checking a
+# change against the latest real data without touching it.
+#
+#   tools/household-copy refresh       copy book.txt and config/ into a new generation
+#                                      under scratch/household-copy and select it. The
+#                                      household is only read; if it changes while
+#                                      being copied, nothing is selected.
+#   tools/household-copy clean-copies  remove every generation except the selected one.
+#   tools/household-copy self-check    refresh and clean-copies on a synthetic household.
+#
+# BAKHLO_HOUSEHOLD overrides the household directory (default: ../bakhlo-data).
+# ./ui runs a bk command on the selected copy.
+set -eu
+umask 077
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
+cd "$root"
+case "${1:-}" in
+  refresh|clean-copies|self-check) [ "$#" -eq 1 ] || exit 2 ;;
+  *) printf '%s\n' 'Usage: tools/household-copy refresh | clean-copies | self-check' >&2; exit 2 ;;
+esac
+state=${BAKHLO_HOUSEHOLD_COPY:-$root/scratch/household-copy}
+
+fail() { printf '%s\n' "$1" >&2; exit 2; }
+
+# One digest line per household file the copy takes.
+digest() { (cd "$1" && find book.txt config -type f 2>/dev/null | LC_ALL=C sort | while IFS= read -r f; do shasum -a 256 "$f"; done); }
+
+refresh() {
+  source=$(CDPATH= cd -- "${BAKHLO_HOUSEHOLD:-$root/../bakhlo-data}" 2>/dev/null && pwd -P) ||
+    fail 'No household directory; nothing copied.'
+  [ -f "$source/book.txt" ] && [ ! -L "$source/book.txt" ] || fail 'No regular household book.txt; nothing copied.'
+  [ ! -L "$source/config" ] || fail 'The household config must not be a symlink; nothing copied.'
+  [ ! -L "$state" ] && [ ! -L "$(dirname "$state")" ] || fail 'Copy directories must not be symlinks.'
+  mkdir -p "$state"
+  before=$(digest "$source")
+  target=$(mktemp -d "$state/copy-XXXXXX")
+  cp -p "$source/book.txt" "$target/book.txt"
+  if [ -d "$source/config" ]; then cp -pR "$source/config" "$target/config"; fi
+  after=$(digest "$source")
+  [ "$before" = "$after" ] || fail "The household changed while copying; $target is not selected."
+  [ "$(digest "$target")" = "$before" ] || fail "Copy $target differs from the household; not selected."
+  printf '%s\n' 'A read-only copy of one household generation; not a backup.' > "$target/COMPLETE"
+  printf '%s\n' "$(basename "$target")" > "$state/CURRENT.tmp"
+  mv "$state/CURRENT.tmp" "$state/CURRENT"
+  printf 'PASS: household copy in %s; the household is unchanged.\n' "$target"
+}
+
+clean_copies() {
+  [ -d "$state" ] || { printf '%s\n' 'No household copies.'; return 0; }
+  [ ! -L "$state" ] || fail 'Copy directories must not be symlinks.'
+  current=$(cat "$state/CURRENT" 2>/dev/null || true)
+  for dir in "$state"/copy-*; do
+    [ -d "$dir" ] || continue
+    [ "$(basename "$dir")" = "$current" ] && continue
+    rm -rf -- "$dir"
+  done
+  printf 'PASS: kept only %s.\n' "${current:-no generation}"
+}
+
+if [ "$1" = self-check ]; then
+  work=$(mktemp -d "${TMPDIR:-/tmp}/bakhlo-household-copy-check-XXXXXX")
+  trap 'rm -rf -- "$work"' EXIT
+  mkdir -p "$work/household/config"
+  cp examples/book.txt "$work/household/book.txt"
+  printf 'food\tjpy\n' > "$work/household/config/daily-pace.tsv"
+  BAKHLO_HOUSEHOLD=$work/household BAKHLO_HOUSEHOLD_COPY=$work/state "$0" refresh > /dev/null
+  first=$(cat "$work/state/CURRENT")
+  printf 'changed\n' >> "$work/household/config/daily-pace.tsv"
+  BAKHLO_HOUSEHOLD=$work/household BAKHLO_HOUSEHOLD_COPY=$work/state "$0" refresh > /dev/null
+  second=$(cat "$work/state/CURRENT")
+  [ "$first" != "$second" ] || fail 'FAIL: refresh reused the selected generation.'
+  cmp -s "$work/household/book.txt" "$work/state/$second/book.txt" || fail 'FAIL: book copy differs.'
+  cmp -s "$work/household/config/daily-pace.tsv" "$work/state/$second/config/daily-pace.tsv" ||
+    fail 'FAIL: config copy differs.'
+  ! cmp -s "$work/state/$first/config/daily-pace.tsv" "$work/household/config/daily-pace.tsv" ||
+    fail 'FAIL: the earlier generation changed.'
+  mkdir "$work/linked" && ln -s "$work/household/book.txt" "$work/linked/book.txt"
+  if BAKHLO_HOUSEHOLD=$work/linked BAKHLO_HOUSEHOLD_COPY=$work/state "$0" refresh > /dev/null 2>&1; then
+    fail 'FAIL: a symlinked book.txt was copied.'
+  fi
+  BAKHLO_HOUSEHOLD_COPY=$work/state "$0" clean-copies > /dev/null
+  [ ! -e "$work/state/$first" ] && [ -f "$work/state/$second/COMPLETE" ] || fail 'FAIL: clean-copies kept the wrong generations.'
+  printf '%s\n' 'PASS: household copies are exact, new per refresh, symlinks refused, clean-copies keeps the selected one (synthetic).'
+  exit 0
+fi
+if [ "$1" = clean-copies ]; then clean_copies; exit 0; fi
+refresh

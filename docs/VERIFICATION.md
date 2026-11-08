@@ -8,7 +8,7 @@ toolchain. This file keeps the last week's entries (from 2026-11-02); entries fr
 Solo5-SPT engine boot) at `90a5867:docs/VERIFICATION.md`.
 
 From 2026-11-09 (user decision) an entry names its commit (or comes in it) and says what ran and its
-result, keeping synthetic checks, CI, latest-data paired comparison, physical terminal/IME,
+result, keeping synthetic checks, CI, latest-data checks, physical terminal/IME,
 human acceptance and P7/power loss apart. What changed and why is that commit's message.
 
 ## A barrier before the rename, one full flush (2026-11-09)
