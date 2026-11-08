@@ -69,14 +69,7 @@ The dated log of earlier passes is in Git at `5b48008:docs/HANDOFF.md`; evidence
 Use a fresh ignored trial directory for manual runs; never overwrite a previous one.
 After pushing, check CI for the matching commit SHA.
 
-## Next candidates
+## Next
 
-1. The Zig rewrite: the core (~6,000 lines) and its samples, then the bk commands (~3,500
-   lines with their checks).
-2. Whatever the household misses in daily use, ordered by `tasks/todo.md`.
-3. Startup snapshot only when startup is felt slow.
-4. Performance: profile the remaining Actual scan/sort costs before indexing; GADT
-   expansion showed no benefit (study in Git at
-   `5b48008:docs/PERFORMANCE_AND_GADT_STUDY.ja.md`).
-5. Admitted Measure / Locus types (stopped at design on 2026-10-28): restart from the
-   study in Git at `5b48008:docs/ADMITTED_TYPES_STUDY.ja.md`.
+[tasks/todo.md](../tasks/todo.md) is the one list of what comes next, first things first;
+an item is deleted by the commit that finishes it (as qemacs keeps its TODO.md).
