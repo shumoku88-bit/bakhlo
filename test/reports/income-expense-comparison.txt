@@ -1,0 +1,27 @@
+BOOK	1
+MEASURE	jpy	0
+LOCUS	salary	salary	
+LOCUS	food	food	
+LOCUS	rent	rent	
+LOCUS	travel	travel	
+ROLE	salary	INCOME
+ROLE	food	EXPENSE
+ROLE	rent	EXPENSE
+ROLE	travel	ASSET
+TX	sep-pay	2026-09-02
+EFFECT	salary	jpy	-1000
+EFFECT	travel	jpy	1000
+ENDTX
+TX	sep-food	2026-09-03
+EFFECT	food	jpy	400
+EFFECT	travel	jpy	-400
+ENDTX
+TX	sep-rent	2026-09-04
+EFFECT	rent	jpy	100
+EFFECT	travel	jpy	-100
+ENDTX
+TX	sep-late	2026-09-20
+EFFECT	rent	jpy	50000
+EFFECT	travel	jpy	-50000
+ENDTX
+END

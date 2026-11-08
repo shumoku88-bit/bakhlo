@@ -11,7 +11,6 @@ module Roles = Locus_roles
 
 let get = function Ok x -> x | Error why -> failwith why
 let require condition why = if not condition then failwith why
-let z = Z.of_int
 
 let fixture =
   "BOOK\t1\n\
@@ -216,28 +215,10 @@ let self_check () =
   in
   let current = IncExp.compute_report ~book:window_book ~period:(month 0) in
   let previous = IncExp.compute_report ~book:window_book ~period:(month (-1)) in
-  (* The current month is 15 days old; the previous month is compared up to the
-     same elapsed day, not to its whole length. *)
-  let elapsed, total = IncExp.elapsed ~today:"2026-10-15" (month 0) in
-  require ((elapsed, total) = (15, 31)) "ie2-elapsed-days";
   let previous_partial =
     IncExp.compute_report ~book:window_book
-      ~period:(IncExp.truncate_to_days previous.period elapsed)
+      ~period:{ previous.period with end_exclusive = "2026-09-16" }
   in
-  require
-    (Z.equal
-       (List.find
-          (fun (ms : IncExp.measure_summary) -> ms.measure = "jpy")
-          previous_partial.summaries)
-         .IncExp.total_expense
-       (Z.of_int 500))
-    "ie2-partial-previous-excludes-late-entry";
-  require
-    (Z.equal
-       (List.find (fun (ms : IncExp.measure_summary) -> ms.measure = "jpy") previous.summaries)
-         .IncExp.total_expense
-       (Z.of_int 50500))
-    "ie2-whole-previous-keeps-late-entry";
   let summary =
     List.map snd
       (IncExp.render_report_lines ~width:80 ~width_of:String.length ~book:window_book
@@ -257,18 +238,11 @@ let self_check () =
 
   (* A window that has not started is an empty window, not "day 0 of M". *)
   let future = month 1 in
-  let future_elapsed, future_total = IncExp.elapsed ~today:"2026-10-15" future in
-  require (future_elapsed = 0 && future_total > 0) "ie2-future-window-is-unstarted";
   let future_report = IncExp.compute_report ~book:window_book ~period:future in
   let empty_previous =
-    IncExp.compute_report ~book:window_book ~period:(IncExp.truncate_to_days previous.period 0)
+    IncExp.compute_report ~book:window_book
+      ~period:{ previous.period with end_exclusive = previous.period.start_day }
   in
-  require
-    (List.for_all
-       (fun (ms : IncExp.measure_summary) ->
-         Z.equal ms.total_income Z.zero && Z.equal ms.total_expense Z.zero)
-       empty_previous.summaries)
-    "ie2-empty-previous-has-no-flow";
   let future_summary =
     List.map snd
       (IncExp.render_report_lines ~width:80 ~width_of:String.length ~book:window_book

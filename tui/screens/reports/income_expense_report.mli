@@ -54,8 +54,6 @@ val compute_report : book:B.t -> period:period -> report
     by its label and listed by it. *)
 
 val measure_active : measure_summary -> bool
-val elapsed : today:string -> period -> int * int
-val truncate_to_days : period -> int -> period
 
 val span : period -> string
 (** A window by its first and last day. *)

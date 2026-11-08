@@ -142,3 +142,17 @@ let range ~config ~today = function
       let* first, stop = window ~config ~day:today Previous_cycle ~offset:0 in
       let* last = calendar (Day.shift_days stop (-1)) in
       Ok (first, last)
+
+(* 5. Comparison windows: include today in the elapsed count; zero days is an
+   empty window, not the whole previous window. *)
+
+let elapsed ~today (start, stop) =
+  match (Day.index today, Day.index start, Day.index stop) with
+  | Ok now, Ok start, Ok stop ->
+      let total = max 0 (stop - start) in
+      (max 0 (min total (now - start + 1)), total)
+  | _ -> (0, 0)
+
+let same_age (start, stop) days =
+  if days <= 0 then (start, start)
+  else match Day.shift_days start days with Ok day -> (start, day) | Error _ -> (start, stop)

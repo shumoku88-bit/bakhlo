@@ -1,0 +1,35 @@
+BOOK	1
+MEASURE	jpy	0
+MEASURE	eur	2
+LOCUS	a	a	
+LOCUS	b	b	
+LOCUS	c	c	
+LOCUS	ext	ext	
+LOCUS	empty	empty	
+TX	before	2026-09-30
+EFFECT	a	jpy	20
+EFFECT	b	jpy	-20
+EFFECT	c	jpy	20
+EFFECT	ext	jpy	-20
+ENDTX
+TX	within	2026-10-16
+EFFECT	a	jpy	10
+EFFECT	a	jpy	20
+EFFECT	b	jpy	-30
+EFFECT	c	jpy	30
+EFFECT	ext	jpy	-30
+ENDTX
+TX	end	2026-11-01
+EFFECT	a	jpy	40
+EFFECT	b	jpy	-40
+EFFECT	c	jpy	40
+EFFECT	ext	jpy	-40
+ENDTX
+ZERO-ORIGIN	a	jpy
+ZERO-ORIGIN	b	jpy
+ZERO-ORIGIN	empty	jpy
+HISTORY-FROM	c	jpy	2026-09-15
+ANCHOR	-
+ASSERT	c	jpy	10
+ENDANCHOR
+END

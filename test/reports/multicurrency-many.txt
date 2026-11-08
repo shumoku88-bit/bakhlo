@@ -1,0 +1,35 @@
+BOOK	1
+MEASURE	jpy	0
+MEASURE	eur	2
+MEASURE	usd	2
+LOCUS	wallet	wallet	
+LOCUS	bank	bank	
+LOCUS	food	food	
+LOCUS	rent	rent	
+ROLE	wallet	ASSET
+ROLE	bank	ASSET
+ROLE	food	EXPENSE
+ROLE	rent	EXPENSE
+TX	o1	2026-10-06
+EFFECT	food	jpy	1000
+EFFECT	wallet	jpy	-1000
+ORIGINAL	usd	30000
+ENDTX
+TX	o2	2026-10-07
+EFFECT	food	eur	2000
+EFFECT	rent	eur	3000
+EFFECT	bank	eur	-5000
+ORIGINAL	usd	15000
+ENDTX
+TX	x1	2026-10-10	DESC	trip-exchange
+EFFECT	wallet	jpy	-100100	src
+EFFECT	wallet	eur	5000	dst
+EFFECT	food	jpy	100
+EXCHANGE	jpy	eur
+ENDTX
+TX	x2	2026-10-11
+EFFECT	bank	jpy	-50000	s2
+EFFECT	wallet	usd	3000	d2
+EXCHANGE	jpy	usd
+ENDTX
+END

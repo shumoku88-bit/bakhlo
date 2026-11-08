@@ -46,8 +46,10 @@ Bakhloでの確認は `test/reports_tests.ml`。
   `mixed-measures`（問いと違うMeasureのマス）・`duplicate-selection`。
 - `TREND	<観察日>	<CYCLE|MONTH|DAY>	<範囲>`：`LOCUS` のマス（1〜5個、同じMeasure）ごとに、区切りごとの
   `POINT	始まり	終わり	日数	COMPLETE|PARTIAL	合計	値`。周期と月の値は合計÷日数の切り捨て、
-  日の値は合計。観察日を含む区切りは `PARTIAL`。範囲（`ALL-HISTORY`・`CURRENT-CYCLE`・
-  `CURRENT-MONTH`・`LAST-30-DAYS`）は日ごとのときだけ効き、`SCOPE` 行に実際の範囲を出す。
+  日の値は合計。周期と月は自然な窓の始まりから終わりまで含めば `COMPLETE`（観察日の翌日が
+  終わりでもよい）、履歴の始まりや観察日で窓を切れば `PARTIAL`。日は観察日だけ `PARTIAL`。
+  範囲（`ALL-HISTORY`・`CURRENT-CYCLE`・`CURRENT-MONTH`・`LAST-30-DAYS`）は日ごとのときだけ効き、
+  `SCOPE` 行に実際の範囲を出す。
   拒否：`bad-observation-day`・`no-locus`・`no-measure`・`too-many-loci`・
   `unknown-measure:<Measure>`（帳簿にない）・`empty-locus`・`mixed-measures`・
   `duplicate-locus:<科目>`、それから観察日の周期が決まらないときの期間のコード
@@ -55,11 +57,14 @@ Bakhloでの確認は `test/reports_tests.ml`。
   `test/periods/`）。
 - `TREND-DEFAULT	<Measure>	<始まり>	<終わり>`：推移を開いたときに選ばれる科目。EXPENSEの科目の
   うち実績の件数が多い3つ（同じなら動いた量の多い順、次に科目の順）。
+- `TREND-CATALOG	<Measure>`：新しい記帳に使える科目と、そのMeasureで実績に登場する科目の
+  和集合を科目ID順に `CATALOG	科目	Measure` で。HIDDENでも記帳済なら含め、別Measureだけの
+  記帳や未使用のHIDDENは含めない。役割や残高の根拠からは推測しない。
 - `LIQUIDITY	<今日>	<この日まで>`：`POOL	科目	Measure` の今の残高の和 `CURRENT` に、
   その日までのまだの予定を日ごとに足した `POINT	日付	変化	残高`、最後の `FINAL` と一番低い
   `LOW`（今を含む）。拒否：`bad-today`・`bad-horizon`（実在しない日）・
   `horizon-before-today`・`no-selection`・`duplicate-selection`・`mixed-measures`・
-  `unknown-balance:<科目>`（今の残高が分からない。0とは読まない）・`overdue:<予定ID>`
+  `unknown-balance:<科目>`（今の残高が分からない。0とは読まない。空の科目やMeasureもここ）・`overdue:<予定ID>`
   （選んだマスを動かすまだの予定の期限が今日より前。動かしも片付けもしない）。
 - `MULTICURRENCY	<始まり>	<終わり>`：通貨を換算しない。両替でない実績のEXPENSE `ORDINARY`、
   数えた元の金額 `ORIGINAL`、両替の実績のEXPENSE `EXCHANGE-EXPENSE` を通貨ごとに。両替
@@ -68,3 +73,24 @@ Bakhloでの確認は `test/reports_tests.ml`。
   `UNRESOLVED-ORIGINAL`・`UNCOUNTED-ORIGINAL`（`unresolved-roles`・`exchange`・
   `no-positive-expense`）。元の金額は、正のEXPENSEがある両替でない実績のときだけ数える。
   拒否：`bad-start`・`bad-end`（実在しない日）・`empty-window`（終わりが始まりより後でない）。
+
+## 境界の見本
+
+`base.txt` は全体の読み方、別の帳簿は計算の境界を小さく分ける：
+
+- `liquidity-path`・`liquidity-exact`・`liquidity-long`：同日の相殺点、選択内の和、
+  関係ない期限切れ、今日と期限日の包含、負と巨大な整数、予定のない0、14点の最後と最低点。
+- `multicurrency-many`：元の金額は実績ごとに1回、同じ通貨なら和。両替の組が違っても残す。
+- `stock-flow-history`・`stock-flow-opening`・`stock-flow-observation`：0起点と有界履歴、
+  履歴以前と全期間、開始記帳の両側、別Measureの開始、日付のない確認。
+  行の差は両端の残高差なので不明になり得る。全体の `NET` は記録された流れの和で、
+  窓の中の開始記帳を除外したときに不明になる。
+- `trend-history`・`trend-huge`・`trend-clamped`・`trend-thirty`・`trend-leap`・
+  `trend-reversal`：履歴の切り方、負の床平均、601桁、空の科目、scale 2、
+  30暦日と月途中の開始、閏日、返金自身の符号。`trend-catalog` は候補、`trend-malformed` は周期の拒否。
+- `income-expense-comparison`：同じ日数の窓・全窓・空の窓の収支。
+  日数と比較窓の決まりそのものは `test/periods/comparison.answers` の
+  `ELAPSED`・`SAME-AGE` に置く。
+
+画面の文字・桁区切り・12行の表示制限・スクロール・下書き・更新時の無効化・
+非保存・cold reloadは引き続き `tui/` の検査で、ここでは計算を所有する。

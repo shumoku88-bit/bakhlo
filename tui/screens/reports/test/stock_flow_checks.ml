@@ -1,18 +1,12 @@
-(* Stock–Flow computation: the one shared support rule (zero-origin or bounded
-   history), unknown starts before a bounded start, unsupported coordinates
-   listed instead of refusing the report, and a cold reload agreeing. *)
+(* Stock–Flow presentation and cold reload. Calculation rules live in
+   test/reports; unknown boundaries stay visible here, never rendered as zero. *)
 module B = Bakhlo_household.Book
 module S = Stock_flow_report
 module SF = Bakhlo_household.Stock_flow
 module I = Income_expense_report
 
-let id_of = function Ok value -> value | Error _ -> failwith "synthetic identifier"
-let posting locus amount = { B.key = None; locus; measure = "jpy"; amount }
-let posting_in locus measure amount = { B.key = None; locus; measure; amount }
-let posting_keyed locus measure amount key = { B.key = Some key; locus; measure; amount }
 let get = function Ok x -> x | Error why -> failwith why
 let require condition why = if not condition then failwith why
-let z = Z.of_int
 
 let fixture support =
   get
@@ -41,38 +35,6 @@ let self_check () =
       ~start:period.start_day ~stop:period.end_exclusive
     |> Result.map_error SF.message
   in
-  let only locus (report : SF.snapshot) =
-    List.find (fun (c : SF.coordinate_activity) -> c.locus = locus) report.coordinates
-  in
-  (* Zero-origin: forward sums stay exact. *)
-  let zero_report = get (compute zero [ ("a", "jpy") ]) in
-  let a = only "a" zero_report in
-  require
-    (a.SF.start_balance = Some (z 20)
-    && a.SF.end_balance = Some (z 50)
-    && Z.equal a.SF.increases (z 30)
-    && Z.equal a.SF.decreases Z.zero
-    && a.SF.current_balance = Some (z 90)
-    && zero_report.SF.unknown_starts = 0)
-    "zero-origin start, flow and end stay exact";
-  let transfer = get (compute zero [ ("b", "jpy"); ("a", "jpy") ]) in
-  require
-    (Z.equal transfer.SF.increases_across_events (z 30)
-    && Z.equal transfer.SF.decreases_across_events (z (-30))
-    && transfer.SF.net_change = Some Z.zero)
-    "per-coordinate in/out cancel for an internal transfer";
-
-  (* Bounded history: after the start, before the start, and mixed with
-     zero-origin coordinates. *)
-  let after = get (compute bounded [ ("a", "jpy") ]) in
-  let a = only "a" after in
-  require
-    (a.SF.support = SF.Bounded "2026-09-15"
-    && a.SF.start_balance = Some (z 30)
-    && a.SF.end_balance = Some (z 60)
-    && a.SF.current_balance = Some (z 100)
-    && after.SF.unknown_starts = 0)
-    "a window after the bounded start reconstructs both boundaries";
   let before_period : I.period =
     { period with start_day = "2026-09-01"; end_exclusive = "2026-10-01" }
   in
@@ -83,19 +45,6 @@ let self_check () =
            ~tracked_coords:[ ("a", "jpy") ]
            ~liability_coords:[] ~start:before_period.start_day ~stop:before_period.end_exclusive)
   in
-  let a = only "a" before in
-  require
-    (a.SF.support = SF.Before_start "2026-09-15"
-    && a.SF.start_balance = None
-    && a.SF.end_balance = Some (z 30)
-    && before.SF.unknown_starts = 1
-    && Z.equal before.SF.reconstructed_start Z.zero)
-    "a window before the bounded start reports an unknown start, never zero";
-  let mixed = get (compute bounded [ ("a", "jpy"); ("b", "jpy") ]) in
-  require
-    ((only "a" mixed).SF.support = SF.Bounded "2026-09-15"
-    && (only "b" mixed).SF.support = SF.Zero_origin)
-    "bounded and zero-origin coordinates render together";
 
   (* A cold reload agrees with the in-memory book. *)
   let reloaded = cold_of zero in
@@ -109,38 +58,6 @@ let self_check () =
         (fun (c : SF.coordinate_activity) -> (c.locus, c.start_balance, c.end_balance))
         warm.SF.coordinates)
     "a cold reload reconstructs the same boundaries";
-
-  (* All Time: a zero-origin start before all history is exactly zero; a bounded
-     start stays unknown. *)
-  let all_time : I.period =
-    {
-      preset = I.All_time;
-      start_day = "0001-01-01";
-      end_exclusive = "9999-12-31";
-      label = "All Time";
-    }
-  in
-  let all_zero =
-    get
-      (Result.map_error SF.message
-      @@ SF.compute zero ~measure:"jpy"
-           ~tracked_coords:[ ("a", "jpy") ]
-           ~liability_coords:[] ~start:all_time.start_day ~stop:all_time.end_exclusive)
-  in
-  require
-    ((only "a" all_zero).SF.start_balance = Some Z.zero)
-    "an All Time zero-origin start is exactly zero";
-  let all_bounded =
-    get
-      (Result.map_error SF.message
-      @@ SF.compute bounded ~measure:"jpy"
-           ~tracked_coords:[ ("a", "jpy") ]
-           ~liability_coords:[] ~start:all_time.start_day ~stop:all_time.end_exclusive)
-  in
-  require
-    ((only "a" all_bounded).SF.start_balance = None
-    && (only "a" all_bounded).SF.support = SF.Before_start "2026-09-15")
-    "an All Time bounded start stays unknown";
 
   (* The footnote names which total is partial. *)
   let contains text needle =
@@ -215,16 +132,6 @@ let self_check () =
            ~tracked_coords:[ ("debt", "jpy") ]
            ~liability_coords:[] ~start:before_open.start_day ~stop:before_open.end_exclusive)
   in
-  let debt = only "debt" early in
-  require
-    (debt.SF.support = SF.Opening_inside "2026-09-01"
-    && debt.SF.start_balance = None
-    && debt.SF.end_balance = Some (z 1000)
-    && early.SF.unknown_starts = 1)
-    "a window containing the opening keeps the start unknown";
-  require
-    (Z.equal debt.SF.increases Z.zero && Z.equal debt.SF.decreases Z.zero)
-    "the opening posting is not presented as growth";
   let early_lines =
     List.map snd
       (S.render_summary_lines ~width:120 ~width_of:String.length ~period ~book:opening_book
@@ -244,16 +151,6 @@ let self_check () =
            ~tracked_coords:[ ("debt", "jpy"); ("opening-equity", "jpy") ]
            ~liability_coords:[] ~start:before_open.start_day ~stop:before_open.end_exclusive)
   in
-  require
-    (Z.equal inside_opening.SF.increases_across_events Z.zero
-    && Z.equal inside_opening.SF.decreases_across_events Z.zero)
-    "the opening entry's counterpart posting is not a flow";
-  require
-    (Z.equal (only "debt" inside_opening).SF.increases Z.zero
-    && Z.equal (only "debt" inside_opening).SF.decreases Z.zero
-    && Z.equal (only "opening-equity" inside_opening).SF.increases Z.zero
-    && Z.equal (only "opening-equity" inside_opening).SF.decreases Z.zero)
-    "neither side of the opening entry is a flow";
   let inside_lines =
     List.map snd
       (S.render_summary_lines ~width:120 ~width_of:String.length ~period ~book:opening_book
@@ -283,15 +180,6 @@ let self_check () =
            ~tracked_coords:[ ("opening-equity", "jpy") ]
            ~liability_coords:[] ~start:before_open.start_day ~stop:before_open.end_exclusive)
   in
-  let equity = only "opening-equity" counterpart_only in
-  require
-    (equity.SF.start_balance = Some (z 0)
-    && equity.SF.end_balance = Some (z (-1000))
-    && equity.SF.net_change = None)
-    "the row that carries the opening entry has an unknown Net";
-  require
-    (counterpart_only.SF.net_change = None)
-    "the tracked motion is unknown while an opening entry sits in Start and End";
   let counterpart_lines =
     List.map snd
       (S.render_summary_lines ~width:120 ~width_of:String.length ~period ~book:opening_book
@@ -308,30 +196,6 @@ let self_check () =
   | Some line ->
       let fields = List.filter (fun word -> word <> "") (String.split_on_char ' ' line) in
       require (List.hd (List.rev fields) = "—") "the total row's Net stays unknown");
-  require
-    ((only "debt" inside_opening).SF.net_change = None
-    && (only "opening-equity" inside_opening).SF.net_change = None
-    && inside_opening.SF.net_change = None)
-    "every row the opening entry touches has an unknown Net";
-
-  (* The exclusion is keyed by (Measure, entry): an opening of another Measure
-     never removes this Measure's flows. *)
-  let other_measure =
-    get
-      (Result.map_error SF.message
-      @@ SF.compute opening_book ~measure:"jpy"
-           ~tracked_coords:[ ("cash", "jpy") ]
-           ~liability_coords:[] ~start:before_open.start_day ~stop:before_open.end_exclusive)
-  in
-  let cash = only "cash" other_measure in
-  require
-    (Z.equal cash.SF.decreases (z (-100))
-    && cash.SF.start_balance = Some Z.zero
-    && cash.SF.end_balance = Some (z (-100))
-    && cash.SF.net_change = Some (z (-100))
-    && other_measure.SF.excluded_openings = [])
-    "an opening of another Measure leaves this Measure's flows alone";
-
   (* A window that ends before the opening entry: start and end stay unknown. *)
   let before_open : I.period =
     { period with start_day = "2026-07-01"; end_exclusive = "2026-08-15" }
@@ -343,11 +207,6 @@ let self_check () =
            ~tracked_coords:[ ("debt", "jpy") ]
            ~liability_coords:[] ~start:before_open.start_day ~stop:before_open.end_exclusive)
   in
-  let debt = only "debt" earlier in
-  require
-    (debt.SF.support = SF.Opening_after "2026-09-01"
-    && debt.SF.start_balance = None && debt.SF.end_balance = None && earlier.SF.unknown_starts = 1)
-    "a window ending before the opening keeps the start and the end unknown";
   let earlier_lines =
     List.map snd
       (S.render_summary_lines ~width:120 ~width_of:String.length ~period ~book:opening_book
@@ -416,12 +275,6 @@ let self_check () =
           END\n"
   in
   let observed = get (compute observation_book [ ("debt", "jpy") ]) in
-  let debt = only "debt" observed in
-  require
-    (debt.SF.support = SF.Observation_undated
-    && debt.SF.start_balance = None && debt.SF.end_balance = None
-    && debt.SF.current_balance = Some (z 400))
-    "an observation is undated: current exact, start unknown";
   let lines =
     List.map snd
       (S.render_summary_lines ~width:120 ~width_of:String.length ~period ~book:observation_book
@@ -446,6 +299,5 @@ let self_check () =
       require (List.hd (List.rev words) = "—") "an unknown boundary leaves the Net cell unknown";
       require (List.mem "+400" words) "the in-window motion stays in its own column");
   print_endline
-    "PASS: Stock-Flow zero-origin, bounded, opening and observation support, all-time and unknown \
-     starts, listed unsupported coordinates, liabilities, roles refusal and cold-reload agreement \
-     (synthetic)."
+    "PASS: Stock-Flow unknown-boundary notes, opening exclusions, liability columns and \
+     cold-reload agreement (synthetic)."

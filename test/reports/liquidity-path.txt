@@ -1,0 +1,59 @@
+BOOK	1
+MEASURE	jpy	0
+MEASURE	eur	2
+LOCUS	wallet	wallet	
+LOCUS	bank	bank	
+LOCUS	ext	ext	
+TX	e1	2026-10-01
+EFFECT	wallet	jpy	1000
+EFFECT	bank	jpy	-1000
+ENDTX
+TX	e2	2026-10-02
+EFFECT	bank	jpy	1500
+EFFECT	ext	jpy	-1500
+ENDTX
+PLAN	past_zero	2026-10-05	jpy
+CHANGE	wallet	-50
+CHANGE	bank	50
+ENDPLAN
+PLAN	past_foreign	2026-10-05	eur
+CHANGE	wallet	-5
+CHANGE	ext	5
+ENDPLAN
+PLAN	same_day_a	2026-10-22	jpy
+CHANGE	wallet	70
+CHANGE	ext	-70
+ENDPLAN
+PLAN	same_day_b	2026-10-22	jpy
+CHANGE	wallet	-70
+CHANGE	ext	70
+ENDPLAN
+PLAN	paid	2026-10-24	jpy
+CHANGE	wallet	999
+CHANGE	ext	-999
+PAID-BY	e2
+ENDPLAN
+PLAN	cancelled	2026-10-24	jpy
+CHANGE	bank	-999
+CHANGE	ext	999
+CANCELLED	2026-10-21
+ENDPLAN
+PLAN	inflow	2026-10-25	jpy
+CHANGE	wallet	200
+CHANGE	ext	-200
+ENDPLAN
+PLAN	outflow	2026-10-27	jpy
+CHANGE	bank	-100
+CHANGE	ext	100
+ENDPLAN
+PLAN	horizon	2026-10-31	jpy
+CHANGE	wallet	30
+CHANGE	ext	-30
+ENDPLAN
+PLAN	later	2026-11-01	jpy
+CHANGE	wallet	40
+CHANGE	ext	-40
+ENDPLAN
+ZERO-ORIGIN	wallet	jpy
+ZERO-ORIGIN	bank	jpy
+END

@@ -6,6 +6,30 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Remaining report calculation samples (2026-11-08)
+
+- User request: move the report calculation rules still asserted by old tui checks
+  into the samples. Delegated to omp (parent Codex, deepseek subagents) in Rex with
+  a written brief; omp did not commit. 46 report questions (102 in all) and 15
+  period lines (73) were written by hand with the arithmetic noted before running,
+  including `TREND-CATALOG`, `ELAPSED` and `SAME-AGE`. The only production change
+  moves I&E's comparison windows into `Period.elapsed` / `Period.same_age`,
+  unchanged.
+- First run: every answer that ran matched; one sample book refused
+  `section-order` (HISTORY-FROM after ANCHOR) and was reordered without touching
+  its answers. Three deliberately wrong answers each failed, then were restored.
+- The matching calculation assertions and dead fixtures left the Liquidity,
+  Multicurrency, Stock–Flow, Trend projection and I&E frame checks; screen text,
+  formatting, the twelve painted Liquidity rows, no-write, cache and cold-reload
+  checks remain, and omp's reviewer added explicit checks for the painted
+  Liquidity dates and exchange memo.
+- Claude re-derived four samples by hand (Liquidity path, Stock–Flow bounded and
+  whole-history windows, Trend history start and negative floor, the leap year),
+  read the diff, and ran the gates itself (below). Synthetic only.
+- `./tools/check`, `./tools/tui --self-check`, `./tools/format --check`,
+  `./tools/privacy-scan --all`: exit 0 (102 report answers, 73 period answers). No
+  displayed answer changed, so no screen capture was taken.
+
 ## Scheduled answer samples (2026-11-08)
 
 - User request: before a later Zig rewrite, pin plan creation, replacement,

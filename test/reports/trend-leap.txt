@@ -1,0 +1,13 @@
+BOOK	1
+MEASURE	jpy	0
+LOCUS	a	a	
+LOCUS	b	b	
+TX	feb	2028-02-29
+EFFECT	a	jpy	3
+EFFECT	b	jpy	-3
+ENDTX
+TX	mar	2028-03-01
+EFFECT	a	jpy	100
+EFFECT	b	jpy	-100
+ENDTX
+END

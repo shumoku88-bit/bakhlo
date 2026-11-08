@@ -1,0 +1,33 @@
+BOOK	1
+MEASURE	jpy	0
+MEASURE	eur	2
+LOCUS	negative	negative	
+LOCUS	wallet	wallet	
+LOCUS	due	due	
+LOCUS	empty	empty	
+LOCUS	ext	ext	
+TX	negative	2026-10-01
+EFFECT	negative	jpy	-500
+EFFECT	ext	jpy	500
+ENDTX
+TX	scaled	2026-10-01
+EFFECT	wallet	eur	123456789
+EFFECT	ext	eur	-123456789
+ENDTX
+PLAN	down	2026-10-25	jpy
+CHANGE	negative	-200
+CHANGE	ext	200
+ENDPLAN
+PLAN	top_up	2026-10-25	eur
+CHANGE	wallet	123456789012345678901234567890
+CHANGE	ext	-123456789012345678901234567890
+ENDPLAN
+PLAN	due_today	2026-10-20	jpy
+CHANGE	due	-9
+CHANGE	ext	9
+ENDPLAN
+ZERO-ORIGIN	negative	jpy
+ZERO-ORIGIN	wallet	eur
+ZERO-ORIGIN	due	jpy
+ZERO-ORIGIN	empty	jpy
+END

@@ -59,10 +59,15 @@ let comparison (env : Screen.env) t (period : IncExp.period) =
   Option.map
     (fun window ->
       let whole = report env window in
-      let elapsed, total = IncExp.elapsed ~today:env.today period in
+      let elapsed, total =
+        Bakhlo_household.Period.elapsed ~today:env.today (period.start_day, period.end_exclusive)
+      in
       if elapsed >= total then { IncExp.window; same_age = whole; whole = Some whole }
       else
-        let same_age = report env (IncExp.truncate_to_days window elapsed) in
+        let _, end_exclusive =
+          Bakhlo_household.Period.same_age (window.start_day, window.end_exclusive) elapsed
+        in
+        let same_age = report env { window with end_exclusive } in
         (* A window that has not started compares with an empty window; the whole one
            would be a misread, so it is not offered. *)
         { IncExp.window; same_age; whole = (if elapsed = 0 then None else Some whole) })

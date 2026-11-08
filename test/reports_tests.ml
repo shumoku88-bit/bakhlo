@@ -254,6 +254,10 @@ let answer ~presets book header body =
   | [ "TREND"; observed_at; grain; scope ] ->
       trend book ~presets ~observed_at ~grain ~scope ~coordinates:(cells "LOCUS" body)
   | [ "TREND-DEFAULT"; measure; start; stop ] -> trend_default book ~measure ~start ~stop
+  | [ "TREND-CATALOG"; measure ] ->
+      Bakhlo_household.Trend.catalog book ~measure
+      |> List.map (fun (c : Bakhlo_household.Trend.coordinate) ->
+          String.concat "\t" [ "CATALOG"; c.locus; c.measure ])
   | [ "LIQUIDITY"; today; through ] -> liquidity book ~today ~through ~pool:(cells "POOL" body)
   | [ "MULTICURRENCY"; start; stop ] -> multicurrency book ~start ~stop
   | _ -> bad ("question " ^ header)
@@ -304,4 +308,4 @@ let%expect_test "every report sample gives its listed answer" =
       | _ -> fail row "bad cases row")
     (List.tl (lines (read "cases.tsv")));
   Printf.printf "%d report answers, %d failures\n" !answers !failures;
-  [%expect {| 56 report answers, 0 failures |}]
+  [%expect {| 102 report answers, 0 failures |}]

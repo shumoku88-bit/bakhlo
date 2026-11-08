@@ -1,0 +1,25 @@
+BOOK	1
+MEASURE	jpy	0
+MEASURE	eur	2
+LOCUS	debt	debt	
+LOCUS	cash	cash	
+LOCUS	equity	equity	
+LOCUS	eur-debt	eur-debt	
+TX	open	2026-09-01
+EFFECT	debt	jpy	1000
+EFFECT	equity	jpy	-1000
+ENDTX
+TX	eur-open	2026-09-02
+EFFECT	cash	jpy	-100	from
+EFFECT	eur-debt	eur	500	to
+EXCHANGE	jpy	eur
+ENDTX
+TX	repay	2026-10-10
+EFFECT	debt	jpy	-300
+EFFECT	cash	jpy	300
+ENDTX
+ZERO-ORIGIN	equity	jpy
+ZERO-ORIGIN	cash	jpy
+OPENING	debt	jpy	open
+OPENING	eur-debt	eur	eur-open
+END

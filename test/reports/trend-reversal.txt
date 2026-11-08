@@ -1,0 +1,14 @@
+BOOK	1
+MEASURE	jpy	0
+LOCUS	a	a	
+LOCUS	b	b	
+TX	purchase	2026-10-15
+EFFECT	a	jpy	5
+EFFECT	b	jpy	-5
+ENDTX
+TX	refund	2026-10-16
+EFFECT	a	jpy	-5
+EFFECT	b	jpy	5
+REVERSAL-OF	purchase
+ENDTX
+END

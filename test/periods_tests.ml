@@ -56,6 +56,14 @@ let answer config line =
         [ "WINDOW"; day; s; string_of_int offset; pair (P.window ~config ~day (span s) ~offset) ]
   | "RANGE" :: today :: r :: _ ->
       String.concat "\t" [ "RANGE"; today; r; pair (P.range ~config ~today (range r)) ]
+  | "ELAPSED" :: today :: start :: stop :: _ ->
+      let elapsed, total = P.elapsed ~today (start, stop) in
+      String.concat "\t"
+        [ "ELAPSED"; today; start; stop; string_of_int elapsed; string_of_int total ]
+  | "SAME-AGE" :: start :: stop :: days :: _ ->
+      let days = match int_of_string_opt days with Some n -> n | None -> bad "days" in
+      let first, last = P.same_age (start, stop) days in
+      String.concat "\t" [ "SAME-AGE"; start; stop; string_of_int days; first; last ]
   | _ -> bad ("question " ^ line)
 
 let%expect_test "every period sample gives its listed answer" =
@@ -80,4 +88,4 @@ let%expect_test "every period sample gives its listed answer" =
       | _ -> fail row "bad cases row")
     (List.tl (lines (read "cases.tsv")));
   Printf.printf "%d answers, %d failures\n" !answers !failures;
-  [%expect {| 58 answers, 0 failures |}]
+  [%expect {| 73 answers, 0 failures |}]

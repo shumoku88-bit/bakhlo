@@ -52,3 +52,11 @@ type range = Last_days of int | Month_to_date | Cycle_to_date | Whole_previous_c
 
 val range : config:string option -> today:string -> range -> (string * string, refusal) result
 (** The first and last day (both inclusive) of a Daily Pace History range. *)
+
+val elapsed : today:string -> string * string -> int * int
+(** Days elapsed (including today), clamped to 0..total, and total days of the
+    half-open window. Invalid dates give (0, 0). *)
+
+val same_age : string * string -> int -> string * string
+(** Keep the start and end after this many days; nonpositive days give an empty
+    window. Not clamped to the original end; a failed date shift keeps the window. *)

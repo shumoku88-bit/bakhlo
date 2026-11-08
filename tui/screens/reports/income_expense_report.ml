@@ -48,25 +48,6 @@ let preset_label = function
 let presets = [ Month; Cycle; Previous_cycle; Year; All_time ]
 let resolve_period = Period_window.resolve
 
-(* How much of [period] has elapsed at [today]: (completed days, total days).
-   A window that has not started yet reports 0; a finished window reports M of M. *)
-let elapsed ~today (period : period) =
-  match (Day.index today, Day.index period.start_day, Day.index period.end_exclusive) with
-  | Ok now, Ok start, Ok stop ->
-      let total = max 0 (stop - start) in
-      (max 0 (min total (now - start + 1)), total)
-  | _ -> (0, 0)
-
-(* The same window truncated to [days] elapsed days, for a like-for-like
-   comparison with a previous window of the same age. Zero elapsed days is an
-   empty window, never the whole window. *)
-let truncate_to_days (period : period) days =
-  if days <= 0 then { period with end_exclusive = period.start_day }
-  else
-    match Day.shift_days period.start_day days with
-    | Ok day -> { period with end_exclusive = day }
-    | Error _ -> period
-
 (* The core's answer for the window, with each Locus named as the reader knows
    it and listed by that name. *)
 let compute_report ~book ~period =
@@ -195,7 +176,9 @@ let render_report_lines ~width ~width_of ~book ~report ~today ~comparison =
   in
   let previous = Option.map (fun c -> c.same_age) comparison in
   let previous_full = Option.bind comparison (fun c -> c.whole) in
-  let elapsed_days, total_days = elapsed ~today report.period in
+  let elapsed_days, total_days =
+    Bakhlo_household.Period.elapsed ~today (report.period.start_day, report.period.end_exclusive)
+  in
   let started = not (total_days > 0 && elapsed_days = 0) in
   let partial = total_days > 0 && elapsed_days < total_days in
   (* Two lines: this window and how far it has run, then the compared window at
@@ -380,7 +363,9 @@ let render_compare_lines ~width ~width_of ~book ~today ~reports =
   let current_is_partial =
     match List.rev reports with
     | ((p : period), _) :: _ ->
-        let elapsed_days, total_days = elapsed ~today p in
+        let elapsed_days, total_days =
+          Bakhlo_household.Period.elapsed ~today (p.start_day, p.end_exclusive)
+        in
         total_days > 0 && elapsed_days < total_days
     | [] -> false
   in

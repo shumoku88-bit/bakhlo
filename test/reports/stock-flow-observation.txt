@@ -1,0 +1,12 @@
+BOOK	1
+MEASURE	jpy	0
+LOCUS	debt	debt	
+LOCUS	cash	cash	
+TX	borrow	2026-10-10
+EFFECT	debt	jpy	400
+EFFECT	cash	jpy	-400
+ENDTX
+ANCHOR	borrow
+ASSERT	debt	jpy	400
+ENDANCHOR
+END

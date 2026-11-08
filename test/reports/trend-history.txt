@@ -1,0 +1,35 @@
+BOOK	1
+MEASURE	jpy	0
+MEASURE	eur	2
+LOCUS	a	a	
+LOCUS	b	b	
+LOCUS	gamma	gamma	
+TX	early	2026-10-14
+EFFECT	a	jpy	900
+EFFECT	b	jpy	-900
+ENDTX
+TX	first	2026-10-15
+EFFECT	a	jpy	5
+EFFECT	b	jpy	-5
+ENDTX
+TX	negative	2026-10-16
+EFFECT	a	jpy	-12
+EFFECT	b	jpy	12
+ENDTX
+TX	eur	2026-10-16
+EFFECT	a	eur	12345
+EFFECT	b	eur	-12345
+ENDTX
+TX	end	2026-10-31
+EFFECT	a	jpy	20
+EFFECT	b	jpy	-20
+ENDTX
+TX	next	2026-11-01
+EFFECT	a	jpy	7
+EFFECT	b	jpy	-7
+ENDTX
+TX	last	2026-11-05
+EFFECT	a	jpy	-2
+EFFECT	b	jpy	2
+ENDTX
+END

@@ -8,6 +8,13 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
 
 ## Where things stand (2026-11-08)
 
+- 2026-11-08: the remaining report calculation checks now live in language-neutral
+  samples: `test/reports/` has 102 questions, `test/periods/` has 73 lines, including
+  `TREND-CATALOG`, `ELAPSED` and `SAME-AGE`. I&E comparison windows are owned by
+  `Period`; old report checks retain UI/formatting/cache/no-write/cold-reload
+  assertions, with every test module and dune stanza kept.
+  [Evidence](VERIFICATION.md#remaining-report-calculation-samples-2026-11-08).
+
 - 2026-11-08: answer samples for the Zig rewrite start with Scheduled:
   `test/scheduled/` (28 hand-written samples with 27 Daily Pace questions, README)
   passes through `test/scheduled_tests.ml`. History's plan rules now live in the

@@ -83,80 +83,6 @@ let compute ?(today = "2026-10-20") ?(through = "2026-10-31") ?(coords = coords_
 let expect_error label result = require (is_error result) (label ^ " must refuse")
 
 (* ------------------------------------------------------------------ *)
-(* Conditional path: exact selected sum, grouped days, horizon boundary. *)
-
-let check_report_path () =
-  let snapshot = get (compute flow_book) in
-  require
-    (snapshot.L.as_of = "2026-10-20"
-    && snapshot.L.assumed_complete_through = "2026-10-31"
-    && snapshot.L.measure = "jpy")
-    "conditional snapshot must echo the explicit question";
-  require
-    (Z.equal snapshot.L.current_selected (z 1500))
-    "current selected balance is the exact sum of the selected coordinates";
-  let points =
-    List.map (fun (p : L.point) -> (p.L.date, p.L.scheduled_change, p.L.balance)) snapshot.L.points
-  in
-  require
-    (points
-    = [
-        ("2026-10-22", Z.zero, z 1500);
-        ("2026-10-25", z 200, z 1700);
-        ("2026-10-27", z (-100), z 1600);
-        ("2026-10-31", z 30, z 1630);
-      ])
-    "paths must group same days, include the inclusive horizon, drop paid/cancelled, later plans \
-     and irrelevant overdue plans, and keep a zero-net day point";
-  require
-    (Z.equal (L.low_water snapshot) (z 1500))
-    "low-water includes the current baseline and every day boundary";
-  (* The horizon is an inclusive day boundary. *)
-  let exact = get (compute ~through:"2026-10-31" flow_book) in
-  require
-    (List.exists (fun (p : L.point) -> p.L.date = "2026-10-31") exact.L.points)
-    "a plan due on the assumption date is included"
-
-let compute_refusals () =
-  expect_error "malformed locus" (compute ~coords:[ ("", "jpy") ] flow_book);
-  expect_error "malformed measure" (compute ~coords:[ ("wallet", "") ] flow_book);
-  expect_error "non-canonical today" (compute ~today:"2026-2-3" flow_book);
-  expect_error "non-canonical assumption" (compute ~through:"2026-10-1" flow_book);
-  let due_today =
-    read
-      (book ~entries:""
-         ~plans:(plan "due_today" "2026-10-20" "jpy" [ ("wallet", z (-9)); ("ext", z 9) ])
-         ())
-  in
-  let today = get (compute ~through:"2026-10-20" ~coords:[ ("wallet", "jpy") ] due_today) in
-  require
-    (match today.L.points with
-    | [ point ] ->
-        point.L.date = "2026-10-20"
-        && Z.equal point.L.scheduled_change (z (-9))
-        && Z.equal point.L.balance (z (-9))
-    | _ -> false)
-    "a due-today change is not overdue and remains inside an inclusive today horizon"
-
-(* ------------------------------------------------------------------ *)
-(* Exact versus unsupported evidence. *)
-
-let check_evidence () =
-  let flow_only = read (book ~entries:flow_entries ~plans:"" ()) in
-  let exact = get (compute ~coords:[ ("wallet", "jpy") ] flow_only) in
-  require
-    (Z.equal exact.L.current_selected (z 1000))
-    "a zero-origin coordinate answers an exact current quantity";
-  let zero_book = read (book ~entries:"" ~plans:"" ()) in
-  let zero = get (compute ~coords:[ ("wallet", "jpy") ] zero_book) in
-  require
-    (Z.equal zero.L.current_selected Z.zero
-    && zero.L.points = []
-    && Z.equal (L.final_at_horizon zero) Z.zero
-    && Z.equal (L.low_water zero) Z.zero)
-    "a supported exact zero with no Scheduled changes is not an unknown amount"
-
-(* ------------------------------------------------------------------ *)
 (* Negative, zero and huge exact scaled amounts; render sign and scale. *)
 
 let check_amounts () =
@@ -175,17 +101,11 @@ let check_amounts () =
          ())
   in
   let snapshot = get (compute ~coords:[ ("wallet", "jpy") ] negative) in
-  require
-    (Z.equal snapshot.L.current_selected (z (-500)))
-    "negative exact selected balances stay exact";
-  require
-    (Z.equal (L.final_at_horizon snapshot) (z (-700)))
-    "conditional outflow may take the balance negative";
-  require
-    (Z.equal (L.low_water snapshot) (z (-700)))
-    "low-water reflects a path below the current baseline";
   let lines = R.render_lines ~book:negative snapshot in
   let text = String.concat "\n" (List.map snd lines) in
+  require
+    (contains text "2026-10-20" && contains text "2026-10-31")
+    "the rendered outlook names its as-of and assumed-through dates";
   require (contains text "-500") "negative current balance is rendered exactly";
   require (contains text "-700") "negative conditional horizon balance is rendered exactly";
   (* Scaled EUR: quanta 123456789 at scale 2 is 1,234,567.89, never the raw integer. *)
@@ -206,12 +126,6 @@ let check_amounts () =
          ())
   in
   let eur = get (compute ~coords:[ ("wallet", "eur") ] eur_book) in
-  require
-    (eur.L.measure = "eur" && Z.equal eur.L.current_selected (z 123456789))
-    "the selection, not the Shell environment, decides the single Measure";
-  require
-    (Z.equal (L.final_at_horizon eur) (Z.add (z 123456789) huge))
-    "huge conditional totals stay exact";
   let eur_text = String.concat "\n" (List.map snd (R.render_lines ~book:eur_book eur)) in
   require
     (contains eur_text "1,234,567.89")
@@ -244,10 +158,6 @@ let check_display_limit () =
   in
   let many = read (book ~support:support_flow ~entries:"" ~plans ()) in
   let snapshot = get (compute ~through:"2026-11-05" ~coords:[ ("wallet", "jpy") ] many) in
-  require (List.length snapshot.L.points = 14) "all fourteen day points exist";
-  require
-    (Z.equal (L.final_at_horizon snapshot) (z (-70)) && Z.equal (L.low_water snapshot) (z (-70)))
-    "totals and low-water use every point, not only the displayed rows";
   let lines = R.render_lines ~book:many snapshot in
   let rows = List.map snd lines in
   let shown date = List.exists (fun line -> contains line date) rows in
@@ -503,14 +413,10 @@ let check_configuration_and_resize () =
   ()
 
 let self_check () =
-  check_report_path ();
-  compute_refusals ();
-  check_evidence ();
   check_amounts ();
   check_display_limit ();
   check_screen ();
   check_configuration_and_resize ();
   print_endline
-    "PASS: Liquidity keeps both unconditional statements UNKNOWN, answers only after an explicit \
-     dated assumption, and exactly covers selected balances, conditional day paths, low-water, \
-     evidence, scale, display limit, draft invalidation and no-write screen transitions."
+    "PASS: Liquidity UNKNOWN-first presentation, explicit Run, scale and grouping, twelve-row \
+     display limit, draft invalidation and no-write screen transitions."

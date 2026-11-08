@@ -1,0 +1,22 @@
+BOOK	1
+MEASURE	jpy	0
+MEASURE	eur	2
+LOCUS	z	z	
+LOCUS	empty	empty	
+LOCUS	a	a		HIDDEN
+LOCUS	b	b		HIDDEN
+LOCUS	d	d		HIDDEN
+LOCUS	unused	unused		HIDDEN
+TX	jpy	2026-10-15
+EFFECT	a	jpy	5
+EFFECT	b	jpy	-5
+ENDTX
+TX	eur	2026-10-15
+EFFECT	d	eur	700
+EFFECT	a	eur	-700
+ENDTX
+TX	approved-recorded	2026-10-16
+EFFECT	z	jpy	2
+EFFECT	b	jpy	-2
+ENDTX
+END
