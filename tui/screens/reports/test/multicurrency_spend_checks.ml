@@ -31,8 +31,7 @@ let entry ?exchange ?original ?memo id day postings =
     (match exchange with None -> "" | Some (x, y) -> Printf.sprintf "EXCHANGE\t%s\t%s\n" x y)
 
 (* Loci outside [approved] that entries use are kept, hidden from new entries. *)
-let book ?(approved = [ "wallet"; "bank"; "ext"; "mystery"; "hotel"; "shop" ])
-    ?(measures = [ ("jpy", 0); ("eur", 2); ("usd", 2) ]) ~entries ~plans () =
+let book ?(approved = [ "wallet"; "bank"; "ext"; "mystery"; "hotel"; "shop" ]) ~entries ~plans () =
   let locus hidden l =
     Printf.sprintf "LOCUS\t%s\t%s\t%s\n" l l (if hidden then "\tHIDDEN" else "")
   in
@@ -42,9 +41,7 @@ let book ?(approved = [ "wallet"; "bank"; "ext"; "mystery"; "hotel"; "shop" ])
         List.map (fun l -> Printf.sprintf "ZERO-ORIGIN\t%s\t%s\n" l m) [ "wallet"; "bank"; "ext" ])
       [ "jpy"; "eur"; "usd" ]
   in
-  "BOOK\t1\n"
-  ^ String.concat ""
-      (List.map (fun (m, scale) -> Printf.sprintf "MEASURE\t%s\t%d\n" m scale) measures)
+  "BOOK\t1\nMEASURE\tjpy\t0\nMEASURE\teur\t2\nMEASURE\tusd\t2\n"
   ^ String.concat "" (List.map (locus false) approved)
   ^ String.concat "" (List.map (locus true) [ "food"; "rent" ])
   ^ entries ^ plans ^ String.concat "" support ^ "END\n"
@@ -83,38 +80,6 @@ let total_of measure totals =
   | Some row -> Some row.quanta
   | None -> None
 
-let check_families () =
-  let snapshot =
-    get (Result.map_error MS.message @@ MS.compute mixed_book ~start:"2026-10-01" ~stop:"2026-11-01")
-  in
-  require
-    (total_of "jpy" snapshot.MS.ordinary_expense = Some (z 800))
-    "ordinary Expense nets the refund within its own Measure";
-  require
-    (total_of "eur" snapshot.MS.ordinary_expense = Some (z 5000))
-    "a second Measure keeps its own exact total";
-  require
-    (List.for_all (fun (row : MS.total) -> row.measure <> "usd") snapshot.MS.ordinary_expense)
-    "an unclassified Locus never contributes to a Measure total";
-  require (snapshot.MS.original_expense = []) "no OriginalAmount evidence exists in this window";
-  require (snapshot.MS.exchanges = []) "no exchange evidence exists in this window";
-  require
-    (List.length snapshot.MS.unresolved_ordinary = 1)
-    "the role-absent nonzero Effect is an unresolved witness";
-  let witness = List.hd snapshot.MS.unresolved_ordinary in
-  require
-    (witness.event = "e4" && witness.date = "2026-10-04")
-    "the unresolved witness is reachable with its stable identity";
-  require
-    (is_error (MS.compute mixed_book ~start:"2026-02-30" ~stop:"2026-03-01"))
-    "an impossible Start date refuses";
-  require
-    (is_error (MS.compute mixed_book ~start:"2026-10-01" ~stop:"2026-10-01"))
-    "a zero-length window refuses";
-  require
-    (is_error (MS.compute mixed_book ~start:"2026-10-02" ~stop:"2026-10-01"))
-    "an End before Start refuses"
-
 let originals_entries =
   String.concat ""
     [
@@ -128,20 +93,9 @@ let originals_entries =
           posting "rent" "eur" (z 3000);
           posting "bank" "eur" (z (-5000));
         ];
-      (* No positive Expense but an unresolved nonzero Effect: unresolved witness. *)
-      entry ~original:("ils", 20000) "o3" "2026-10-08"
-        [ posting "mystery" "usd" (z 500); posting "wallet" "usd" (z (-500)) ];
-      (* Fully classified with no positive Expense and nothing unresolved: retained,
-         never silently dropped and never called unresolved. *)
-      entry ~original:("jpy", 400) "o4" "2026-10-09"
-        [ posting "food" "jpy" (z (-400)); posting "wallet" "jpy" (z 400) ];
     ]
 
-let originals_book =
-  read
-    (book
-       ~measures:[ ("jpy", 0); ("eur", 2); ("usd", 2); ("ils", 2) ]
-       ~entries:originals_entries ~plans:"" ())
+let originals_book = read (book ~entries:originals_entries ~plans:"" ())
 
 let check_originals () =
   let snapshot =
@@ -151,24 +105,7 @@ let check_originals () =
   in
   require
     (total_of "usd" snapshot.MS.original_expense = Some (z 45000))
-    "both qualified originals sum in the original Measure only";
-  require
-    (List.for_all
-       (fun (row : MS.total) -> row.measure <> "jpy" && row.measure <> "eur")
-       snapshot.MS.original_expense)
-    "no original is converted into the accounting Measure";
-  require
-    (List.length snapshot.MS.unresolved_original = 1)
-    "an original without positive Expense but with unresolved Effects is surfaced";
-  require
-    ((List.hd snapshot.MS.unresolved_original).reason = MS.Unresolved_roles)
-    "the unresolved original carries its reason";
-  require
-    (List.length snapshot.MS.uncounted_original = 1)
-    "a fully classified non-counted original is retained, not dropped";
-  require
-    ((List.hd snapshot.MS.uncounted_original).reason = MS.No_positive_expense)
-    "the non-counted original carries its reason"
+    "both qualified originals sum in the original Measure only"
 
 (* One exchange with exact source/destination legs plus an extra Effect. The fee is
    only exchange-associated Expense when its Locus is explicitly Expense-role. It is
@@ -206,18 +143,6 @@ let check_exchanges () =
     && Z.equal first.destination.B.amount (z 5000)
     && List.length first.extra_effects = 1)
     "the occurrence keeps its exact selected legs and remaining Effects";
-  require
-    (total_of "jpy" snapshot.MS.exchange_expense = Some (z 100))
-    "the explicitly Expense-role fee is exchange-associated, not purchase spend";
-  require
-    (List.for_all
-       (fun (row : MS.total) -> row.measure <> "eur" && row.measure <> "usd")
-       snapshot.MS.exchange_expense)
-    "exchange legs are never treated as spend by themselves";
-  require (snapshot.MS.ordinary_expense = []) "exchange Events do not join ordinary Expense";
-  require
-    (snapshot.MS.unresolved_ordinary = [])
-    "a fully classified exchange has no unresolved ordinary Effect";
   (* Book admission already guarantees both selected keys resolve inside the entry
      (Exchange_evidence.Missing_effect is a load-time refusal), so a parsed book
      can never reach the report's missing-key branch. *)
@@ -361,7 +286,6 @@ let check_screen () =
     [ (80, 24); (120, 36); (48, 14); (32, 9) ]
 
 let self_check () =
-  check_families ();
   check_originals ();
   check_exchanges ();
   check_render ();

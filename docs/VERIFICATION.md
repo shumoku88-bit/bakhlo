@@ -168,6 +168,19 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
   unchanged; owned tmux closed; `clean-copies`: exit 0. No captured Stock–Flow
   selection has an unsupported cell, so the reason sentence itself was compared
   by its unchanged text, not on screen.
+- Follow-up, at the user's request: old report checks that the samples pin were
+  deleted. The work was delegated to omp (parent Codex, deepseek subagents) in Rex
+  with a written brief; omp only edited, and Claude checked each deletion against
+  its sample, read the diff and ran the gates. 4 files, 229 lines removed
+  (Liquidity, Multicurrency Spend, Stock–Flow and Trend refusals and answers that
+  test/reports holds). Kept, as no sample covers them: screen, text and formatting
+  checks; non-canonical dates and empty tokens; negative, huge and other-Measure
+  amounts; display limits; inside/after-window openings, bounded history,
+  observation and other-Measure openings in Stock–Flow; leap days, scope clamps,
+  catalog and mutation checks in Trend; I&E comparison windows; cold reloads.
+- Claude's own run: `./tools/check`, `./tools/tui --self-check`,
+  `./tools/format --check`, `./tools/privacy-scan --all`: exit 0. Only test files
+  changed, so no screen capture was taken.
 
 ## Record and Preview typography (2026-11-07)
 
