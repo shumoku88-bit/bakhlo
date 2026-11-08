@@ -19,6 +19,8 @@
 # failed build keeps it and names the commit; without any binary the launcher
 # refuses. The line that names the commit names the installed one only: without
 # the stamp it says the commit is unknown.
+# Arguments go to the binary after --book: `r` records an Actual and `pay` pays a
+# plan with one-line answers (tui/app/line_commands.ml) instead of the TUI.
 # BAKHLO_HOUSEHOLD overrides the household directory (default: ../bakhlo-data).
 set -u
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
@@ -128,7 +130,7 @@ cd "$root"
 if [ -t 0 ]; then
   stty min 1 time 0
 fi
-"$binary" --book "$household/book.txt"
+"$binary" --book "$household/book.txt" "$@"
 status=$?
 
 if ! git -C "$household" add -A; then

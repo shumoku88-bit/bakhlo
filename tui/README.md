@@ -16,7 +16,9 @@ Mac実IME／フォント、LOAMの実行対照、P7・運用認定は別。
 
 ## 起動
 
-普段の記帳は`./tools/household`（家計簿を開き、終了時にcommit・push）。
+普段の記帳は`./tools/household`（家計簿を開き、終了時にcommit・push）。`bk r`は実績を、`bk pay`は
+予定の支払いを、画面を開かずに1行ずつ答えて記帳する（Locusは先頭の文字で選び、Enterで釣り合う金額、
+PreviewのあとEnterで保存。終わればいつもどおりcommit・push）。
 LOAMとの比較は`./ui`、別の端末で`./ui loam`。どちらも家計簿の同じ`book.txt`の、別々のコピーを開く
 （LOAMは共通形式を直接読む。2026-10-25本人決定）。取り直すときだけ`./tools/compare refresh`。
 毎回の取得は新しい世代を作り、両UIの試用編集はそれぞれのコピーにだけ残る。家計簿は読むだけで、

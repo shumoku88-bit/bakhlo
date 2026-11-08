@@ -6,6 +6,7 @@
  (name app_checks)
  (libraries
   bakhlo_tui_terminal
+  bakhlo_tui_cli
   bakhlo_tui_kit
   bakhlo_tui_book
   bakhlo_tui_shell

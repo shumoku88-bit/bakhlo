@@ -37,6 +37,7 @@ let () =
     Actual_workspace_checks.self_check ~width_of ();
     Scenarios.run ~width_of ();
     Terminal_checks.run ();
+    Line_commands_checks.run_all ();
     (* Kept on failure for inspection; removed once everything passed. *)
     remove_tree dir
   with

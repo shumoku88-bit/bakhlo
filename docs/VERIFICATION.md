@@ -7,6 +7,23 @@ toolchain. This file keeps the last week's entries (from 2026-11-02); entries fr
 2026-10-31 are in Git at `5b48008:docs/VERIFICATION.md`, earlier ones (including the bounded
 Solo5-SPT engine boot) at `90a5867:docs/VERIFICATION.md`.
 
+## Line commands bk r and bk pay (2026-11-08)
+
+- User request: try recording without the TUI first. `bk r` records an Actual and `bk pay`
+  pays a plan with one-line answers (`tui/app/line_commands.ml`): Locus by the screens'
+  prefix candidates (one is taken, several are numbered), Enter on an amount balances
+  the rows, a memo recorded before offers its earlier rows, plans are listed oldest first
+  (overdue marked) and Enter through the Preview pays as planned; `e` edits the rows.
+  Rules are `Record`'s, refusals and the Preview are the screens' (`Draft`,
+  `Book_display`), the save is `Book_file.publish` against the loaded session.
+  `tools/household` passes its arguments to the binary, so commit and backup are unchanged.
+- Synthetic checks in the TUI self-check: prefix and numbered picks, the balancing
+  default, earlier rows, a refused amount worded as on the screen then fixed, EOF and
+  `n` writing nothing, paying as planned and with an edited amount (PAID-BY written), and
+  a book changed meanwhile refused as a conflict. `./tools/check` exited 0. A first run
+  failed on the refusal case because the editor duplicated the balance rule; the rule
+  was left to the core. Not executed: IME composition in a real terminal, household use.
+
 ## Lighter docs (2026-11-08)
 
 - User request: make the docs lighter. VERIFICATION keeps the last week (from 2026-11-02);

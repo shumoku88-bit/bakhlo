@@ -3,8 +3,14 @@
 (library
  (name bakhlo_tui_cli)
  (wrapped false)
- (modules command_line)
- (libraries bakhlo.store unix))
+ (modules command_line line_commands)
+ (libraries
+  bakhlo_tui_kit
+  bakhlo_tui_book
+  bakhlo.household
+  bakhlo.store
+  unix
+  zarith))
 
 (library
  (name bakhlo_tui_terminal)
