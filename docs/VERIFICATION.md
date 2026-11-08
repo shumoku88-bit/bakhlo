@@ -36,6 +36,9 @@ Solo5-SPT engine boot) at `90a5867:docs/VERIFICATION.md`.
   lists them; a check requires every listed command in the help and runs each on a
   synthetic book (no answers: it stops and writes nothing). Adding a command missing
   from the help made it fail.
+  CI for `77555f9` first failed in the Linux PTY matrix ("TUI exited with code 1", no
+  other output); the same matrix passed locally on macOS and the rerun of that job
+  passed. Recorded as an unexplained one-off, not a fix.
 
 ## Plans in series move to the core (2026-11-08)
 
