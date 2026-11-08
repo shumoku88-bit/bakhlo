@@ -2,6 +2,7 @@
    balance-view coordinates. Both unconditional statements stay UNKNOWN; numbers
    exist only after an explicitly accepted assumed-complete-through horizon. *)
 module B = Bakhlo_household.Book
+module L = Bakhlo_household.Liquidity
 module R = Liquidity_report
 module S = Liquidity_screen
 
@@ -77,7 +78,7 @@ let flow_book = read (book ~support:support_flow ~entries:flow_entries ~plans:fl
 let coords_wallet_bank = [ ("wallet", "jpy"); ("bank", "jpy") ]
 
 let compute ?(today = "2026-10-20") ?(through = "2026-10-31") ?(coords = coords_wallet_bank) book =
-  R.compute ~book ~today ~coords ~assumed_complete_through:through
+  L.compute book ~today ~coords ~assumed_complete_through:through
 
 let expect_error label result = require (is_error result) (label ^ " must refuse")
 
@@ -87,15 +88,15 @@ let expect_error label result = require (is_error result) (label ^ " must refuse
 let check_report_path () =
   let snapshot = get (compute flow_book) in
   require
-    (snapshot.R.as_of = "2026-10-20"
-    && snapshot.R.assumed_complete_through = "2026-10-31"
-    && snapshot.R.measure = "jpy")
+    (snapshot.L.as_of = "2026-10-20"
+    && snapshot.L.assumed_complete_through = "2026-10-31"
+    && snapshot.L.measure = "jpy")
     "conditional snapshot must echo the explicit question";
   require
-    (Z.equal snapshot.R.current_selected (z 1500))
+    (Z.equal snapshot.L.current_selected (z 1500))
     "current selected balance is the exact sum of the selected coordinates";
   let points =
-    List.map (fun (p : R.point) -> (p.R.date, p.R.scheduled_change, p.R.balance)) snapshot.R.points
+    List.map (fun (p : L.point) -> (p.L.date, p.L.scheduled_change, p.L.balance)) snapshot.L.points
   in
   require
     (points
@@ -108,21 +109,21 @@ let check_report_path () =
     "paths must group same days, include the inclusive horizon, drop paid/cancelled, later plans \
      and irrelevant overdue plans, and keep a zero-net day point";
   require
-    (Z.equal (R.final_at_horizon snapshot) (z 1630))
+    (Z.equal (L.final_at_horizon snapshot) (z 1630))
     "conditional balance at horizon uses every point";
   require
-    (Z.equal (R.low_water snapshot) (z 1500))
+    (Z.equal (L.low_water snapshot) (z 1500))
     "low-water includes the current baseline and every day boundary";
   (* A horizon before a due day excludes it. *)
   let shorter = get (compute ~through:"2026-10-26" flow_book) in
   require
-    (List.for_all (fun (p : R.point) -> p.R.date <= "2026-10-26") shorter.R.points
-    && Z.equal (R.final_at_horizon shorter) (z 1700))
+    (List.for_all (fun (p : L.point) -> p.L.date <= "2026-10-26") shorter.L.points
+    && Z.equal (L.final_at_horizon shorter) (z 1700))
     "plans after the typed assumption are excluded";
   (* The horizon is an inclusive day boundary. *)
   let exact = get (compute ~through:"2026-10-31" flow_book) in
   require
-    (List.exists (fun (p : R.point) -> p.R.date = "2026-10-31") exact.R.points)
+    (List.exists (fun (p : L.point) -> p.L.date = "2026-10-31") exact.L.points)
     "a plan due on the assumption date is included"
 
 let compute_refusals () =
@@ -159,11 +160,11 @@ let compute_refusals () =
   in
   let today = get (compute ~through:"2026-10-20" ~coords:[ ("wallet", "jpy") ] due_today) in
   require
-    (match today.R.points with
+    (match today.L.points with
     | [ point ] ->
-        point.R.date = "2026-10-20"
-        && Z.equal point.R.scheduled_change (z (-9))
-        && Z.equal point.R.balance (z (-9))
+        point.L.date = "2026-10-20"
+        && Z.equal point.L.scheduled_change (z (-9))
+        && Z.equal point.L.balance (z (-9))
     | _ -> false)
     "a due-today change is not overdue and remains inside an inclusive today horizon"
 
@@ -174,7 +175,7 @@ let check_evidence () =
   let flow_only = read (book ~entries:flow_entries ~plans:"" ()) in
   let exact = get (compute ~coords:[ ("wallet", "jpy") ] flow_only) in
   require
-    (Z.equal exact.R.current_selected (z 1000))
+    (Z.equal exact.L.current_selected (z 1000))
     "a zero-origin coordinate answers an exact current quantity";
   require
     (is_error (compute ~coords:[ ("ghost", "jpy") ] flow_only))
@@ -182,10 +183,10 @@ let check_evidence () =
   let zero_book = read (book ~entries:"" ~plans:"" ()) in
   let zero = get (compute ~coords:[ ("wallet", "jpy") ] zero_book) in
   require
-    (Z.equal zero.R.current_selected Z.zero
-    && zero.R.points = []
-    && Z.equal (R.final_at_horizon zero) Z.zero
-    && Z.equal (R.low_water zero) Z.zero)
+    (Z.equal zero.L.current_selected Z.zero
+    && zero.L.points = []
+    && Z.equal (L.final_at_horizon zero) Z.zero
+    && Z.equal (L.low_water zero) Z.zero)
     "a supported exact zero with no Scheduled changes is not an unknown amount"
 
 (* ------------------------------------------------------------------ *)
@@ -208,13 +209,13 @@ let check_amounts () =
   in
   let snapshot = get (compute ~coords:[ ("wallet", "jpy") ] negative) in
   require
-    (Z.equal snapshot.R.current_selected (z (-500)))
+    (Z.equal snapshot.L.current_selected (z (-500)))
     "negative exact selected balances stay exact";
   require
-    (Z.equal (R.final_at_horizon snapshot) (z (-700)))
+    (Z.equal (L.final_at_horizon snapshot) (z (-700)))
     "conditional outflow may take the balance negative";
   require
-    (Z.equal (R.low_water snapshot) (z (-700)))
+    (Z.equal (L.low_water snapshot) (z (-700)))
     "low-water reflects a path below the current baseline";
   let lines = R.render_lines ~book:negative snapshot in
   let text = String.concat "\n" (List.map snd lines) in
@@ -239,10 +240,10 @@ let check_amounts () =
   in
   let eur = get (compute ~coords:[ ("wallet", "eur") ] eur_book) in
   require
-    (eur.R.measure = "eur" && Z.equal eur.R.current_selected (z 123456789))
+    (eur.L.measure = "eur" && Z.equal eur.L.current_selected (z 123456789))
     "the selection, not the Shell environment, decides the single Measure";
   require
-    (Z.equal (R.final_at_horizon eur) (Z.add (z 123456789) huge))
+    (Z.equal (L.final_at_horizon eur) (Z.add (z 123456789) huge))
     "huge conditional totals stay exact";
   let eur_text = String.concat "\n" (List.map snd (R.render_lines ~book:eur_book eur)) in
   require
@@ -276,9 +277,9 @@ let check_display_limit () =
   in
   let many = read (book ~support:support_flow ~entries:"" ~plans ()) in
   let snapshot = get (compute ~through:"2026-11-05" ~coords:[ ("wallet", "jpy") ] many) in
-  require (List.length snapshot.R.points = 14) "all fourteen day points exist";
+  require (List.length snapshot.L.points = 14) "all fourteen day points exist";
   require
-    (Z.equal (R.final_at_horizon snapshot) (z (-70)) && Z.equal (R.low_water snapshot) (z (-70)))
+    (Z.equal (L.final_at_horizon snapshot) (z (-70)) && Z.equal (L.low_water snapshot) (z (-70)))
     "totals and low-water use every point, not only the displayed rows";
   let lines = R.render_lines ~book:many snapshot in
   let rows = List.map snd lines in
@@ -372,10 +373,10 @@ let check_screen () =
   let ran, _ = press env geom back_on_run `Enter in
   let snapshot = get (S.result env ran) in
   require
-    (snapshot.R.measure = "jpy" && Z.equal (R.final_at_horizon snapshot) (z 1630))
+    (snapshot.L.measure = "jpy" && Z.equal (L.final_at_horizon snapshot) (z 1630))
     "explicit Run answers in the selected Measure, not the Shell's ambient Measure";
   require
-    (List.for_all (fun (p : R.point) -> p.R.date <= S.assumption ran) snapshot.R.points)
+    (List.for_all (fun (p : L.point) -> p.L.date <= S.assumption ran) snapshot.L.points)
     "the answer follows the typed assumption exactly";
   require (Option.is_none (S.view env geom ran).Screen.cursor) "no caret while Run has focus";
   (* Editing the assumption invalidates the prior numbers. *)

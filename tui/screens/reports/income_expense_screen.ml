@@ -46,8 +46,7 @@ let picker t = t.picker
 let saved _env _geometry _result t = (t, Screen.Stay)
 
 (* Roles decide Income and Expense. *)
-let report (env : Screen.env) period =
-  IncExp.compute_report ~book:env.book ~roles:env.accounting_roles ~period
+let report (env : Screen.env) period = IncExp.compute_report ~book:env.book ~period
 
 (* The window [back] windows before the shown one, if it resolves. *)
 let earlier (env : Screen.env) t back =

@@ -116,6 +116,13 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
   byte-identical; only the help line differs. Digests unchanged; owned tmux
   closed; `clean-copies`: exit 0. `./tools/check`, `./tools/tui --self-check`,
   `./tools/format --check`, `./tools/privacy-scan --all`: exit 0.
+- Follow-up, at the user's request: report calculations move into the core so that
+  the core and its samples hold every rule. `household/income_expense.ml`,
+  `transactions_flow.ml`, `liquidity.ml` and `multicurrency_spend.ml` own them and
+  read the book's own roles; the screens keep labels, order by label and text.
+  The answer runner calls the core for these four. 29 answers, 0 failures;
+  `./tools/check`, `./tools/tui --self-check`, `./tools/format --check`: exit 0.
+  Trend / Locus, Stock–Flow and the Actual totals follow.
 
 ## Record and Preview typography (2026-11-07)
 

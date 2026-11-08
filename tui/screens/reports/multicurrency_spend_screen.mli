@@ -17,7 +17,7 @@ val resume : focus_day:string -> t -> t
 val window : t -> string * string
 val source_label : t -> string
 
-val result : t -> (Multicurrency_spend_report.snapshot, string) result
+val result : t -> (Bakhlo_household.Multicurrency_spend.snapshot, string) result
 (** The cached answer only after an explicit Run; an [Error] before Run, after
     any edit/source change/reset/reload/book change, and after a failed Run. *)
 

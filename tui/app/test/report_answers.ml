@@ -36,30 +36,25 @@ let expense_total book ~start ~stop =
 (* 2. Income & Expense of [start, end): every Measure of the book, its classified
    Loci by ID, the totals and the Scheduled split, then the unresolved effects. *)
 let income_expense book ~start ~stop =
-  let period =
-    { IncExp.preset = IncExp.Month; start_day = start; end_exclusive = stop; label = "" }
-  in
-  let r = IncExp.compute_report ~book ~roles:(B.roles book) ~period in
-  let items kind (list : IncExp.line_item list) =
-    List.sort (fun (a : IncExp.line_item) b -> String.compare a.locus b.locus) list
-    |> List.map (fun (it : IncExp.line_item) -> kind ^ "\t" ^ it.locus ^ "\t" ^ money it.amount)
-  in
+  let module IE = Bakhlo_household.Income_expense in
+  let r = IE.compute book ~start ~stop in
+  let items kind = List.map (fun (l : IE.line) -> kind ^ "\t" ^ l.locus ^ "\t" ^ money l.amount) in
   List.concat_map
-    (fun (m : IncExp.measure_summary) ->
-      (("MEASURE\t" ^ m.measure) :: items "INCOME" m.income_items)
-      @ items "EXPENSE" m.expense_items
+    (fun (s : IE.summary) ->
+      (("MEASURE\t" ^ s.measure) :: items "INCOME" s.income)
+      @ items "EXPENSE" s.expense
       @ [
-          "TOTAL-INCOME\t" ^ money m.total_income;
-          "TOTAL-EXPENSE\t" ^ money m.total_expense;
-          "SCHEDULED\t" ^ money m.scheduled_expense;
-          "ORDINARY\t" ^ money m.ordinary_expense;
-          "NET\t" ^ money m.net_savings;
+          "TOTAL-INCOME\t" ^ money s.total_income;
+          "TOTAL-EXPENSE\t" ^ money s.total_expense;
+          "SCHEDULED\t" ^ money s.scheduled;
+          "ORDINARY\t" ^ money s.other;
+          "NET\t" ^ money s.net;
         ])
     r.summaries
   @ List.map
-      (fun (day, locus, measure, n) ->
-        String.concat "\t" [ "UNRESOLVED"; day; locus; measure; money n ])
-      r.unresolved_effects
+      (fun (u : IE.unresolved) ->
+        String.concat "\t" [ "UNRESOLVED"; u.day; u.locus; u.measure; money u.amount ])
+      r.unresolved
 
 let period start stop =
   { IncExp.preset = IncExp.Month; start_day = start; end_exclusive = stop; label = "" }
@@ -70,24 +65,24 @@ let refused why = [ "REFUSED\t" ^ why ]
 (* 3. Transactions Flow of [start, end): every touched (Locus, Measure) by gross
    volume, then each Effect that moved it. *)
 let transactions_flow book ~start ~stop =
-  let r = Transactions_flow_report.compute_report ~book ~period:(period start stop) in
+  let module TF = Bakhlo_household.Transactions_flow in
   List.concat_map
-    (fun (row : Transactions_flow_report.row_activity) ->
+    (fun (row : TF.row) ->
       String.concat "\t"
         [
           "ROW";
           row.locus;
           row.measure;
-          money row.positive;
-          money row.negative;
+          money row.increase;
+          money row.decrease;
           money row.net;
           money row.gross;
-          string_of_int row.active_events;
+          string_of_int (List.length row.moves);
         ]
       :: List.map
-           (fun (day, n, _memo, id) -> String.concat "\t" [ "FROM"; day; id; money n ])
-           row.contributions)
-    r.rows
+           (fun (m : TF.move) -> String.concat "\t" [ "FROM"; m.day; m.id; money m.amount ])
+           row.moves)
+    (TF.compute book ~start ~stop)
 
 (* 4. Stock–Flow of the TRACK and LIABILITY Loci in one Measure over [start, end). *)
 let stock_flow book ~measure ~start ~stop ~track ~liabilities =
@@ -194,8 +189,8 @@ let trend_default book ~measure ~start ~stop =
 
 (* 7. Liquidity: today's selected balance and the open plans through a day. *)
 let liquidity book ~today ~through ~pool =
-  let module L = Liquidity_report in
-  match L.compute ~book ~today ~coords:pool ~assumed_complete_through:through with
+  let module L = Bakhlo_household.Liquidity in
+  match L.compute book ~today ~coords:pool ~assumed_complete_through:through with
   | Error why -> refused why
   | Ok s ->
       ("CURRENT\t" ^ money s.current_selected)
@@ -207,8 +202,8 @@ let liquidity book ~today ~through ~pool =
 
 (* 8. Multicurrency Spend of [start, end): separate exact families per Measure. *)
 let multicurrency book ~start ~stop =
-  let module M = Multicurrency_spend_report in
-  match M.compute ~book ~roles:(B.roles book) ~start_day:start ~end_exclusive:stop with
+  let module M = Bakhlo_household.Multicurrency_spend in
+  match M.compute book ~start ~stop with
   | Error why -> refused why
   | Ok s ->
       let totals kind =

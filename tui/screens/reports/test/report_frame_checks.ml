@@ -34,7 +34,7 @@ let fixture =
    END\n"
 
 let roles = [ ("salary", Roles.Income); ("food", Roles.Expense); ("travel", Roles.Asset) ]
-let book = get (B.read fixture)
+let book = get (B.set_roles (get (B.read fixture)) roles)
 let boundaries = "household\t2026-10-01\t2026-11-01\n"
 
 let env =
@@ -118,7 +118,7 @@ let self_check () =
       label = "October";
     }
   in
-  let report = IncExp.compute_report ~book ~roles ~period in
+  let report = IncExp.compute_report ~book ~period in
   let printed = IncExp.print_summary ~book ~report in
   require
     (not
@@ -208,20 +208,20 @@ let self_check () =
       ("travel", Roles.Asset);
     ]
   in
-  let window_book = get (B.read window_fixture) in
+  let window_book = get (B.set_roles (get (B.read window_fixture)) window_roles) in
   let month offset =
     get
       (IncExp.resolve_period ~today:"2026-10-15" ~preset:IncExp.Month ~offset
          ~boundary_presets_text:(Some boundaries))
   in
-  let current = IncExp.compute_report ~book:window_book ~roles:window_roles ~period:(month 0) in
-  let previous = IncExp.compute_report ~book:window_book ~roles:window_roles ~period:(month (-1)) in
+  let current = IncExp.compute_report ~book:window_book ~period:(month 0) in
+  let previous = IncExp.compute_report ~book:window_book ~period:(month (-1)) in
   (* The current month is 15 days old; the previous month is compared up to the
      same elapsed day, not to its whole length. *)
   let elapsed, total = IncExp.elapsed ~today:"2026-10-15" (month 0) in
   require ((elapsed, total) = (15, 31)) "ie2-elapsed-days";
   let previous_partial =
-    IncExp.compute_report ~book:window_book ~roles:window_roles
+    IncExp.compute_report ~book:window_book
       ~period:(IncExp.truncate_to_days previous.period elapsed)
   in
   require
@@ -259,10 +259,9 @@ let self_check () =
   let future = month 1 in
   let future_elapsed, future_total = IncExp.elapsed ~today:"2026-10-15" future in
   require (future_elapsed = 0 && future_total > 0) "ie2-future-window-is-unstarted";
-  let future_report = IncExp.compute_report ~book:window_book ~roles:window_roles ~period:future in
+  let future_report = IncExp.compute_report ~book:window_book ~period:future in
   let empty_previous =
-    IncExp.compute_report ~book:window_book ~roles:window_roles
-      ~period:(IncExp.truncate_to_days previous.period 0)
+    IncExp.compute_report ~book:window_book ~period:(IncExp.truncate_to_days previous.period 0)
   in
   require
     (List.for_all
@@ -325,11 +324,9 @@ let self_check () =
      ZERO-ORIGIN\twallet\tjpy\n\
      END\n"
   in
-  let pair_book = get (B.read pair_fixture) in
   let pair_roles = [ ("food", Roles.Expense); ("books", Roles.Expense); ("wallet", Roles.Asset) ] in
-  let pair_report period =
-    IncExp.compute_report ~book:pair_book ~roles:pair_roles ~period:(month period)
-  in
+  let pair_book = get (B.set_roles (get (B.read pair_fixture)) pair_roles) in
+  let pair_report period = IncExp.compute_report ~book:pair_book ~period:(month period) in
   let sep = pair_report (-1) in
   let paired =
     List.map snd

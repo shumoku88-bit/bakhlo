@@ -17,7 +17,7 @@ type t = {
   end_day : string;
   focus : focus;
   scroll : int;
-  answer : (Report.snapshot, string) result option;
+  answer : (Bakhlo_household.Multicurrency_spend.snapshot, string) result option;
   notice : string;
   presets : (string * string list) list;
   presets_error : string; (* "" when presets are available (including none) *)
@@ -175,8 +175,7 @@ let query (env : Screen.env) t =
         refuse "Enter canonical real Start and End dates, with Start earlier than End (exclusive)."
       else
         match
-          Report.compute ~book:env.book ~roles:env.accounting_roles ~start_day:t.start_day
-            ~end_exclusive:t.end_day
+          Bakhlo_household.Multicurrency_spend.compute env.book ~start:t.start_day ~stop:t.end_day
         with
         | Ok snapshot -> ({ t with answer = Some (Ok snapshot); notice = ""; scroll = 0 }, None)
         | Error why -> ({ t with answer = Some (Error why); notice = why; scroll = 0 }, Some why))

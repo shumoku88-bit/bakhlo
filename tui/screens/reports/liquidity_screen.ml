@@ -53,7 +53,8 @@ let result (env : Screen.env) t =
     | None | Some "" -> Error "Enter an explicit assumed complete-through date, then Run."
     | Some horizon ->
         Result.bind (selection env) (fun coords ->
-            Report.compute ~book:env.book ~today:env.today ~coords ~assumed_complete_through:horizon)
+            Bakhlo_household.Liquidity.compute env.book ~today:env.today ~coords
+              ~assumed_complete_through:horizon)
 
 let invalidate t draft = { t with draft; requested = false; notice = ""; scroll = 0 }
 let saved _env _geometry _result t = (t, Screen.Stay)

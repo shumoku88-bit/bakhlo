@@ -17,7 +17,7 @@ val assumption : t -> string
 
 val run_focused : t -> bool
 
-val result : Screen.env -> t -> (Liquidity_report.snapshot, string) result
+val result : Screen.env -> t -> (Bakhlo_household.Liquidity.snapshot, string) result
 (** Derived from the current environment for the requested draft only; an
     [Error] before Run, after any edit, and after book reload/change. *)
 

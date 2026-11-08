@@ -1,18 +1,18 @@
 (* Transactions Flow Report: incidence matrix of activity per coordinate, sorted by gross volume. *)
 module B = Bakhlo_household.Book
 module IncExp = Income_expense_report
+module TF = Bakhlo_household.Transactions_flow
 module O = Ui_render
 module A = Draft
 
-type row_activity = {
+type row_activity = TF.row = {
   locus : string;
   measure : string;
-  positive : Z.t;
-  negative : Z.t;
+  increase : Z.t;
+  decrease : Z.t;
   net : Z.t;
   gross : Z.t;
-  active_events : int;
-  contributions : (string * Z.t * string * string) list;
+  moves : TF.move list;
 }
 
 type report = { period : IncExp.period; rows : row_activity list }
@@ -35,62 +35,7 @@ let initial () =
   }
 
 let compute_report ~book ~(period : IncExp.period) =
-  let entries = B.entries book in
-  let in_period (e : B.entry) = e.day >= period.start_day && e.day < period.end_exclusive in
-  let period_entries = List.filter in_period entries in
-  let table = Hashtbl.create 16 in
-
-  List.iter
-    (fun (e : B.entry) ->
-      List.iter
-        (fun (eff : B.posting) ->
-          let locus = eff.B.locus in
-          let measure = eff.B.measure in
-          let quanta = eff.B.amount in
-          let key = (locus, measure) in
-          let pos, neg, ev_count, contribs =
-            match Hashtbl.find_opt table key with
-            | Some (p, n, c, cb) -> (p, n, c, cb)
-            | None -> (Z.zero, Z.zero, 0, [])
-          in
-          let new_pos = if Z.sign quanta > 0 then Z.add pos quanta else pos in
-          let new_neg = if Z.sign quanta < 0 then Z.add neg quanta else neg in
-          let new_ev = ev_count + 1 in
-          let desc = Option.value ~default:"" e.memo in
-          let new_contribs = (e.day, quanta, desc, e.id) :: contribs in
-          Hashtbl.replace table key (new_pos, new_neg, new_ev, new_contribs))
-        e.effects)
-    period_entries;
-
-  let raw_rows =
-    Hashtbl.fold
-      (fun (locus, measure) (positive, negative, active_events, contributions) acc ->
-        let net = Z.add positive negative in
-        let gross = Z.sub positive negative in
-        {
-          locus;
-          measure;
-          positive;
-          negative;
-          net;
-          gross;
-          active_events;
-          contributions = List.rev contributions;
-        }
-        :: acc)
-      table []
-  in
-  let sorted_rows =
-    List.sort
-      (fun a b ->
-        let cmp_gross = Z.compare b.gross a.gross in
-        if cmp_gross <> 0 then cmp_gross
-        else
-          let cmp_locus = String.compare a.locus b.locus in
-          if cmp_locus <> 0 then cmp_locus else String.compare a.measure b.measure)
-      raw_rows
-  in
-  { period; rows = sorted_rows }
+  { period; rows = TF.compute book ~start:period.start_day ~stop:period.end_exclusive }
 
 let render_summary_lines ~width ~width_of ~book ~report ~selected_row =
   let pad_w = max 0 (width - 4) in
@@ -142,9 +87,9 @@ let render_summary_lines ~width ~width_of ~book ~report ~selected_row =
             (if Z.sign r.net > 0 then "+" else "") ^ Book_display.format_money book r.measure r.net
           in
           let gross_str = Book_display.format_money book r.measure r.gross in
-          let pos_str = "+" ^ Book_display.format_money book r.measure r.positive in
-          let neg_str = Book_display.format_money book r.measure r.negative in
-          let ev_str = string_of_int r.active_events in
+          let pos_str = "+" ^ Book_display.format_money book r.measure r.increase in
+          let neg_str = Book_display.format_money book r.measure r.decrease in
+          let ev_str = string_of_int (List.length r.moves) in
           let line_text =
             marker
             ^ O.pad ~width_of col_coord coord_token
@@ -204,20 +149,26 @@ let render_detail_lines ~book ~report ~selected_row =
               r.measure );
           ( O.Plain,
             Printf.sprintf "Total Inflows:  +%s %s"
-              (Book_display.format_money book r.measure r.positive)
+              (Book_display.format_money book r.measure r.increase)
               r.measure );
           ( O.Plain,
             Printf.sprintf "Total Outflows: %s %s"
-              (Book_display.format_money book r.measure r.negative)
+              (Book_display.format_money book r.measure r.decrease)
               r.measure );
-          (O.Plain, Printf.sprintf "Total Events:   %d transactions" r.active_events);
+          (O.Plain, Printf.sprintf "Total Events:   %d transactions" (List.length r.moves));
           (O.Chrome, "");
           (O.Heading, "Contributing Transactions:");
         ]
       in
       let contrib_lines =
         List.map
-          (fun (date, quanta, memo, id) ->
+          (fun (m : TF.move) ->
+            let date = m.day and quanta = m.amount and id = m.id in
+            let memo =
+              match B.find_entry book id with
+              | Some e -> Option.value ~default:"" e.memo
+              | None -> ""
+            in
             let amt =
               (if Z.sign quanta > 0 then "+" else "")
               ^ Book_display.format_money book r.measure quanta
@@ -225,7 +176,7 @@ let render_detail_lines ~book ~report ~selected_row =
             in
             let desc = if memo = "" then "[" ^ id ^ "]" else memo ^ "  [" ^ id ^ "]" in
             (O.Plain, Printf.sprintf "  %s  %14s  %s" date amt desc))
-          r.contributions
+          r.moves
       in
       header @ contrib_lines
 
@@ -253,8 +204,10 @@ let print_summary ~book ~(report : report) =
         ^ " " ^ r.measure
       in
       let gross = Book_display.format_money book r.measure r.gross ^ " " ^ r.measure in
-      let pos = "+" ^ Book_display.format_money book r.measure r.positive in
-      let neg = Book_display.format_money book r.measure r.negative in
-      add (Printf.sprintf "  %-24s %12s %12s %12s %12s %6d" name net gross pos neg r.active_events))
+      let pos = "+" ^ Book_display.format_money book r.measure r.increase in
+      let neg = Book_display.format_money book r.measure r.decrease in
+      add
+        (Printf.sprintf "  %-24s %12s %12s %12s %12s %6d" name net gross pos neg
+           (List.length r.moves)))
     report.rows;
   List.rev !lines

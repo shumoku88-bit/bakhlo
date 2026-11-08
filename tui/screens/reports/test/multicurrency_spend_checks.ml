@@ -2,6 +2,7 @@
    exact families. Original amounts, recorded Expense per Measure and exchange
    legs are never converted, merged or silently dropped. *)
 module B = Bakhlo_household.Book
+module MS = Bakhlo_household.Multicurrency_spend
 module R = Multicurrency_spend_report
 module S = Multicurrency_spend_screen
 
@@ -48,8 +49,6 @@ let book ?(approved = [ "wallet"; "bank"; "ext"; "mystery"; "hotel"; "shop" ])
   ^ String.concat "" (List.map (locus true) [ "food"; "rent" ])
   ^ entries ^ plans ^ String.concat "" support ^ "END\n"
 
-let read text = get (B.read text)
-
 (* jpy 0 scale, eur/usd scale 2. A refund nets its Expense Measure; an unclassified
    Locus never joins any total. Counterparty loci carry explicit Asset roles, so
    only a genuinely unclassified Locus is an unresolved witness. *)
@@ -61,6 +60,8 @@ let roles =
     ("bank", Locus_roles.Asset);
     ("ext", Locus_roles.Asset);
   ]
+
+let read text = get (B.set_roles (get (B.read text)) roles)
 
 let mixed_entries =
   String.concat ""
@@ -78,43 +79,38 @@ let mixed_entries =
 let mixed_book = read (book ~entries:mixed_entries ~plans:"" ())
 
 let total_of measure totals =
-  match List.find_opt (fun (row : R.total) -> row.measure = measure) totals with
+  match List.find_opt (fun (row : MS.total) -> row.measure = measure) totals with
   | Some row -> Some row.quanta
   | None -> None
 
 let check_families () =
-  let snapshot =
-    get (R.compute ~book:mixed_book ~roles ~start_day:"2026-10-01" ~end_exclusive:"2026-11-01")
-  in
+  let snapshot = get (MS.compute mixed_book ~start:"2026-10-01" ~stop:"2026-11-01") in
   require
-    (total_of "jpy" snapshot.R.ordinary_expense = Some (z 800))
+    (total_of "jpy" snapshot.MS.ordinary_expense = Some (z 800))
     "ordinary Expense nets the refund within its own Measure";
   require
-    (total_of "eur" snapshot.R.ordinary_expense = Some (z 5000))
+    (total_of "eur" snapshot.MS.ordinary_expense = Some (z 5000))
     "a second Measure keeps its own exact total";
   require
-    (List.for_all (fun (row : R.total) -> row.measure <> "usd") snapshot.R.ordinary_expense)
+    (List.for_all (fun (row : MS.total) -> row.measure <> "usd") snapshot.MS.ordinary_expense)
     "an unclassified Locus never contributes to a Measure total";
-  require (snapshot.R.original_expense = []) "no OriginalAmount evidence exists in this window";
-  require (snapshot.R.exchanges = []) "no exchange evidence exists in this window";
+  require (snapshot.MS.original_expense = []) "no OriginalAmount evidence exists in this window";
+  require (snapshot.MS.exchanges = []) "no exchange evidence exists in this window";
   require
-    (List.length snapshot.R.unresolved_ordinary = 1)
+    (List.length snapshot.MS.unresolved_ordinary = 1)
     "the role-absent nonzero Effect is an unresolved witness";
-  let witness = List.hd snapshot.R.unresolved_ordinary in
+  let witness = List.hd snapshot.MS.unresolved_ordinary in
   require
     (witness.event = "e4" && witness.date = "2026-10-04")
     "the unresolved witness is reachable with its stable identity";
   require
-    (is_error
-       (R.compute ~book:mixed_book ~roles ~start_day:"2026-02-30" ~end_exclusive:"2026-03-01"))
+    (is_error (MS.compute mixed_book ~start:"2026-02-30" ~stop:"2026-03-01"))
     "an impossible Start date refuses";
   require
-    (is_error
-       (R.compute ~book:mixed_book ~roles ~start_day:"2026-10-01" ~end_exclusive:"2026-10-01"))
+    (is_error (MS.compute mixed_book ~start:"2026-10-01" ~stop:"2026-10-01"))
     "a zero-length window refuses";
   require
-    (is_error
-       (R.compute ~book:mixed_book ~roles ~start_day:"2026-10-02" ~end_exclusive:"2026-10-01"))
+    (is_error (MS.compute mixed_book ~start:"2026-10-02" ~stop:"2026-10-01"))
     "an End before Start refuses"
 
 let originals_entries =
@@ -146,28 +142,26 @@ let originals_book =
        ~entries:originals_entries ~plans:"" ())
 
 let check_originals () =
-  let snapshot =
-    get (R.compute ~book:originals_book ~roles ~start_day:"2026-10-01" ~end_exclusive:"2026-11-01")
-  in
+  let snapshot = get (MS.compute originals_book ~start:"2026-10-01" ~stop:"2026-11-01") in
   require
-    (total_of "usd" snapshot.R.original_expense = Some (z 45000))
+    (total_of "usd" snapshot.MS.original_expense = Some (z 45000))
     "both qualified originals sum in the original Measure only";
   require
     (List.for_all
-       (fun (row : R.total) -> row.measure <> "jpy" && row.measure <> "eur")
-       snapshot.R.original_expense)
+       (fun (row : MS.total) -> row.measure <> "jpy" && row.measure <> "eur")
+       snapshot.MS.original_expense)
     "no original is converted into the accounting Measure";
   require
-    (List.length snapshot.R.unresolved_original = 1)
+    (List.length snapshot.MS.unresolved_original = 1)
     "an original without positive Expense but with unresolved Effects is surfaced";
   require
-    ((List.hd snapshot.R.unresolved_original).reason = R.Unresolved_roles)
+    ((List.hd snapshot.MS.unresolved_original).reason = MS.Unresolved_roles)
     "the unresolved original carries its reason";
   require
-    (List.length snapshot.R.uncounted_original = 1)
+    (List.length snapshot.MS.uncounted_original = 1)
     "a fully classified non-counted original is retained, not dropped";
   require
-    ((List.hd snapshot.R.uncounted_original).reason = R.No_positive_expense)
+    ((List.hd snapshot.MS.uncounted_original).reason = MS.No_positive_expense)
     "the non-counted original carries its reason"
 
 (* One exchange with exact source/destination legs plus an extra Effect. The fee is
@@ -192,11 +186,9 @@ let exchange_entries =
 let exchange_book = read (book ~entries:exchange_entries ~plans:"" ())
 
 let check_exchanges () =
-  let snapshot =
-    get (R.compute ~book:exchange_book ~roles ~start_day:"2026-10-01" ~end_exclusive:"2026-11-01")
-  in
-  require (List.length snapshot.R.exchanges = 2) "every exchange occurrence is retained";
-  let first = List.hd snapshot.R.exchanges in
+  let snapshot = get (MS.compute exchange_book ~start:"2026-10-01" ~stop:"2026-11-01") in
+  require (List.length snapshot.MS.exchanges = 2) "every exchange occurrence is retained";
+  let first = List.hd snapshot.MS.exchanges in
   require
     (first.event = "x1" && first.date = "2026-10-10"
     && first.description = Some "trip-exchange"
@@ -205,28 +197,26 @@ let check_exchanges () =
     && List.length first.extra_effects = 1)
     "the occurrence keeps its exact selected legs and remaining Effects";
   require
-    (total_of "jpy" snapshot.R.exchange_expense = Some (z 100))
+    (total_of "jpy" snapshot.MS.exchange_expense = Some (z 100))
     "the explicitly Expense-role fee is exchange-associated, not purchase spend";
   require
     (List.for_all
-       (fun (row : R.total) -> row.measure <> "eur" && row.measure <> "usd")
-       snapshot.R.exchange_expense)
+       (fun (row : MS.total) -> row.measure <> "eur" && row.measure <> "usd")
+       snapshot.MS.exchange_expense)
     "exchange legs are never treated as spend by themselves";
-  require (snapshot.R.ordinary_expense = []) "exchange Events do not join ordinary Expense";
+  require (snapshot.MS.ordinary_expense = []) "exchange Events do not join ordinary Expense";
   require
-    (snapshot.R.unresolved_ordinary = [])
+    (snapshot.MS.unresolved_ordinary = [])
     "a fully classified exchange has no unresolved ordinary Effect";
   (* Book admission already guarantees both selected keys resolve inside the entry
      (Exchange_evidence.Missing_effect is a load-time refusal), so a parsed book
      can never reach the report's missing-key branch. *)
   require
-    (List.length snapshot.R.exchanges = 2)
+    (List.length snapshot.MS.exchanges = 2)
     "every exchange occurrence in the window is retained exactly once"
 
 let check_render () =
-  let snapshot =
-    get (R.compute ~book:mixed_book ~roles ~start_day:"2026-10-01" ~end_exclusive:"2026-11-01")
-  in
+  let snapshot = get (MS.compute mixed_book ~start:"2026-10-01" ~stop:"2026-11-01") in
   let text =
     String.concat "\n" (List.map (fun (_, line) -> line) (R.render_lines ~book:mixed_book snapshot))
   in
@@ -284,7 +274,7 @@ let check_screen () =
   let on_run, _ = press env geom opened `Enter in
   let answer = get (S.result on_run) in
   require
-    (total_of "jpy" answer.R.ordinary_expense = Some (z 800))
+    (total_of "jpy" answer.MS.ordinary_expense = Some (z 800))
     "explicit Run answers the exact window";
   (* Tab reaches a date without discarding the answer; only an edit invalidates it. *)
   let editing, _ = press env geom on_run `Tab in

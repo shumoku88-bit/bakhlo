@@ -1,6 +1,7 @@
 (* Income & Expense Report: period-based P/L analysis by month, cycle, year, or all-time. *)
 module B = Bakhlo_household.Book
 module Day = Bakhlo_household.Day
+module IE = Bakhlo_household.Income_expense
 module Roles = Locus_roles
 module O = Ui_render
 module A = Draft
@@ -67,85 +68,40 @@ let truncate_to_days (period : period) days =
     | Ok day -> { period with end_exclusive = day }
     | Error _ -> period
 
-let compute_report ~book ~roles ~period =
-  let entries = B.entries book in
-  let in_period (e : B.entry) = e.day >= period.start_day && e.day < period.end_exclusive in
-  let period_entries = List.filter in_period entries in
-  let measures = List.map fst (B.measures book) |> List.sort_uniq String.compare in
-  let settles_plan = B.settles_plan book in
-
-  let unresolved_acc = ref [] in
-
-  let summaries =
+(* The core's answer for the window, with each Locus named as the reader knows
+   it and listed by that name. *)
+let compute_report ~book ~period =
+  let r = IE.compute book ~start:period.start_day ~stop:period.end_exclusive in
+  let items (lines : IE.line list) =
     List.map
-      (fun measure ->
-        let income_map = Hashtbl.create 16 in
-        let expense_map = Hashtbl.create 16 in
-        let scheduled_expense_acc = ref Z.zero in
-        let ordinary_expense_acc = ref Z.zero in
-
-        List.iter
-          (fun (e : B.entry) ->
-            let is_sched = settles_plan e in
-            List.iter
-              (fun (eff : B.posting) ->
-                if eff.B.measure = measure then
-                  let locus = eff.B.locus in
-                  let quanta = eff.B.amount in
-                  match List.assoc_opt locus roles with
-                  | Some Roles.Income ->
-                      (* Credit is negative in raw effects; positive income is -quanta *)
-                      let inc = Z.neg quanta in
-                      let cur = Option.value ~default:Z.zero (Hashtbl.find_opt income_map locus) in
-                      Hashtbl.replace income_map locus (Z.add cur inc)
-                  | Some Roles.Expense ->
-                      (* Debit is positive in raw effects; positive expense is quanta *)
-                      let exp = quanta in
-                      let cur = Option.value ~default:Z.zero (Hashtbl.find_opt expense_map locus) in
-                      Hashtbl.replace expense_map locus (Z.add cur exp);
-                      if is_sched then scheduled_expense_acc := Z.add !scheduled_expense_acc exp
-                      else ordinary_expense_acc := Z.add !ordinary_expense_acc exp
-                  | Some (Asset | Liability | Equity) ->
-                      (* Balance sheet accounts; excluded from P/L *)
-                      ()
-                  | None -> unresolved_acc := (e.day, locus, measure, quanta) :: !unresolved_acc)
-              e.effects)
-          period_entries;
-
-        let to_line_items map =
-          Hashtbl.fold
-            (fun locus amount acc ->
-              let label = B.label book locus in
-              let display_name =
-                if label <> "" && label <> locus then Printf.sprintf "%s [%s]" label locus
-                else locus
-              in
-              { locus; label = display_name; amount } :: acc)
-            map []
-          |> List.sort (fun a b -> String.compare a.label b.label)
+      (fun (l : IE.line) ->
+        let label = B.label book l.locus in
+        let label =
+          if label <> "" && label <> l.locus then Printf.sprintf "%s [%s]" label l.locus
+          else l.locus
         in
-        let income_items = to_line_items income_map in
-        let expense_items = to_line_items expense_map in
-        let total_income =
-          List.fold_left (fun acc item -> Z.add acc item.amount) Z.zero income_items
-        in
-        let total_expense =
-          List.fold_left (fun acc item -> Z.add acc item.amount) Z.zero expense_items
-        in
-        let net_savings = Z.sub total_income total_expense in
-        {
-          measure;
-          income_items;
-          total_income;
-          expense_items;
-          total_expense;
-          scheduled_expense = !scheduled_expense_acc;
-          ordinary_expense = !ordinary_expense_acc;
-          net_savings;
-        })
-      measures
+        { locus = l.locus; label; amount = l.amount })
+      lines
+    |> List.sort (fun a b -> String.compare a.label b.label)
   in
-  { period; summaries; unresolved_effects = List.rev !unresolved_acc }
+  let summary (s : IE.summary) =
+    {
+      measure = s.measure;
+      income_items = items s.income;
+      total_income = s.total_income;
+      expense_items = items s.expense;
+      total_expense = s.total_expense;
+      scheduled_expense = s.scheduled;
+      ordinary_expense = s.other;
+      net_savings = s.net;
+    }
+  in
+  {
+    period;
+    summaries = List.map summary r.summaries;
+    unresolved_effects =
+      List.map (fun (u : IE.unresolved) -> (u.day, u.locus, u.measure, u.amount)) r.unresolved;
+  }
 
 (* A Measure is active when the window has any role-classified income or expense.
    Inactive Measures are named once instead of painted as empty blocks. *)

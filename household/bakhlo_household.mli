@@ -7,3 +7,15 @@ module Day = Day
 
 module Period = Period
 (** Calendar spans and the cycles named in boundary-presets.tsv. *)
+
+module Income_expense = Income_expense
+(** Income and expense of a window by accounting role. *)
+
+module Transactions_flow = Transactions_flow
+(** What moved through each (Locus, Measure) in a window. *)
+
+module Liquidity = Liquidity
+(** A conditional path of chosen balances through a named day. *)
+
+module Multicurrency_spend = Multicurrency_spend
+(** Spending per Measure in a window, never converted. *)

@@ -51,7 +51,10 @@ val resolve_period :
   boundary_presets_text:string option ->
   (period, string) result
 
-val compute_report : book:B.t -> roles:(string * Roles.role) list -> period:period -> report
+val compute_report : book:B.t -> period:period -> report
+(** The core's Income & Expense ({!Bakhlo_household.Income_expense}), each Locus named
+    by its label and listed by it. *)
+
 val measure_active : measure_summary -> bool
 val elapsed : today:string -> period -> int * int
 val truncate_to_days : period -> int -> period

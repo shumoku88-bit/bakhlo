@@ -1,16 +1,16 @@
 (* Transactions Flow Report: incidence matrix of activity per coordinate, sorted by gross volume. *)
 module B = Bakhlo_household.Book
 module IncExp = Income_expense_report
+module TF = Bakhlo_household.Transactions_flow
 
-type row_activity = {
+type row_activity = TF.row = {
   locus : string;
   measure : string;
-  positive : Z.t;
-  negative : Z.t;
+  increase : Z.t;
+  decrease : Z.t;
   net : Z.t;
   gross : Z.t;
-  active_events : int;
-  contributions : (string * Z.t * string * string) list;
+  moves : TF.move list;
 }
 
 type report = { period : IncExp.period; rows : row_activity list }

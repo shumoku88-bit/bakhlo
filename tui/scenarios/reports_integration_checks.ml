@@ -62,8 +62,8 @@ let run_liquidity ~width_of ~directory =
   let env = X.screen_env ~config_files:Liquidity_screen.config_files ran in
   let snapshot = get (Liquidity_screen.result env ran.C.screens.liquidity) in
   require
-    (snapshot.Liquidity_report.measure = "jpy"
-    && Z.equal snapshot.Liquidity_report.current_selected (Z.of_int 1000))
+    (snapshot.Bakhlo_household.Liquidity.measure = "jpy"
+    && Z.equal snapshot.Bakhlo_household.Liquidity.current_selected (Z.of_int 1000))
     "liquidity-explicit-run-answers-exact-selected-balance";
   let rows = R.screen ~width_of (80, 24) ran in
   require (contains rows "Forecast path: UNKNOWN") "liquidity-run-keeps-forecast-unknown";
@@ -159,14 +159,20 @@ let run_multicurrency ~width_of ~directory =
   let snapshot = get (Multicurrency_spend_screen.result ran.C.screens.multicurrency_spend) in
   let total measure totals =
     match
-      List.find_opt (fun (row : Multicurrency_spend_report.total) -> row.measure = measure) totals
+      List.find_opt
+        (fun (row : Bakhlo_household.Multicurrency_spend.total) -> row.measure = measure)
+        totals
     with
     | Some row -> row.quanta
     | None -> Z.zero
   in
   require
-    (Z.equal (total "jpy" snapshot.Multicurrency_spend_report.ordinary_expense) (Z.of_int 1000)
-    && Z.equal (total "eur" snapshot.Multicurrency_spend_report.ordinary_expense) (Z.of_int 5000))
+    (Z.equal
+       (total "jpy" snapshot.Bakhlo_household.Multicurrency_spend.ordinary_expense)
+       (Z.of_int 1000)
+    && Z.equal
+         (total "eur" snapshot.Bakhlo_household.Multicurrency_spend.ordinary_expense)
+         (Z.of_int 5000))
     "multicurrency-explicit-run-answers-each-Measure-exactly";
   let rows = R.screen ~width_of (80, 24) ran in
   require
