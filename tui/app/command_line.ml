@@ -2,16 +2,34 @@
    checked copies. [run] opens the TUI on a household book. *)
 module F = Book_file
 
-let line_command = function
-  | [ "r" ] -> Some `Record
-  | [ "pay" ] -> Some `Pay
-  | [ "bal" ] -> Some `Balances
-  | [ "pace" ] -> Some `Pace
-  | [ "plans" ] -> Some (`Plans `List)
-  | [ "plans"; "more" ] -> Some (`Plans `More)
-  | [ "plans"; "amount" ] -> Some (`Plans `Amount)
-  | [ "plans"; "cancel" ] -> Some (`Plans `Cancel)
-  | _ -> None
+(* The bk commands: one table both dispatches them and lists them (bk help). *)
+let commands =
+  [
+    ([ "r" ], `Record, "record an Actual");
+    ([ "pay" ], `Pay, "pay a plan");
+    ([ "bal" ], `Balances, "balances");
+    ([ "pace" ], `Pace, "today's pace and its breakdown");
+    ([ "plans" ], `Plans `List, "plans in series: how far each is filled");
+    ([ "plans"; "more" ], `Plans `More, "fill the coming months of a series");
+    ([ "plans"; "amount" ], `Plans `Amount, "change a series' amount from a day on");
+    ([ "plans"; "cancel" ], `Plans `Cancel, "cancel plans of a series");
+  ]
+
+let line_command words =
+  List.find_map (fun (w, command, _) -> if w = words then Some command else None) commands
+
+let help =
+  let rows =
+    ("bk", "open the screens (TUI)")
+    :: List.map (fun (words, _, what) -> (String.concat " " ("bk" :: words), what)) commands
+    @ [ ("bk help", "this list") ]
+  in
+  let width = List.fold_left (fun n (name, _) -> max n (String.length name)) 0 rows in
+  String.concat ""
+    (List.map
+       (fun (name, what) ->
+         Printf.sprintf "  %s%s  %s\n" name (String.make (width - String.length name) ' ') what)
+       rows)
 
 let main ~run =
   try
@@ -25,6 +43,11 @@ let main ~run =
             tm.Unix.tm_mday
         in
         ignore (Line_commands.run Line_commands.terminal command (F.load path) ~today)
+    | [ _; "--book"; _; "help" ] -> print_string help
+    | _ :: "--book" :: _ :: words ->
+        prerr_endline ("Unknown command: bk " ^ String.concat " " words);
+        prerr_string help;
+        exit 2
     | [ _; "--check"; path ] ->
         ignore (F.load path);
         print_endline "PASS: household book admitted (no payload output)."

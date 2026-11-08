@@ -336,6 +336,19 @@ let run_all () =
     && contains after
          "PLAN\trent-11\t2026-11-27\tjpy\nCHANGE\tbank\t-80000\nCHANGE\trent\t80000\nENDPLAN")
     "bk-plans-cancel-cancels-chosen-plans";
+  (* bk help lists every command, and every listed command runs: with no answers
+     it stops and writes nothing. *)
+  List.iter
+    (fun (words, command, what) ->
+      let name = String.concat " " ("bk" :: words) in
+      require
+        (contains Command_line.help name && contains Command_line.help what)
+        ("bk-help-lists " ^ name);
+      let path = fresh ("bk-each-" ^ String.concat "-" words) in
+      let io, _ = script [] in
+      ignore (L.run io command (F.load path) ~today:"2026-11-08");
+      require (F.read path = book_text) ("bk-each-command-runs " ^ name))
+    Command_line.commands;
   print_endline
     "PASS: bk r, pay, bal, pace and plans: pick Loci, plans and series, balance rows, reuse \
      earlier rows, fill, re-price and cancel series, word refusals as the screens, and save only \

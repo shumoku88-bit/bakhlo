@@ -31,6 +31,11 @@ Solo5-SPT engine boot) at `90a5867:docs/VERIFICATION.md`.
   "Record another?" / "Pay another?" (Enter: no). The next one works on the book as saved,
   so its earlier rows include the one just saved and no conflict arises; a check pins
   this, and using the book from before the save made it fail.
+- Follow-up (user request): `bk help` lists every command, and an unknown command prints
+  the same list (exit 2). One table in `tui/app/command_line.ml` both dispatches and
+  lists them; a check requires every listed command in the help and runs each on a
+  synthetic book (no answers: it stops and writes nothing). Adding a command missing
+  from the help made it fail.
 
 ## Plans in series move to the core (2026-11-08)
 

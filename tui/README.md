@@ -16,7 +16,7 @@ Mac実IME／フォント、LOAMの実行対照、P7・運用認定は別。
 
 ## 起動
 
-普段の記帳は`./tools/household`（家計簿を開き、終了時にcommit・push）。`bk r`は実績を、`bk pay`は
+普段の記帳は`./tools/household`（家計簿を開き、終了時にcommit・push）。`bk help`でコマンドの一覧（打ち間違えたときも一覧を出す）。`bk r`は実績を、`bk pay`は
 予定の支払いを、画面を開かずに1行ずつ答えて記帳する（Locusは先頭の文字で選び、Enterで釣り合う金額、
 PreviewのあとEnterで保存。保存のあと「Record another?」/「Pay another?」で`y`なら続けて記帳。終わればいつもどおり
 commit・push）。`bk bal`はBalances（Current）の行を、
