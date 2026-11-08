@@ -11,6 +11,13 @@ From 2026-11-09 (user decision) an entry names its commit and says what ran and 
 result, keeping synthetic checks, CI, latest-data paired comparison, physical terminal/IME,
 human acceptance and P7/power loss apart. What changed and why is that commit's message.
 
+## The startup probe is built by dune (a15187d, 2026-11-09)
+
+- `./tools/check` and `./tools/format --check` passed; CI for `a15187d` succeeded.
+- `./tools/startup-probe 1000` ran from the dune-built probe (synthetic, macOS x86_64):
+  save with full sync 47.9 ms (median of 21), `Book_txt.read` 7.4 ms, cold load
+  8.5–12.8 ms.
+
 ## One way to choose in every bk command (858b489, 2026-11-09)
 
 - `./tools/check` passed (build, samples, bk command checks, privacy scan), with new checks
