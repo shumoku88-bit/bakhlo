@@ -37,7 +37,7 @@ type phase =
   | Review of review
 
 type t = {
-  mode : R.mode;
+  mode : A.mode;
   day : string;
   description : string;
   measure : string;
@@ -81,17 +81,15 @@ let of_quick (p : Quick_capture.prefill) t =
     notice = "";
   }
 
-let is_plan t =
-  match t.mode with R.Plan_new | R.Plan_edit _ -> true | R.New | R.Edit _ | R.Pay _ -> false
-
+let is_plan t = match t.mode with A.Plan_new | A.Plan_edit _ -> true | A.Actual _ -> false
 let in_quick_capture t = match t.phase with Quick _ -> true | _ -> false
 
 let has_draft t =
   (match t.phase with Quick q -> Quick_capture.text q <> "" | _ -> false)
   ||
   match t.mode with
-  | R.Edit _ | R.Pay _ | R.Plan_edit _ -> true
-  | R.New | R.Plan_new ->
+  | A.Actual (R.Edit _) | A.Actual (R.Pay _) | A.Plan_edit _ -> true
+  | A.Actual R.New | A.Plan_new ->
       t.day <> t.initial_day || t.measure <> t.initial_measure || t.description <> ""
       || t.original_amount <> None
       || List.exists (fun (r : row) -> r.amount <> "" || r.locus <> "") t.rows
@@ -117,10 +115,10 @@ let blank ~mode ~focus ~phase ~day ~measure =
   }
 
 let create ~book ~day ~measure () =
-  blank ~mode:R.New ~focus:1 ~day ~measure
+  blank ~mode:(A.Actual R.New) ~focus:1 ~day ~measure
     ~phase:(Quick (Quick_capture.initial ~book ~day ~measure ~roles:[]))
 
-let create_plan ~book:_ ~day ~measure () = blank ~mode:R.Plan_new ~focus:0 ~phase:Form ~day ~measure
+let create_plan ~book:_ ~day ~measure () = blank ~mode:A.Plan_new ~focus:0 ~phase:Form ~day ~measure
 
 let rows_of_draft (draft : R.t) =
   List.map
@@ -136,7 +134,8 @@ let of_edit ~book entry =
       | Error why -> Error why
       | Ok draft ->
           let t =
-            blank ~mode:(R.Edit entry) ~focus:1 ~phase:Form ~day:entry.day ~measure:draft.measure
+            blank ~mode:(A.Actual (R.Edit entry)) ~focus:1 ~phase:Form ~day:entry.day
+              ~measure:draft.measure
           in
           Ok
             {
@@ -159,7 +158,7 @@ let of_edit_plan ~book (plan : B.plan) =
   | Error why -> Error why
   | Ok draft ->
       let t =
-        blank ~mode:(R.Plan_edit plan) ~focus:0 ~phase:Form ~day:plan.day ~measure:plan.measure
+        blank ~mode:(A.Plan_edit plan) ~focus:0 ~phase:Form ~day:plan.day ~measure:plan.measure
       in
       Ok { t with rows = rows_of_draft draft }
 
@@ -168,7 +167,9 @@ let of_plan ?day ~book (plan : B.plan) =
   | Error why -> Error why
   | Ok draft ->
       let day = Option.value ~default:plan.day day in
-      let t = blank ~mode:(R.Pay plan.id) ~focus:1 ~phase:Form ~day ~measure:plan.measure in
+      let t =
+        blank ~mode:(A.Actual (R.Pay plan.id)) ~focus:1 ~phase:Form ~day ~measure:plan.measure
+      in
       Ok { t with rows = rows_of_draft draft }
 
 (* Focus order: 0 date, 1 description, 2 Measure, then Locus and amount for each
@@ -183,8 +184,8 @@ let border_intent t =
   then `Cancel
   else
     match t.mode with
-    | R.New | R.Plan_new -> `Create
-    | R.Edit _ | R.Pay _ | R.Plan_edit _ -> `Change
+    | A.Actual R.New | A.Plan_new -> `Create
+    | A.Actual (R.Edit _) | A.Actual (R.Pay _) | A.Plan_edit _ -> `Change
 
 let surface_dimensions (width, height) =
   let width = max 0 width and height = max 0 height in
@@ -197,7 +198,9 @@ let is_locus t = t.focus >= 3 && t.focus < action_start t && (t.focus - 3) mod 2
 (* LOAM Correction: Loci, amounts, signs and rows are editable; the date is kept
    (date-only changes use the dedicated [d] operation). *)
 let date_kept t =
-  match t.mode with R.Edit _ -> true | R.New | R.Pay _ | R.Plan_new | R.Plan_edit _ -> false
+  match t.mode with
+  | A.Actual (R.Edit _) -> true
+  | A.Actual (R.New | R.Pay _) | A.Plan_new | A.Plan_edit _ -> false
 
 let value t =
   if t.focus = 0 then t.day
@@ -363,58 +366,41 @@ let after_unresolved_enabled ~book t =
 let unresolved_not_enabled t why =
   { t with phase = Form; notice = tr "Unresolved recording was not enabled: " ^ why }
 
-let draft t = R.form ~mode:t.mode ~measure:t.measure t.rows
+let draft t =
+  let editing =
+    match t.mode with
+    | A.Actual (R.Edit e) -> Some e
+    | A.Actual _ | A.Plan_new | A.Plan_edit _ -> None
+  in
+  R.form ~editing ~measure:t.measure t.rows
+
+let reviewing t payload ~base_revision =
+  {
+    t with
+    phase = Review { payload; base_revision; action = Publish_action; scroll = 0 };
+    notice = "";
+    paste = None;
+  }
 
 let preview ~new_id ~book ~base_revision ~blocked t =
-  if blocked then with_notice t (tr "Writes are stopped; the draft is retained.")
-  else if is_plan t then
-    match A.build_plan ~new_id ~book ~mode:t.mode ~day:t.day ~draft:(draft t) with
+  let plan editing =
+    match A.build_plan ~new_id ~book ~editing ~day:t.day ~draft:(draft t) with
     | Error error -> with_notice t error.A.message
-    | Ok (plan, replace) ->
-        {
-          t with
-          phase =
-            Review
-              {
-                payload = A.Plan_tx { plan; replace };
-                base_revision;
-                action = Publish_action;
-                scroll = 0;
-              };
-          notice = "";
-          paste = None;
-        }
+    | Ok (plan, replace) -> reviewing t (A.Plan_tx { plan; replace }) ~base_revision
+  in
+  if blocked then with_notice t (tr "Writes are stopped; the draft is retained.")
   else
-    match t.original_amount with
-    | Some (m, _) when not (List.mem_assoc m (B.measures book)) ->
+    match (t.mode, t.original_amount) with
+    | A.Plan_new, _ -> plan None
+    | A.Plan_edit p, _ -> plan (Some p)
+    | A.Actual _, Some (m, _) when not (List.mem_assoc m (B.measures book)) ->
         with_notice t
           (Ui_text.format_message "Measure '%s' scale is not configured in this book." m)
-    | _ -> (
-        match
-          A.build_transaction ~new_id ~book ~mode:t.mode
-            (R.Multiple
-               {
-                 day = t.day;
-                 memo = t.description;
-                 draft = draft t;
-                 original_amount = t.original_amount;
-               })
-        with
+    | A.Actual mode, original_amount -> (
+        let content = { R.day = t.day; memo = t.description; draft = draft t; original_amount } in
+        match A.build_transaction ~new_id ~book ~mode content with
         | Error error -> with_notice t error.A.message
-        | Ok transaction ->
-            {
-              t with
-              phase =
-                Review
-                  {
-                    payload = A.Entry_tx transaction;
-                    base_revision;
-                    action = Publish_action;
-                    scroll = 0;
-                  };
-              notice = "";
-              paste = None;
-            })
+        | Ok transaction -> reviewing t (A.Entry_tx transaction) ~base_revision)
 
 (* Keep the edit's caret only if the field accepted the new text. *)
 let edit_value t (updated, cursor) =
@@ -649,15 +635,21 @@ let rec handle ~new_id ~book ~base_revision ~blocked ~dimensions ~width_of t
                           notice = "";
                         }
                     else
-                      match R.parse_original_quanta ~scale ed.amount with
-                      | Error `Precision | Error `Invalid ->
+                      match Bakhlo_household.Amount.parse_positive ~decimals:scale ed.amount with
+                      | Error "non-positive-amount" ->
+                          update (with_notice t (tr "Original amount must be positive."))
+                      | Error "amount-precision" ->
                           update
                             (with_notice t
                                (Ui_text.format_message
                                   "Enter a positive original amount with at most %d decimal places."
                                   scale))
-                      | Error `Non_positive ->
-                          update (with_notice t (tr "Original amount must be positive."))
+                      | Error _ ->
+                          update
+                            (with_notice t
+                               (tr
+                                  "Enter a positive original amount: digits grouped by three, or \
+                                   arithmetic."))
                       | Ok quanta ->
                           update
                             {
@@ -696,17 +688,17 @@ let rec handle ~new_id ~book ~base_revision ~blocked ~dimensions ~width_of t
               if is_plan t then update t
               else
                 match t.mode with
-                | R.Edit _ ->
+                | A.Actual (R.Edit _) ->
                     update
                       (with_notice t
                          (tr "Original amount is not changed by the current Correction editor."))
-                | R.Pay _ ->
+                | A.Actual (R.Pay _) ->
                     update
                       (with_notice t
                          (tr
                             "Original amount is available from new Actual Record, not Scheduled \
                              completion."))
-                | R.New -> (
+                | A.Actual R.New -> (
                     match t.original_amount with
                     | None ->
                         let ed = { measure = ""; amount = ""; field = Original_measure } in
@@ -727,7 +719,7 @@ let rec handle ~new_id ~book ~base_revision ~blocked ~dimensions ~width_of t
                               (with_notice t
                                  (Ui_text.format_message
                                     "Measure '%s' scale is not configured in this book." m))))
-                | R.Plan_new | R.Plan_edit _ -> update t)
+                | A.Plan_new | A.Plan_edit _ -> update t)
           | `Tab, [] -> update (move_focus t 1)
           | `Tab, [ `Shift ] -> update (move_focus t (-1))
           | `ASCII 'n', [ `Ctrl ] -> update (add_row t)
@@ -976,13 +968,13 @@ let screen ?surface ~book ~dimensions:(width, height) ~width_of t =
       let navigation = List.map (raw O.Chrome) navigation in
       let title =
         match (review, t.mode) with
-        | Some _, R.Plan_new | Some _, R.Plan_edit _ -> tr "Scheduled / Preview"
+        | Some _, A.Plan_new | Some _, A.Plan_edit _ -> tr "Scheduled / Preview"
         | Some _, _ -> tr "Record / Preview"
-        | None, R.Plan_new -> tr "Scheduled / Create"
-        | None, R.Plan_edit _ -> tr "Scheduled / Edit"
-        | None, R.New -> tr "Record / Edit"
-        | None, R.Edit _ -> tr "Correction / Edit"
-        | None, R.Pay _ -> tr "Scheduled / Complete"
+        | None, A.Plan_new -> tr "Scheduled / Create"
+        | None, A.Plan_edit _ -> tr "Scheduled / Edit"
+        | None, A.Actual R.New -> tr "Record / Edit"
+        | None, A.Actual (R.Edit _) -> tr "Correction / Edit"
+        | None, A.Actual (R.Pay _) -> tr "Scheduled / Complete"
       in
       if width < 4 || height < 4 then
         let rows = raw O.Heading title :: navigation in
@@ -1060,7 +1052,7 @@ let screen ?surface ~book ~dimensions:(width, height) ~width_of t =
                     in
                     let target =
                       match t.mode with
-                      | R.Edit e -> "Target: " ^ O.visible e.B.id ^ "   "
+                      | A.Actual (R.Edit e) -> "Target: " ^ O.visible e.B.id ^ "   "
                       | _ -> ""
                     in
                     [ raw O.Chrome (target ^ summary) ]

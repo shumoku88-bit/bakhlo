@@ -68,10 +68,6 @@ let value key input =
 let answer header input =
   let refusal why = [ "REFUSED\t" ^ why ] in
   match fields header with
-  | [ "ORIGINAL-INPUT"; _name; scale; text ] -> (
-      match R.parse_original_quanta ~scale:(int_of_string scale) text with
-      | Ok q -> [ "QUANTA\t" ^ money q ]
-      | Error why -> refusal (R.original_code why))
   | [ "MOVEMENT"; _name ] -> (
       let e = entry (("TX\tprobe\t2027-01-12" :: input) @ [ "ENDTX" ]) in
       match R.movement_fault e.effects with
@@ -114,13 +110,13 @@ let answer header input =
           input
       in
       let content =
-        R.Multiple
-          {
-            day = value "DAY" input;
-            memo = value "MEMO" input;
-            draft = R.form ~mode ~measure:(value "MEASURE" input) rows;
-            original_amount;
-          }
+        let editing = match mode with R.Edit e -> Some e | R.New | R.Pay _ -> None in
+        {
+          R.day = value "DAY" input;
+          memo = value "MEMO" input;
+          draft = R.form ~editing ~measure:(value "MEASURE" input) rows;
+          original_amount;
+        }
       in
       match R.build_transaction ~new_id:(fun () -> fresh) ~book ~mode content with
       | Error why -> refusal (R.code why)
@@ -155,4 +151,4 @@ let%expect_test "Record form samples use only the household core" =
   in
   blocks (S.lines (read "forms.answers"));
   Printf.printf "%d Record answers, %d failures\n" !questions !failures;
-  [%expect {| 56 Record answers, 0 failures |}]
+  [%expect {| 37 Record answers, 0 failures |}]

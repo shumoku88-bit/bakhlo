@@ -171,9 +171,10 @@ let reload ~session ~pending ~mode : reload_outcome =
     | Some _ -> Pending_unconfirmed loaded
     | None -> (
         match mode with
-        | (Bakhlo_household.Record.Edit _ | Plan_edit _) when loaded.revision <> session.revision ->
+        | (Draft.Actual (Bakhlo_household.Record.Edit _) | Plan_edit _)
+          when loaded.revision <> session.revision ->
             Edit_base_changed loaded
-        | Bakhlo_household.Record.New | Pay _ | Edit _ | Plan_new | Plan_edit _ -> Reloaded loaded)
+        | Draft.Actual _ | Plan_new | Plan_edit _ -> Reloaded loaded)
   with
   | F.Refused why -> Reload_failed why
   | Unix.Unix_error _ | Sys_error _ -> Reload_failed "IO-error"

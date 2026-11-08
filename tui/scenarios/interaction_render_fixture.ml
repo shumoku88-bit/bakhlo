@@ -25,31 +25,30 @@ let render_cases state =
          (fun error -> error.Draft.message)
          (Draft.build_transaction ~new_id:Book_file.new_id ~book:home.session.book
             ~mode:Bakhlo_household.Record.New
-            (Bakhlo_household.Record.Multiple
-               {
-                 day = home.workspace.focus_day;
-                 memo = "Synthetic / 日本語";
-                 draft =
-                   {
-                     Bakhlo_household.Record.measure = "jpy";
-                     rows =
-                       [
-                         {
-                           Bakhlo_household.Record.key = None;
-                           locus = "wallet";
-                           negative = true;
-                           amount = String.make 70 '9';
-                         };
-                         {
-                           Bakhlo_household.Record.key = None;
-                           locus = "food";
-                           negative = false;
-                           amount = String.make 70 '9';
-                         };
-                       ];
-                   };
-                 original_amount = None;
-               })))
+            {
+              Bakhlo_household.Record.day = home.workspace.focus_day;
+              memo = "Synthetic / 日本語";
+              draft =
+                {
+                  Bakhlo_household.Record.measure = "jpy";
+                  rows =
+                    [
+                      {
+                        Bakhlo_household.Record.key = None;
+                        locus = "wallet";
+                        negative = true;
+                        amount = String.make 70 '9';
+                      };
+                      {
+                        Bakhlo_household.Record.key = None;
+                        locus = "food";
+                        negative = false;
+                        amount = String.make 70 '9';
+                      };
+                    ];
+                };
+              original_amount = None;
+            }))
   in
   let book = get (B.put_entry home.session.book ~replace:false entry.entry ~plan:None) in
   let rich = { home with session = load_synthetic_book book } in

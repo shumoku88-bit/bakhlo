@@ -59,14 +59,8 @@ CLASSIFY-MERCHANTの店名欄だけは `\t`・`\r`・`\n`・`\\` をdecodeし、
   Editは新IDを使わず、元のORIGINAL・Merchantを保持する。Payは新しい実績で予定を閉じる。
   日付→行の解析→原額のMeasure→釣合い→Bookの順で検査する。拒否は
   `day-format`、`postings:<行のコード>`、`original-measure`、`movement:<fault>`、
-  `admission:<Bookのコード>`。`day-invalid` は正規化後の防御分岐だが、現在のDay.normalizeからは到達しない。
-
-- `ORIGINAL-INPUT <名前> <scale> <文字列>`：Original欄の既存のdecimal入力。
-  答えは `QUANTA <整数>` か `REFUSED invalid-amount|amount-precision|non-positive-amount`。
-  外側・整数部・小数部のASCII whitespaceを除き、ASCIIの先頭符号を読み、commaを除く。
-  小数点前の0は省略できる。式と全角数字は受け付けない。**AmountのPOSITIVEとは別契約**で、
-  現状は `12,34.5` も1234.5として読む。この移動で受理条件を厳しくすることはしない。
+  `admission:<Bookのコード>`。Day.normalizeは実在する日だけを返すので、日付の拒否は `day-format` の1つ。
 
 画面に残るもの：Payで予定日と今日のどちらを初期日として渡すか、最大6行、行の追加・削除、
-補完操作、Ctrl-Uのsuspense補助、Original入力の操作、フォーカス・caret・paste・Preview/Publish・
+補完操作、Ctrl-Uのsuspense補助、Original欄の操作（金額はRecordの行と同じく `test/amounts/` のPOSITIVEで読む）、フォーカス・caret・paste・Preview/Publish・
 通知文・draft保持・非保存。これらはフォームの操作で、今回のコア抽出の対象ではない。

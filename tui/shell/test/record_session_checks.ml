@@ -695,7 +695,7 @@ let self_check ~width_of () =
   require (not (S.has_draft plan_draft)) "fresh-plan-draft-is-empty";
   require (S.has_draft (key plan_draft `Backspace)) "date-only-plan-edit-is-retained";
   require (S.has_draft (key (key plan_draft `Tab) `Backspace)) "measure-only-plan-edit-is-retained";
-  require (S.mode plan_draft = Bakhlo_household.Record.Plan_new) "is-plan-identified";
+  require (S.mode plan_draft = Draft.Plan_new) "is-plan-identified";
   require (contains plan_draft "Scheduled / Create") "plan-create-title";
   require (S.border_intent plan_draft = `Create) "plan-create-border-intent";
   let plan_draft = key (key plan_draft `Tab) `Tab in
@@ -799,6 +799,16 @@ let self_check ~width_of () =
   let eur_editor = ctrl cleared 'o' in
   let with_m = text eur_editor "eur" in
   let to_amount = key with_m `Enter in
+  (* The Original field reads amounts as the Record rows do: commas group thousands
+     and arithmetic is exact. *)
+  let misgrouped = key (text to_amount "12,34.5") `Enter in
+  require
+    (contains misgrouped "Enter a positive original amount: digits grouped by three, or arithmetic.")
+    "orig-amount-misgrouped-comma-refused";
+  let calculated = key (text to_amount "(10+20)/2") `Enter in
+  require
+    (contains calculated "Original amount: 15.00 eur   Ctrl-O edit")
+    "orig-amount-arithmetic-like-rows";
   (* Validation: excess decimals (eur scale 2, input 30.001) *)
   let too_precise = key (text to_amount "30.001") `Enter in
   require

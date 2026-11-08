@@ -42,31 +42,30 @@ let add_entry book ~day ~memo ~locus1 ~amt1 ~locus2 ~amt2 =
          (A.build_transaction
             ~new_id:(fun () -> day ^ ":" ^ String.map (fun c -> if c = ' ' then '-' else c) memo)
             ~book ~mode:Bakhlo_household.Record.New
-            (Bakhlo_household.Record.Multiple
-               {
-                 day;
-                 memo;
-                 draft =
-                   {
-                     Bakhlo_household.Record.measure = "jpy";
-                     rows =
-                       [
-                         {
-                           Bakhlo_household.Record.key = None;
-                           locus = locus1;
-                           negative = amt1 < 0;
-                           amount = string_of_int (abs amt1);
-                         };
-                         {
-                           Bakhlo_household.Record.key = None;
-                           locus = locus2;
-                           negative = amt2 < 0;
-                           amount = string_of_int (abs amt2);
-                         };
-                       ];
-                   };
-                 original_amount = None;
-               })))
+            {
+              Bakhlo_household.Record.day;
+              memo;
+              draft =
+                {
+                  Bakhlo_household.Record.measure = "jpy";
+                  rows =
+                    [
+                      {
+                        Bakhlo_household.Record.key = None;
+                        locus = locus1;
+                        negative = amt1 < 0;
+                        amount = string_of_int (abs amt1);
+                      };
+                      {
+                        Bakhlo_household.Record.key = None;
+                        locus = locus2;
+                        negative = amt2 < 0;
+                        amount = string_of_int (abs amt2);
+                      };
+                    ];
+                };
+              original_amount = None;
+            }))
   in
   get (B.put_entry book ~replace:false entry.entry ~plan:None)
 

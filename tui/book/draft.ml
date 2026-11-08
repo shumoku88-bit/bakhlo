@@ -9,6 +9,7 @@ let coordinate ~locus ~measure : (B.coordinate, string) result =
   if locus = "" || measure = "" then Error "A balance coordinate needs a Locus and a Measure."
   else Ok { locus; measure }
 
+type mode = Actual of R.mode | Plan_new | Plan_edit of B.plan
 type payload = Entry_tx of R.transaction | Plan_tx of { plan : B.plan; replace : bool }
 type transaction_error = { message : string }
 
@@ -38,7 +39,6 @@ let posting_message why =
 
 let message ~plan = function
   | R.Day_format -> tr "Enter a valid Gregorian date (YYYY-MM-DD, YYYY/MM/DD or YYYY.MM.DD)."
-  | R.Day_invalid -> tr "Enter a real Gregorian date."
   | R.Postings why -> posting_message why
   | R.Movement R.Empty -> tr "At least one posting is required."
   | R.Movement (R.Zero position) ->
@@ -73,7 +73,7 @@ let build_transaction ~new_id ~book ~mode content =
     (fun why -> { message = message ~plan:false why })
     (R.build_transaction ~new_id ~book ~mode content)
 
-let build_plan ~new_id ~book ~mode ~day ~draft =
+let build_plan ~new_id ~book ~editing ~day ~draft =
   Result.map_error
     (fun why -> { message = message ~plan:true why })
-    (R.build_plan ~new_id ~book ~mode ~day ~draft)
+    (R.build_plan ~new_id ~book ~editing ~day ~draft)

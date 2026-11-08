@@ -6,6 +6,21 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Record form tidy and one amount rule (2026-11-08)
+
+- User decision: the Original field reads amounts with `Amount.parse_positive`, as the
+  Record rows do. `12,34.5` is now refused (it was read as 1234.5), and arithmetic
+  and full-width digits are accepted; saved Original amounts are unchanged. The
+  separate Original parser and its 19 `ORIGINAL-INPUT` answers were removed; the
+  rule is pinned by `test/amounts/`, and two screen checks pin the field wiring
+  (misgrouped comma refused, `(10+20)/2` gives 15.00 eur); breaking the second failed.
+- `Record.mode` holds only Actual modes; Scheduled modes are the screen form's
+  (`Draft.mode`), so `build_plan` takes `~editing` and lost its impossible branch.
+  The one-case `Multiple` became the record `Record.content`; the unreachable
+  `day-invalid` was removed (`Day.normalize` returns real days only).
+- `./tools/check` and `./tools/tui --self-check` exited 0. Latest-data paired
+  comparison not executed.
+
 ## Actual recording answer samples (2026-11-08)
 
 - Hand-written, synthetic contracts: `test/records/` has 54 Book changes

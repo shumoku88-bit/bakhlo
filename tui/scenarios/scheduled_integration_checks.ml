@@ -135,7 +135,7 @@ let list_scope_checks ~width_of ~directory home =
   require
     (paying.record_visible
     && (match S.mode (Option.get paying.record) with
-      | Bakhlo_household.Record.Pay id -> id = "page-03"
+      | Draft.Actual (Bakhlo_household.Record.Pay id) -> id = "page-03"
       | _ -> false)
     && (not (plan_detail paying))
     && F.read path = before)
@@ -171,7 +171,7 @@ let list_scope_checks ~width_of ~directory home =
     (paid.record_visible
     &&
     match S.mode (Option.get paid.record) with
-    | Bakhlo_household.Record.Pay id -> id = "scope-a"
+    | Draft.Actual (Bakhlo_household.Record.Pay id) -> id = "scope-a"
     | _ -> false)
     "list-occurrence-pane-enter-completes-the-selection";
   let paid_closed = key ~width_of paid `Escape in
@@ -238,7 +238,7 @@ let list_scope_checks ~width_of ~directory home =
     (toggled_pay.record_visible
     &&
     match S.mode (Option.get toggled_pay.record) with
-    | Bakhlo_household.Record.Pay id -> id = "scope-a"
+    | Draft.Actual (Bakhlo_household.Record.Pay id) -> id = "scope-a"
     | _ -> false)
     "list-w-twice-restores-the-occurrence-pane-selection";
   let huged = with_plan_query all "scope-huge" in
@@ -831,7 +831,7 @@ let months_checks ~width_of ~directory home =
   require
     (paying.record_visible
     && (match S.mode (Option.get paying.record) with
-      | Bakhlo_household.Record.Pay id -> id = "month-02"
+      | Draft.Actual (Bakhlo_household.Record.Pay id) -> id = "month-02"
       | _ -> false)
     && F.read path = before)
     "months-enter-opens-selected-completion-without-publishing";
@@ -1273,7 +1273,7 @@ let coverage_checks ~width_of ~directory home =
   require
     (paying.record_visible
     && (match S.mode (Option.get paying.record) with
-      | Bakhlo_household.Record.Pay id -> id = "cov-a"
+      | Draft.Actual (Bakhlo_household.Record.Pay id) -> id = "cov-a"
       | _ -> false)
     && F.read path = before)
     "coverage-plan-enter-opens-completion-without-publishing";

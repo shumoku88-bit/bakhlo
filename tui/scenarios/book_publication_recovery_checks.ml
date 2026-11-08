@@ -39,7 +39,7 @@ let check_reviewed_base ~directory () =
     | _ -> false)
     "publication-review-stale-base-with-current-session";
   require (F.read path = saved_bytes) "publication-review-base-conflict-does-not-write";
-  let mode = Bakhlo_household.Record.Plan_edit reviewed_plan in
+  let mode = Draft.Plan_edit reviewed_plan in
   require
     (match Publication.reload ~session:original ~pending:(Some evidence) ~mode with
     | Publication.Pending_confirmed loaded -> loaded.revision = current.revision

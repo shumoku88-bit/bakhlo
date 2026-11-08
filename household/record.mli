@@ -18,25 +18,24 @@ val movement_code : movement_fault -> string
 val of_effects : B.t -> B.posting list -> (t, string) result
 val edit_refusal : book:B.t -> B.entry -> string option
 
-type mode = New | Edit of B.entry | Pay of string | Plan_new | Plan_edit of B.plan
+(** What an Actual form does: a new entry, a correction of one, or the payment of a plan. *)
+type mode = New | Edit of B.entry | Pay of string
+
 type form_row = { key : string option; locus : string; amount : string }
 
 val split_sign : string -> bool * string
 
-val form : mode:mode -> measure:string -> form_row list -> t
-(** Leading ASCII signs are direction, not part of the expression. An edited
-    posting keeps its key only while its Locus is unchanged. *)
+val form : editing:B.entry option -> measure:string -> form_row list -> t
+(** Leading ASCII signs are direction, not part of the expression. A posting of
+    the [editing] entry keeps its key only while its Locus is unchanged. *)
 
 val open_plan_draft : book:B.t -> B.plan -> (t, string) result
 
 type transaction = { entry : B.entry; replace : bool; plan : string option }
-
-type draft_content =
-  | Multiple of { day : string; memo : string; draft : t; original_amount : (string * Z.t) option }
+type content = { day : string; memo : string; draft : t; original_amount : (string * Z.t) option }
 
 type error =
   | Day_format
-  | Day_invalid
   | Postings of string
   | Movement of movement_fault
   | Original_measure
@@ -45,19 +44,12 @@ type error =
 val code : error -> string
 
 val build_transaction :
-  new_id:(unit -> string) -> book:B.t -> mode:mode -> draft_content -> (transaction, error) result
+  new_id:(unit -> string) -> book:B.t -> mode:mode -> content -> (transaction, error) result
 
 val build_plan :
   new_id:(unit -> string) ->
   book:B.t ->
-  mode:mode ->
+  editing:B.plan option ->
   day:string ->
   draft:t ->
   (B.plan * bool, error) result
-
-val parse_original_quanta :
-  scale:int -> string -> (Z.t, [ `Invalid | `Precision | `Non_positive ]) result
-(** The Original field's existing decimal notation: ASCII sign, trimmed whole
-    and fraction, commas removed, no expressions or full-width normalization. *)
-
-val original_code : [ `Invalid | `Precision | `Non_positive ] -> string
