@@ -722,6 +722,11 @@ let set_locus_label t ~id ~label ?help () =
 (* One count of current quantities, reflecting every recorded TX: a new anchor at the
    last TX; older anchors lose the coordinates counted again, and are dropped when
    nothing is left. *)
+let observation_refusal t ~locus ~measure =
+  match quantity t ~locus ~measure with
+  | Some { support = T.Zero_origin | T.Opening _; _ } -> Some "balance-from-records"
+  | Some { support = T.Counted _; _ } | None -> None
+
 let observe_quantities t rows =
   protect (fun () ->
       require (rows <> []) "empty-observations";
@@ -772,6 +777,11 @@ let set_section t change =
   match T.change t.txt [ change ] with
   | Ok txt -> Ok { t with txt }
   | Error code -> Error ("book-txt-" ^ code)
+
+let role_refusal t locus =
+  if locus = "suspense" then Some "suspense-no-role"
+  else if List.mem_assoc locus (roles t) then Some "role-already-set"
+  else None
 
 let set_roles t roles = set_section t (T.Set_roles roles)
 let set_attention t ~items ~closes = set_section t (T.Set_attention (items, closes))

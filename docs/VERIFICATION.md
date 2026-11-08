@@ -7,6 +7,20 @@ toolchain. This file keeps the last week's entries (from 2026-11-02); entries fr
 2026-10-31 are in Git at `5b48008:docs/VERIFICATION.md`, earlier ones (including the bounded
 Solo5-SPT engine boot) at `90a5867:docs/VERIFICATION.md`.
 
+## bk check and bk loci (2026-11-08)
+
+- `bk check` saves balances seen outside (Observe). A balance resting on the records (zero
+  origin or an opening) is not overwritten: book txt refuses that overlap
+  (`support-admission`), so the command compares it and shows the difference to record
+  instead; `Book.observation_refusal` owns that rule. `bk loci` lists accounts with role and
+  balance; `add`, `name`, `role` add an account, rename it and give it a role once
+  (`Book.role_refusal`, now also used by the Loci screen with its wording). Hiding an
+  account existed neither in Book nor in the TUI and is not added.
+- `test/loci/rules.answers`: 7 hand-written answers (roles once, suspense, seen balances
+  over zero origin, opening, counted and unknown), all passing on the first run; a wrong
+  OBSERVE answer failed at its line. CLI checks pin the comparison table (built by hand),
+  a saved seen balance and each Loci change. `./tools/check` exited 0.
+
 ## Record corrections as commands (2026-11-08)
 
 - `bk edit` / `date` / `refund` / `shop` choose a record with `bk find` terms, newest first

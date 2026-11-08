@@ -86,10 +86,10 @@ let suspense_refusal = function
          recording\" (Ctrl-U), never with a role here."
 
 let refusal_for ~route (env : Screen.env) locus =
-  if locus = suspense_locus then Some (suspense_refusal route)
-  else if List.mem_assoc locus env.accounting_roles then
-    Some (tr "This Locus already has an accounting role; roles are never replaced.")
-  else None
+  match B.role_refusal env.book locus with
+  | Some "suspense-no-role" -> Some (suspense_refusal route)
+  | Some _ -> Some (tr "This Locus already has an accounting role; roles are never replaced.")
+  | None -> None
 
 let role_refusal (env : Screen.env) locus = refusal_for ~route:Role_assignment env locus
 let admission_refusal (env : Screen.env) token = refusal_for ~route:Admission env token

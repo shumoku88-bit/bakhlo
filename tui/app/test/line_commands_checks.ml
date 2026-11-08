@@ -390,6 +390,33 @@ let run_all () =
   require (contains after "EFFECT\tfood\tjpy\t900\nNONMERCHANT\nENDTX") "bk-shop-sets-not-a-shop";
   let out, after = fix "bk-edit-none" (`Edit [ "nothing-here" ]) [] in
   require (out = "No record matches.\n" && after = book_text) "bk-edit-without-a-match";
+  (* `bk check`: every account here starts at zero, so a seen balance is compared and
+     nothing is saved. Wallet is -900; seen 800 differs by +1,700. *)
+  let out, after = fix "bk-check-records" `Check [ "wal"; "800"; "" ] in
+  require
+    (after = book_text
+    && contains out
+         "          book  seen  difference\n\
+         \  Wallet  -900   800      +1,700  jpy  from records: record a difference with bk r\n\
+          These balances come from the records; nothing is saved.\n")
+    "bk-check-compares-balances-from-records";
+  (* An account without a known balance takes what was seen. *)
+  Unix.mkdir "scratch/bk-check" 0o700;
+  write "scratch/bk-check/book.txt" "BOOK\t1\nMEASURE\tjpy\t0\nLOCUS\tbank\tBank\t\nEND\n";
+  let io, _ = script [ "bank"; "12,000"; ""; "" ] in
+  ignore (L.run io `Check (F.load "scratch/bk-check/book.txt") ~today:"2026-11-08");
+  require
+    (contains (F.read "scratch/bk-check/book.txt") "ASSERT\tbank\tjpy\t12000")
+    "bk-check-saves-a-seen-balance";
+  (* `bk loci`: add with a role, rename, give a role. *)
+  let _, after = fix "bk-loci-add" (`Loci `Add) [ "cash"; "Cash"; "as"; "" ] in
+  require
+    (contains after "LOCUS\tcash\tCash\t" && contains after "ROLE\tcash\tASSET")
+    "bk-loci-add-offers-an-account";
+  let _, after = fix "bk-loci-name" (`Loci `Name) [ "food"; "Groceries"; "" ] in
+  require (contains after "LOCUS\tfood\tGroceries\t") "bk-loci-name-renames";
+  let _, after = fix "bk-loci-role" (`Loci `Role) [ "food"; "ex"; "" ] in
+  require (contains after "ROLE\tfood\tEXPENSE") "bk-loci-role-gives-a-role";
   (* bk help lists every command, and every listed command runs: with no answers
      it stops and writes nothing. *)
   List.iter

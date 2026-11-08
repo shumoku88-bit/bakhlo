@@ -18,7 +18,9 @@ val run :
   | `Edit of string list
   | `Date of string list
   | `Refund of string list
-  | `Shop of string list ] ->
+  | `Shop of string list
+  | `Check
+  | `Loci of [ `List | `Add | `Name | `Role ] ] ->
   Book_file.t ->
   today:string ->
   [ `Saved | `Stopped ]

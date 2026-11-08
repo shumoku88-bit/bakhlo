@@ -1,0 +1,13 @@
+# 口座の役割と、見た残高を保存できるか。帳簿：bankはASSET。walletは0から始まる（ZERO-ORIGIN）、
+# cardは開始残高の記帳t0から（OPENING）、savingsは数えた残高（ASSERT）、bankの残高は根拠がない。
+USE	BOOK	book.txt
+# 役割は1回だけ付ける。付いている口座と、未解決の受け皿（suspense）には付けない
+ROLE	bank	REFUSED	role-already-set
+ROLE	wallet	OK
+ROLE	suspense	REFUSED	suspense-no-role
+# 見た残高：記録から決まる残高（0から始まる・開始残高）には重ねない。比べて、差は記帳する
+OBSERVE	wallet	jpy	REFUSED	balance-from-records
+OBSERVE	card	jpy	REFUSED	balance-from-records
+# 数えた残高は新しく数え直せる。根拠のない残高は見た残高から始められる
+OBSERVE	savings	jpy	OK
+OBSERVE	bank	jpy	OK

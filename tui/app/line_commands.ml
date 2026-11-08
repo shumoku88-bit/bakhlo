@@ -836,6 +836,190 @@ let shop io (session : F.t) terms =
             [ B.Classify_merchant { id = e.id; disposition } ]
             [ entry_cells book e ])
 
+(* 11. `bk check`: the balances seen outside (a bank app, the wallet) are saved as
+   observed quantities (Book.Observe), one or more accounts at a time. The Preview
+   shows what the book says next to what was seen. *)
+let measure_of book = match B.measures book with (m, _) :: _ -> m | [] -> ""
+
+let current book measure locus =
+  match Book_display.quantity_value ~book ~measure locus with
+  | Book_display.Exact q -> money book measure q
+  | Book_display.Unsupported -> "unknown"
+
+let check io (session : F.t) =
+  let book = session.book in
+  let measure =
+    match B.measures book with
+    | [ (m, _) ] -> m
+    | (m, _) :: _ -> ask io ~default:m "Measure"
+    | [] -> ""
+  in
+  let scale = Option.value ~default:0 (List.assoc_opt measure (B.measures book)) in
+  let rec rows acc =
+    match ask io "Account (Enter when done)" with
+    | "" -> List.rev acc
+    | answer -> (
+        match choose_locus io book answer with
+        | None -> rows acc
+        | Some locus when List.exists (fun (l, _) -> l = locus) acc ->
+            say io "That account is already in this check.";
+            rows acc
+        | Some locus ->
+            let rec seen () =
+              match
+                Bakhlo_household.Amount.parse_signed ~decimals:scale
+                  (ask io
+                     (Printf.sprintf "%s now (the book says %s)" (name book locus)
+                        (current book measure locus)))
+              with
+              | Ok q -> q
+              | Error _ ->
+                  say io "Enter the balance you see, like 12,345 or -500.";
+                  seen ()
+            in
+            rows ((locus, seen ()) :: acc))
+  in
+  match rows [] with
+  | [] ->
+      say io "Nothing to check.";
+      `Stopped
+  | seen -> (
+      (* A balance that rests on the records is compared, never overwritten: its
+         difference is something to record. *)
+      let from_records locus = B.observation_refusal book ~locus ~measure <> None in
+      let difference locus q =
+        match Book_display.quantity_value ~book ~measure locus with
+        | Book_display.Exact b when not (Z.equal b q) -> signed book measure (Z.sub q b)
+        | Book_display.Exact _ -> "same"
+        | Book_display.Unsupported -> ""
+      in
+      let table =
+        [ Left ""; Right "book"; Right "seen"; Right "difference"; Left ""; Left "" ]
+        :: List.map
+             (fun (locus, q) ->
+               [
+                 Left (name book locus);
+                 Right (current book measure locus);
+                 Right (money book measure q);
+                 Right (difference locus q);
+                 Left measure;
+                 Left
+                   (if from_records locus then "from records: record a difference with bk r" else "");
+               ])
+             seen
+      in
+      match List.filter (fun (locus, _) -> not (from_records locus)) seen with
+      | [] ->
+          say io "";
+          print_table io table;
+          say io "These balances come from the records; nothing is saved.";
+          `Stopped
+      | saved ->
+          publish_changes io session ~title:"Balances seen (saved where not from records)"
+            [ B.Observe (List.map (fun (locus, q) -> (locus, measure, q)) saved) ]
+            table)
+
+(* 12. `bk loci`: the accounts, with their roles and balances; `add` offers a new
+   one (ID, display name, role), `name` renames one, `role` gives one without a
+   role its role (once: Book.role_refusal). *)
+let role_names =
+  [
+    ("asset", Locus_roles.Asset);
+    ("liability", Liability);
+    ("equity", Equity);
+    ("income", Income);
+    ("expense", Expense);
+  ]
+
+let role_of book locus =
+  match List.assoc_opt locus (B.roles book) with
+  | Some r -> String.lowercase_ascii (Locus_roles.role_label r)
+  | None -> "-"
+
+let rec ask_role io =
+  match
+    String.lowercase_ascii
+      (ask io "Role (asset, liability, equity, income, expense, or - for none)")
+  with
+  | "-" -> None
+  | text -> (
+      match List.filter (fun (n, _) -> String.starts_with ~prefix:text n) role_names with
+      | [ (_, role) ] when text <> "" -> Some role
+      | _ ->
+          say io "Type a role (its first letters are enough) or -.";
+          ask_role io)
+
+let loci io (session : F.t) action =
+  let book = session.book in
+  let measure = measure_of book in
+  match action with
+  | `List ->
+      print_table io
+        ([ Left "name"; Left "ID"; Left "role"; Right "balance"; Left "" ]
+        :: List.map
+             (fun locus ->
+               [
+                 Left (name book locus);
+                 Left locus;
+                 Left (role_of book locus);
+                 Right (current book measure locus);
+                 Left measure;
+               ])
+             (Option.value ~default:[] (B.approved_loci book)));
+      `Stopped
+  | `Add ->
+      let id = ask io "ID (one word, used inside the book)" in
+      let label = ask io ~default:id "Display name" in
+      let role = ask_role io in
+      publish_changes io session ~title:"New account"
+        ([ B.Add_locus id ]
+        @ (if label = id then [] else [ B.Set_locus_label { id; label; help = None } ])
+        @
+        match role with
+        | None -> []
+        | Some role -> [ B.Set_roles (Locus_roles.set_role (B.roles book) id (Some role)) ])
+        [
+          [
+            Left label;
+            Left id;
+            Left
+              (match role with
+              | Some r -> String.lowercase_ascii (Locus_roles.role_label r)
+              | None -> "-");
+          ];
+        ]
+  | `Name -> (
+      match choose_locus io book (ask io "Account") with
+      | None -> `Stopped
+      | Some id ->
+          let label = ask io ~default:(B.label book id) "New display name" in
+          publish_changes io session ~title:"Rename"
+            [ B.Set_locus_label { id; label; help = None } ]
+            [ [ Left (name book id); Left "->"; Left label ] ])
+  | `Role -> (
+      match choose_locus io book (ask io "Account") with
+      | None -> `Stopped
+      | Some id -> (
+          match B.role_refusal book id with
+          | Some "role-already-set" ->
+              say io "This account already has a role; roles are never replaced.";
+              `Stopped
+          | Some _ ->
+              say io "The unresolved holding account takes no role.";
+              `Stopped
+          | None -> (
+              match ask_role io with
+              | None -> `Stopped
+              | Some role ->
+                  publish_changes io session ~title:"Role"
+                    [ B.Set_roles (Locus_roles.set_role (B.roles book) id (Some role)) ]
+                    [
+                      [
+                        Left (name book id);
+                        Left (String.lowercase_ascii (Locus_roles.role_label role));
+                      ];
+                    ])))
+
 (* 8. After a saved record or payment, another one may follow on the saved book. *)
 let rec again io (session : F.t) ~today ~saved ~question step =
   match
@@ -865,6 +1049,8 @@ let run io command (session : F.t) ~today =
     | `Date terms -> redate io session terms
     | `Refund terms -> refund io session ~today terms
     | `Shop terms -> shop io session terms
+    | `Check -> check io session
+    | `Loci action -> loci io session action
   with Quit ->
     say io "Nothing was saved.";
     `Stopped

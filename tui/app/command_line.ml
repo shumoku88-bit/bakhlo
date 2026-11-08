@@ -24,6 +24,11 @@ let commands =
     ([ "date" ], terms (fun t -> `Date t), "move a record to another date [find terms]");
     ([ "refund" ], terms (fun t -> `Refund t), "record the refund of a record [find terms]");
     ([ "shop" ], terms (fun t -> `Shop t), "set where a record was bought, once [find terms]");
+    ([ "check" ], fixed `Check, "save the balances you see (a bank app, the wallet)");
+    ([ "loci" ], fixed (`Loci `List), "accounts with their roles and balances");
+    ([ "loci"; "add" ], fixed (`Loci `Add), "add an account");
+    ([ "loci"; "name" ], fixed (`Loci `Name), "rename an account");
+    ([ "loci"; "role" ], fixed (`Loci `Role), "give an account its role (once)");
   ]
 
 let line_command words =

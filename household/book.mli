@@ -92,6 +92,12 @@ val bounded_history_start : t -> locus:string -> measure:string -> string option
     recorded TX. *)
 
 val roles : t -> (string * T.role) list
+
+val role_refusal : t -> string -> string option
+(** Why a Locus cannot take an accounting role now: [suspense-no-role] for the
+    unresolved holding Locus, [role-already-set] when it has one (a role classifies
+    derived views and is never replaced). [None] when it can. *)
+
 val attention : t -> T.item list * T.close list
 val format : t -> string -> Z.t -> string
 
@@ -209,6 +215,11 @@ val add_locus : t -> string -> (t, string) result
 (** Offer a Locus for new entries: a new one labelled with its ID, or a hidden one again. *)
 
 val set_locus_label : t -> id:string -> label:string -> ?help:string -> unit -> (t, string) result
+
+val observation_refusal : t -> locus:string -> measure:string -> string option
+(** [balance-from-records] when the balance already rests on the records (zero origin
+    or an opening): a seen balance cannot be added there, only compared, and a
+    difference is recorded as an entry. [None] for an unknown or counted balance. *)
 
 val observe_quantities : t -> (string * string * Z.t) list -> (t, string) result
 (** One count of current quantities reflecting every recorded TX. Older counts keep

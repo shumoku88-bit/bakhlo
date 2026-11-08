@@ -10,7 +10,9 @@ val commands :
     | `Edit of string list
     | `Date of string list
     | `Refund of string list
-    | `Shop of string list ]
+    | `Shop of string list
+    | `Check
+    | `Loci of [ `List | `Add | `Name | `Role ] ]
     option)
   * string)
   list

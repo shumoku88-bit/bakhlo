@@ -1,0 +1,22 @@
+BOOK	1
+MEASURE	jpy	0
+LOCUS	wallet	Wallet	
+LOCUS	bank	Bank	
+LOCUS	card	Card	
+LOCUS	equity	Opening	
+LOCUS	savings	Savings	
+ROLE	bank	ASSET
+TX	t0	2026-10-01	DESC	opening
+EFFECT	card	jpy	-5000
+EFFECT	equity	jpy	5000
+ENDTX
+TX	t1	2026-11-01
+EFFECT	bank	jpy	-1000
+EFFECT	wallet	jpy	1000
+ENDTX
+ZERO-ORIGIN	wallet	jpy
+OPENING	card	jpy	t0
+ANCHOR	t1
+ASSERT	savings	jpy	300
+ENDANCHOR
+END

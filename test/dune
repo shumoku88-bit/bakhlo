@@ -26,7 +26,8 @@
    (glob_files amounts/*)
    (glob_files periods/*)
    (glob_files reports/*)
-   (glob_files queries/*)))
+   (glob_files queries/*)
+   (glob_files loci/*)))
  (preprocess
   (pps ppx_expect)))
 
