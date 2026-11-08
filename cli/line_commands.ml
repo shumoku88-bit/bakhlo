@@ -94,25 +94,64 @@ let name book locus =
   else if shared then label ^ " [" ^ locus ^ "]"
   else label
 
-(* 1. Choosing a Locus: the screens' candidates (approved Loci whose ID or label
-   starts with the answer, an exact ID first). One candidate is taken at once;
-   several are numbered, and the next answer is a number or a longer start. *)
-let rec choose_locus io book query =
+(* 1. Choosing one of several, the same way for every kind (an account, a plan, a
+   series, a record, a matter), as qemacs completes every kind of name in one
+   minibuffer:
+
+     1  2026-11-05  Bank  -80,000  Food   +80,000  jpy  overdue
+     2  2026-11-20  Bank   -3,000  Water   +3,000  jpy
+     Plan [1]: wa       -> only the plan moving Water is left, and is taken
+
+   The first nine are numbered and Enter takes the first. Any other answer narrows
+   the list by [narrow] ([by] says how to the household); one match is taken at
+   once, none asks again. *)
+let rec choose io ~what ~by ?heading ~cells ~narrow items =
+  let shown = List.filteri (fun i _ -> i < 9) items in
+  print_table io
+    (Option.to_list heading
+    @ List.mapi (fun i item -> Right (string_of_int (i + 1)) :: cells item) shown);
+  if List.length items > 9 then say io ("  … type " ^ by ^ " to narrow");
+  let rec answer () =
+    let text = ask io ~default:"1" what in
+    match int_of_string_opt text with
+    | Some n when n >= 1 && n <= List.length shown -> List.nth shown (n - 1)
+    | _ -> (
+        match narrow text items with
+        | Error why ->
+            say io why;
+            answer ()
+        | Ok [] ->
+            say io
+              (Printf.sprintf "Nothing matches %S. Type a number or %s; Ctrl-D quits." text by);
+            answer ()
+        | Ok [ item ] -> item
+        | Ok narrowed -> choose io ~what ~by ?heading ~cells ~narrow narrowed)
+  in
+  answer ()
+
+(* Text that starts a name, ignoring case. *)
+let starts text name =
+  String.starts_with ~prefix:(String.lowercase_ascii text) (String.lowercase_ascii name)
+
+(* A Locus: the screens' candidates (approved Loci whose ID or label starts with
+   the answer), an exact ID taken at once. *)
+let locus_matches book query =
   match Book_display.locus_candidates book query with
-  | [ id ] -> Some id
-  | id :: _ when String.lowercase_ascii id = String.lowercase_ascii query -> Some id
+  | id :: _ when String.lowercase_ascii id = String.lowercase_ascii query -> [ id ]
+  | candidates -> candidates
+
+let choose_locus io book query =
+  match locus_matches book query with
   | [] ->
       say io (Printf.sprintf "No Locus starts with %S." query);
       None
-  | many -> (
-      let shown = List.filteri (fun i _ -> i < 9) many in
-      print_table io
-        (List.mapi (fun i id -> [ Right (string_of_int (i + 1)); Left (name book id) ]) shown);
-      if List.length many > 9 then say io "  … type more letters to narrow";
-      let answer = ask io "Number or more letters" in
-      match int_of_string_opt answer with
-      | Some n when n >= 1 && n <= List.length shown -> Some (List.nth shown (n - 1))
-      | _ -> if answer = "" then None else choose_locus io book answer)
+  | [ id ] -> Some id
+  | many ->
+      Some
+        (choose io ~what:"Account" ~by:"more letters"
+           ~cells:(fun id -> [ Left (name book id) ])
+           ~narrow:(fun text _ -> Ok (locus_matches book text))
+           many)
 
 (* 2. The rows. Each row is a Locus and a signed amount; Enter on an amount takes
    whatever balances the rows so far, and Enter on a Locus ends them (the core
@@ -177,6 +216,23 @@ let preview io book (tx : R.transaction) =
   | Some (m, q) -> say io (Printf.sprintf "  original amount %s %s" (money book m q) m)
   | None -> ()
 
+(* What a save tells the household, the same for every command. *)
+let published io = function
+  | F.Written session ->
+      say io "Saved.";
+      `Saved session
+  | F.Conflict ->
+      say io "The book changed while you were typing; nothing was saved. Run it again.";
+      `Stopped
+  | F.Refused_input why ->
+      say io (not_saved why);
+      `Stopped
+  | F.Uncertain _ ->
+      say io
+        "The save could not be confirmed. Do not repeat it: open the book (bk) and check whether \
+         it is there.";
+      `Stopped
+
 let save io (session : F.t) (tx : R.transaction) =
   let book = session.book in
   say io "";
@@ -207,24 +263,9 @@ let save io (session : F.t) (tx : R.transaction) =
           | Error _ ->
               say io "Enter a positive amount in that Measure.";
               `Edit))
-  | "y" | "yes" -> (
-      match
-        F.publish session [ B.Put_entry { replace = tx.replace; entry = tx.entry; plan = tx.plan } ]
-      with
-      | F.Written session ->
-          say io "Saved.";
-          `Saved session
-      | F.Conflict ->
-          say io "The book changed while you were typing; nothing was saved. Run it again.";
-          `Stopped
-      | F.Refused_input why ->
-          say io (not_saved why);
-          `Stopped
-      | F.Uncertain _ ->
-          say io
-            "The save could not be confirmed. Do not repeat it: open the book (bk) and check \
-             whether it is there.";
-          `Stopped)
+  | "y" | "yes" ->
+      let put = B.Put_entry { replace = tx.replace; entry = tx.entry; plan = tx.plan } in
+      published io (F.publish session [ put ])
   | "e" | "edit" -> `Edit
   | _ ->
       say io "Nothing was saved.";
@@ -321,33 +362,14 @@ let plan_cells book (p : B.plan) ~today =
   @ [ Left p.measure ]
   @ if p.day < today then [ Left "overdue" ] else []
 
-let nothing_matches answer =
-  Printf.sprintf "Nothing matches %S. Type a number or the start of a name; Ctrl-D quits." answer
+(* A plan is narrowed by the start of a Locus it moves. *)
+let moves book text (p : B.plan) =
+  List.exists (fun (locus, _) -> starts text locus || starts text (B.label book locus)) p.changes
 
-let rec choose_plan io book plans ~today =
-  let shown = List.filteri (fun i _ -> i < 9) plans in
-  print_table io
-    (List.mapi (fun i p -> Right (string_of_int (i + 1)) :: plan_cells book p ~today) shown);
-  if List.length plans > 9 then say io "  … type the start of a name to narrow";
-  ask_plan io book plans shown ~today
-
-and ask_plan io book plans shown ~today =
-  let answer = ask io ~default:"1" "Plan" in
-  match int_of_string_opt answer with
-  | Some n when n >= 1 && n <= List.length shown -> Some (List.nth shown (n - 1))
-  | _ -> (
-      let starts text =
-        String.starts_with ~prefix:(String.lowercase_ascii answer) (String.lowercase_ascii text)
-      in
-      let moves (p : B.plan) =
-        List.exists (fun (locus, _) -> starts locus || starts (B.label book locus)) p.changes
-      in
-      match List.filter moves plans with
-      | [] ->
-          say io (nothing_matches answer);
-          ask_plan io book plans shown ~today
-      | [ p ] -> Some p
-      | narrowed -> choose_plan io book narrowed ~today)
+let choose_plan io book plans ~today =
+  choose io ~what:"Plan" ~by:"the start of a name" ~cells:(plan_cells book ~today)
+    ~narrow:(fun text plans -> Ok (List.filter (moves book text) plans))
+    plans
 
 let pay io (session : F.t) ~today =
   let book = session.book in
@@ -357,18 +379,16 @@ let pay io (session : F.t) ~today =
       say io "No open plans.";
       `Stopped
   | _ -> (
-      match choose_plan io book plans ~today with
-      | None -> `Stopped
-      | Some plan -> (
-          match Draft.open_plan ~book plan with
-          | Error why ->
-              say io why;
-              `Stopped
-          | Ok draft ->
-              let day = ask io ~default:today "Date paid" in
-              let memo = ask io "Memo" in
-              review io session ~mode:(R.Pay plan.id) ~day ~memo ~original_amount:None draft.measure
-                (as_form_rows book draft)))
+      let plan = choose_plan io book plans ~today in
+      match Draft.open_plan ~book plan with
+      | Error why ->
+          say io why;
+          `Stopped
+      | Ok draft ->
+          let day = ask io ~default:today "Date paid" in
+          let memo = ask io "Memo" in
+          review io session ~mode:(R.Pay plan.id) ~day ~memo ~original_amount:None draft.measure
+            (as_form_rows book draft))
 
 (* 6. `bk bal` and `bk pace` print what the Balances screen (Current) and Daily
    Pace's breakdown (`?`) show, from the same configuration files, and exit. *)
@@ -540,32 +560,11 @@ let series_heading =
     Left ""; Left "to"; Left "from"; Right "amount"; Left ""; Left "next"; Left "last"; Right "open";
   ]
 
-let rec choose_series io book rows ~today all =
-  let shown = List.filteri (fun i _ -> i < 9) all in
-  print_table io
-    (series_heading
-    :: List.mapi (fun i s -> Right (string_of_int (i + 1)) :: series_cells book rows ~today s) shown
-    );
-  if List.length all > 9 then say io "  … type the start of a name to narrow";
-  ask_series io book rows ~today all shown
-
-and ask_series io book rows ~today all shown =
-  let answer = ask io ~default:"1" "Series" in
-  match int_of_string_opt answer with
-  | Some n when n >= 1 && n <= List.length shown -> List.nth shown (n - 1)
-  | _ -> (
-      let starts text =
-        String.starts_with ~prefix:(String.lowercase_ascii answer) (String.lowercase_ascii text)
-      in
-      let moves (p : B.plan) =
-        List.exists (fun (locus, _) -> starts locus || starts (B.label book locus)) p.changes
-      in
-      match List.filter (fun s -> moves (List.hd s)) all with
-      | [] ->
-          say io (nothing_matches answer);
-          ask_series io book rows ~today all shown
-      | [ s ] -> s
-      | narrowed -> choose_series io book rows ~today narrowed)
+let choose_series io book rows ~today all =
+  choose io ~what:"Series" ~by:"the start of a name" ~heading:series_heading
+    ~cells:(series_cells book rows ~today)
+    ~narrow:(fun text all -> Ok (List.filter (fun s -> moves book text (List.hd s)) all))
+    all
 
 let plan_rows book plans =
   List.map
@@ -576,32 +575,25 @@ let plan_rows book plans =
            p.changes)
     plans
 
-(* Saving several changes: a Preview, then Enter saves them together. *)
-let publish_changes io (session : F.t) ~title changes rows =
+(* A Preview of what is saved; Enter saves it. *)
+let confirmed io ~title rows =
   say io "";
   say io ("  " ^ title);
   print_table io rows;
   say io "";
   match String.lowercase_ascii (ask io ~default:"y" "Save? (y / n)") with
-  | "y" | "yes" -> (
-      match F.publish session changes with
-      | F.Written _ ->
-          say io "Saved.";
-          `Saved
-      | F.Conflict ->
-          say io "The book changed while you were typing; nothing was saved. Run it again.";
-          `Stopped
-      | F.Refused_input why ->
-          say io (not_saved why);
-          `Stopped
-      | F.Uncertain _ ->
-          say io
-            "The save could not be confirmed. Do not repeat it: open the book (bk) and check \
-             whether it is there.";
-          `Stopped)
+  | "y" | "yes" -> true
   | _ ->
       say io "Nothing was saved.";
-      `Stopped
+      false
+
+(* Saving several changes together. *)
+let publish_changes io (session : F.t) ~title changes rows =
+  if not (confirmed io ~title rows) then `Stopped
+  else
+    match published io (F.publish session changes) with
+    | `Saved _ -> `Saved
+    | `Stopped -> `Stopped
 
 (* Numbers like "1-3 5", or Enter for all. *)
 let pick_numbers answer count =
@@ -818,30 +810,6 @@ let find io (session : F.t) words =
    newest first: a number takes it, more terms narrow the list. `edit` corrects
    rows, memo and date (Record), `date` moves only the date, `refund` adds the
    refund (Record), `shop` sets the shop once (Book). *)
-let rec choose_entry io book entries =
-  let shown = List.filteri (fun i _ -> i < 9) entries in
-  print_table io (List.mapi (fun i e -> Right (string_of_int (i + 1)) :: entry_cells book e) shown);
-  if List.length entries > 9 then say io "  … type more terms to narrow";
-  ask_entry io book entries shown
-
-and ask_entry io book entries shown =
-  let answer = ask io ~default:"1" "Record" in
-  match int_of_string_opt answer with
-  | Some n when n >= 1 && n <= List.length shown -> Some (List.nth shown (n - 1))
-  | _ -> (
-      let words = List.filter (( <> ) "") (String.split_on_char ' ' answer) in
-      match Bakhlo_household.Query.parse words with
-      | Error why ->
-          say io (query_refusal why);
-          ask_entry io book entries shown
-      | Ok query -> (
-          match List.filter (Bakhlo_household.Query.matches book query) entries with
-          | [] ->
-              say io (nothing_matches answer);
-              ask_entry io book entries shown
-          | [ e ] -> Some e
-          | narrowed -> choose_entry io book narrowed))
-
 let chosen_entry io book terms =
   match Bakhlo_household.Query.parse terms with
   | Error why ->
@@ -852,7 +820,16 @@ let chosen_entry io book terms =
       | [] ->
           say io "No record matches.";
           None
-      | newest_first -> choose_entry io book newest_first)
+      | newest_first ->
+          let narrow text entries =
+            let words = List.filter (( <> ) "") (String.split_on_char ' ' text) in
+            match Bakhlo_household.Query.parse words with
+            | Error why -> Error (query_refusal why)
+            | Ok query -> Ok (List.filter (Bakhlo_household.Query.matches book query) entries)
+          in
+          Some
+            (choose io ~what:"Record" ~by:"more terms" ~cells:(entry_cells book) ~narrow
+               newest_first))
 
 let edit io (session : F.t) terms =
   let book = session.book in
@@ -1122,22 +1099,15 @@ let loci io (session : F.t) action =
    pace and `target` plans a daily spend that keeps a target pace. Settings files are
    replaced only if they still hold what was read. *)
 let save_config io (session : F.t) name ~expected content ~title rows =
-  say io "";
-  say io ("  " ^ title);
-  print_table io rows;
-  say io "";
-  match String.lowercase_ascii (ask io ~default:"y" "Save? (y / n)") with
-  | "y" | "yes" -> (
-      match Config.write ~book_path:session.path name ~expected content with
-      | Ok () ->
-          say io "Saved.";
-          `Saved
-      | Error why ->
-          say io ("Not saved: " ^ why);
-          `Stopped)
-  | _ ->
-      say io "Nothing was saved.";
-      `Stopped
+  if not (confirmed io ~title rows) then `Stopped
+  else
+    match Config.write ~book_path:session.path name ~expected content with
+    | Ok () ->
+        say io "Saved.";
+        `Saved
+    | Error why ->
+        say io ("Not saved: " ^ why);
+        `Stopped
 
 let pace_pool io (session : F.t) =
   let book = session.book in
@@ -1416,15 +1386,14 @@ let todo io (session : F.t) ~today action =
           say io "Nothing open.";
           `Stopped
       | items -> (
-          print_table io (todo_rows ~today items);
-          let rec pick () =
-            match int_of_string_opt (ask io ~default:"1" "Which") with
-            | Some n when n >= 1 && n <= List.length items -> List.nth items (n - 1)
-            | _ ->
-                say io "Type a number from the list.";
-                pick ()
+          let item =
+            choose io ~what:"Which" ~by:"the start of a matter"
+              ~cells:(fun (item : Att.item) ->
+                [ Left (Att.due_display ~today item.due); Left item.context ])
+              ~narrow:(fun text items ->
+                Ok (List.filter (fun (item : Att.item) -> starts text item.context) items))
+              items
           in
-          let item = pick () in
           let kind = match action with `Done -> Att.Resolved | `Drop -> Att.Dropped in
           match Att.close_item att ~id:item.id ~known_on:today ~kind with
           | Error why ->

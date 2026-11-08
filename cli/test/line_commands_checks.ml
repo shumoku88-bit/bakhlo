@@ -72,6 +72,21 @@ let run_all () =
     (contains after
        "2026-11-08\tDESC\tramen\nEFFECT\twallet\tjpy\t-1200\nEFFECT\tfood\tjpy\t1200\nENDTX")
     "bk-r-writes-the-entry";
+  (* Several Loci are chosen like plans: Enter takes the first, the start of a name
+     narrows. *)
+  let result, out, after =
+    run "bk-r-first" `Record [ ""; "ramen"; "wa"; ""; "-1200"; "fo"; ""; ""; "" ]
+  in
+  require
+    (result = `Saved && contains out "  2  Water\nAccount [1]: Amount 1"
+    && contains after "EFFECT\twallet\tjpy\t-1200\n")
+    "bk-r-enter-takes-the-first-locus";
+  let result, _, after =
+    run "bk-r-narrow" `Record [ ""; "ramen"; "wa"; "wate"; "-300"; "fo"; ""; ""; "" ]
+  in
+  require
+    (result = `Saved && contains after "EFFECT\twater\tjpy\t-300\n")
+    "bk-r-letters-narrow-the-loci";
   (* A memo recorded before offers its rows. *)
   let result, out, after = run "bk-r-again" `Record [ ""; "lunch"; "1"; ""; ""; ""; ""; ""; "" ] in
   require
@@ -487,7 +502,14 @@ let run_all () =
   require
     (todo `List [] = "  1  due 2026-11-30  Renewal\n  2  ! 2026-11-01    Old\n")
     "bk-todo-lists-open-matters";
-  ignore (todo `Done [ "2"; "" ]);
+  (* A matter is chosen like a plan: the start of its text narrows to it. *)
+  require
+    (contains (todo `Done [ "x"; "ol"; "" ])
+       "Which [1]: Nothing matches \"x\". Type a number or the start of a matter; Ctrl-D quits.\n\
+        Which [1]: \n\
+       \  Done\n\
+       \  ! 2026-11-01  Old\n")
+    "bk-todo-done-narrows-by-text";
   require (todo `List [] = "  1  due 2026-11-30  Renewal\n") "bk-todo-done-closes-a-matter";
   (* The views, on a book with roles: salary 300,000 into the bank on 10-25, 10,000 from
      the bank to the wallet on 11-01, lunch 900 and a snack 300 from the wallet on 11-02,
