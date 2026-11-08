@@ -18,7 +18,11 @@ val commands :
     | `Pace_if of string list
     | `Pace_target
     | `Fx
-    | `Todo of [ `List | `Add | `Done | `Drop ] ]
+    | `Todo of [ `List | `Add | `Done | `Drop ]
+    | `Register of string list
+    | `Month of string list
+    | `Report_ie of string list
+    | `Day of string list ]
     option)
   * string)
   list

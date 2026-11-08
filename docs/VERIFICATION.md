@@ -7,6 +7,16 @@ toolchain. This file keeps the last week's entries (from 2026-11-02); entries fr
 2026-10-31 are in Git at `5b48008:docs/VERIFICATION.md`, earlier ones (including the bounded
 Solo5-SPT engine boot) at `90a5867:docs/VERIFICATION.md`.
 
+## bk reg, month, report ie, day (2026-11-08)
+
+- `bk reg <account> [terms]` lists an account's records with the balance at the end of
+  each day from `Book.pools_at_end_of_days` (`?` where unsupported, never guessed);
+  `bk month [period]` income/expense by month (`Income_expense`), `bk report ie` one
+  window by account (default the current cycle), `bk day [date]` records and due plans.
+  `Query.days` exposes period words. Tried on synthetic books; `./tools/check` exited 0
+  (the every-command check runs each). Hand-built expected lines for these views are
+  not yet in the self-check.
+
 ## bk todo (2026-11-08)
 
 - `bk todo` lists open Attention matters with their due state; `add`, `done` and `drop`

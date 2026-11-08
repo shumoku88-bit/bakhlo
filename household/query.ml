@@ -149,3 +149,6 @@ let fits book (e : B.entry) = function
 
 let matches book query e = List.for_all (fits book e) query
 let find book query = List.filter (matches book query) (B.entries book)
+
+let days text =
+  match period text with Some (Days { from; until }) -> Some (from, until) | Some _ | None -> None

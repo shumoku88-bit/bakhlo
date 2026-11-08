@@ -26,6 +26,16 @@ let commands =
     ( [ "find" ],
       terms (fun t -> `Find t),
       "records matching every term: a name or memo, 2026-10, A..B, acct:, memo:, amt:1000.." );
+    ( [ "month" ],
+      terms (fun t -> `Month t),
+      "income and expense by month [2026 or A..B; default 6 months]" );
+    ( [ "report"; "ie" ],
+      terms (fun t -> `Report_ie t),
+      "income and expense by account [period; default this cycle]" );
+    ([ "day" ], terms (fun t -> `Day t), "one day's records and due plans [date; default today]");
+    ( [ "reg" ],
+      terms (fun t -> `Register t),
+      "an account's records with the balance after each day: bk reg <account> [find terms]" );
     ([ "edit" ], terms (fun t -> `Edit t), "correct a record's rows, memo or date [find terms]");
     ([ "date" ], terms (fun t -> `Date t), "move a record to another date [find terms]");
     ([ "refund" ], terms (fun t -> `Refund t), "record the refund of a record [find terms]");

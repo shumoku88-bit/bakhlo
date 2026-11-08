@@ -1365,6 +1365,237 @@ let todo io (session : F.t) ~today action =
                 next
                 [ [ Left (Att.due_display ~today item.due); Left item.context ] ]))
 
+(* 16. `bk reg <account> [terms]`: the account's records in date order, like a
+   hledger register: what moved, against what, and the balance at the end of that
+   day on the day's last row. The balance comes from Book.pools_at_end_of_days, so
+   it is shown only where the book supports it (else ?), never guessed. *)
+let register io (session : F.t) words =
+  let book = session.book in
+  match words with
+  | [] ->
+      say io "Name an account: bk reg <account> [find terms].";
+      `Stopped
+  | account :: terms -> (
+      match (choose_locus io book account, Bakhlo_household.Query.parse terms) with
+      | None, _ -> `Stopped
+      | _, Error why ->
+          say io (query_refusal why);
+          `Stopped
+      | Some locus, Ok query ->
+          let rows =
+            List.concat_map
+              (fun (e : B.entry) ->
+                let mine = List.filter (fun (p : B.posting) -> p.locus = locus) e.effects in
+                let measures =
+                  List.sort_uniq compare (List.map (fun (p : B.posting) -> p.measure) mine)
+                in
+                List.map
+                  (fun measure ->
+                    let amount =
+                      List.fold_left
+                        (fun s (p : B.posting) ->
+                          if p.measure = measure then Z.add s p.amount else s)
+                        Z.zero mine
+                    in
+                    let others =
+                      List.sort_uniq compare
+                        (List.filter_map
+                           (fun (p : B.posting) ->
+                             if p.locus <> locus then Some (name book p.locus) else None)
+                           e.effects)
+                    in
+                    (e, measure, amount, String.concat ", " others))
+                  measures)
+              (List.filter
+                 (fun (e : B.entry) ->
+                   List.exists (fun (p : B.posting) -> p.locus = locus) e.effects)
+                 (Bakhlo_household.Query.find book query))
+            |> List.stable_sort (fun ((a : B.entry), _, _, _) ((b : B.entry), _, _, _) ->
+                compare a.day b.day)
+          in
+          let balance_after =
+            let keys =
+              List.sort_uniq compare (List.map (fun ((e : B.entry), m, _, _) -> (m, e.day)) rows)
+            in
+            let by_measure = List.sort_uniq compare (List.map fst keys) in
+            List.concat_map
+              (fun measure ->
+                let days =
+                  List.filter_map (fun (m, d) -> if m = measure then Some d else None) keys
+                in
+                List.combine days
+                  (B.pools_at_end_of_days book ~measure ~pool:[ { B.locus; measure } ] ~days)
+                |> List.map (fun (d, r) -> ((measure, d), r)))
+              by_measure
+          in
+          let rec cells = function
+            | [] -> []
+            | ((e : B.entry), measure, amount, others) :: rest ->
+                let last_of_day =
+                  match rest with
+                  | ((n : B.entry), m, _, _) :: _ -> n.day <> e.day || m <> measure
+                  | [] -> true
+                in
+                let balance =
+                  if not last_of_day then ""
+                  else
+                    match List.assoc_opt (measure, e.day) balance_after with
+                    | Some (Ok q) -> money book measure q
+                    | Some (Error _) | None -> "?"
+                in
+                [
+                  Left e.day;
+                  Left (Option.value ~default:"" e.memo);
+                  Left others;
+                  Right (signed book measure amount);
+                  Right balance;
+                  Left measure;
+                ]
+                :: cells rest
+          in
+          print_table io
+            ([ Left ""; Left ""; Left ""; Right "change"; Right "balance"; Left "" ] :: cells rows);
+          `Stopped)
+
+(* 17. Income and expense (Income_expense) by month, and for one window by account,
+   plus one day's records and due plans. A period is a find period word: a year,
+   a month, a day or A..B (end excluded). *)
+module Ie = Bakhlo_household.Income_expense
+
+let month_of day = String.sub day 0 7
+
+let next_month first =
+  match Bakhlo_household.Day.shift_months first 1 with Ok d -> d | Error _ -> "9999-12-31"
+
+let rec months first stop = if first >= stop then [] else first :: months (next_month first) stop
+
+let unroled (t : Ie.t) =
+  match t.unresolved with [] -> "" | u -> Printf.sprintf "+? %d without a role" (List.length u)
+
+let month io (session : F.t) ~today words =
+  let book = session.book in
+  let window =
+    match words with
+    | [] ->
+        let this = month_of today ^ "-01" in
+        Ok
+          ( (match Bakhlo_household.Day.shift_months this (-5) with Ok d -> d | Error _ -> this),
+            next_month this )
+    | [ word ] -> (
+        match Bakhlo_household.Query.days word with
+        | Some (Some from, Some until) -> Ok (month_of from ^ "-01", until)
+        | _ -> Error word)
+    | _ -> Error (String.concat " " words)
+  in
+  (match window with
+  | Error word -> say io (query_refusal ("bad-date:" ^ word))
+  | Ok (first, stop) ->
+      let rows =
+        List.concat_map
+          (fun first ->
+            let t = Ie.compute book ~start:first ~stop:(next_month first) in
+            List.filter_map
+              (fun (s : Ie.summary) ->
+                if Z.equal s.total_income Z.zero && Z.equal s.total_expense Z.zero then None
+                else
+                  Some
+                    [
+                      Left (month_of first);
+                      Right (money book s.measure s.total_income);
+                      Right (money book s.measure s.total_expense);
+                      Right (money book s.measure s.scheduled);
+                      Right (money book s.measure s.other);
+                      Right (signed book s.measure s.net);
+                      Left s.measure;
+                      Left (unroled t);
+                    ])
+              t.summaries)
+          (months first stop)
+      in
+      print_table io
+        ([
+           Left "";
+           Right "income";
+           Right "expense";
+           Right "plans";
+           Right "other";
+           Right "net";
+           Left "";
+           Left "";
+         ]
+        :: rows));
+  `Stopped
+
+let report_ie io (session : F.t) ~today words =
+  let book = session.book in
+  let window =
+    match words with
+    | [] -> (
+        match
+          Daily_pace_screen.today_pace ~book ~measure:(measure_of book) ~today
+            ~config:(config session)
+        with
+        | Ok (_, start, stop) -> Ok (start, stop)
+        | Error _ -> Ok (month_of today ^ "-01", next_month (month_of today ^ "-01")))
+    | [ word ] -> (
+        match Bakhlo_household.Query.days word with
+        | Some (Some from, Some until) -> Ok (from, until)
+        | _ -> Error word)
+    | _ -> Error (String.concat " " words)
+  in
+  (match window with
+  | Error word -> say io (query_refusal ("bad-date:" ^ word))
+  | Ok (start, stop) -> (
+      let t = Ie.compute book ~start ~stop in
+      say io (Printf.sprintf "Income and expense %s .. %s (end excluded)" start stop);
+      List.iter
+        (fun (s : Ie.summary) ->
+          let line (l : Ie.line) =
+            [
+              Left ("  " ^ name book l.locus); Right (money book s.measure l.amount); Left s.measure;
+            ]
+          in
+          print_table io
+            ([ Left "Income"; Right (money book s.measure s.total_income); Left s.measure ]
+             :: List.map line s.income
+            @ [ Left "Expense"; Right (money book s.measure s.total_expense); Left s.measure ]
+              :: List.map line s.expense
+            @ [
+                [
+                  Left "  of which paid plans";
+                  Right (money book s.measure s.scheduled);
+                  Left s.measure;
+                ];
+                [ Left "Net"; Right (signed book s.measure s.net); Left s.measure ];
+              ]))
+        (List.filter
+           (fun (s : Ie.summary) ->
+             not (Z.equal s.total_income Z.zero && Z.equal s.total_expense Z.zero))
+           t.summaries);
+      match unroled t with "" -> () | note -> say io ("  " ^ note ^ " (bk loci role)")));
+  `Stopped
+
+let day io (session : F.t) ~today words =
+  let book = session.book in
+  let day =
+    match words with [] -> Ok today | [ d ] -> Bakhlo_household.Day.normalize d | _ -> Error ""
+  in
+  (match day with
+  | Error _ -> say io "Name one day: bk day 2026-11-08."
+  | Ok day -> (
+      let records = List.filter (fun (e : B.entry) -> e.day = day) (B.entries book) in
+      let plans = List.filter (fun (p : B.plan) -> p.day = day) (B.open_plans book) in
+      say io day;
+      (match records with
+      | [] -> say io "  no records"
+      | _ -> print_table io (List.map (entry_cells book) records));
+      match plans with
+      | [] -> ()
+      | _ ->
+          say io "Plans due";
+          print_table io (List.map (plan_cells book ~today) plans)));
+  `Stopped
+
 (* 8. After a saved record or payment, another one may follow on the saved book. *)
 let rec again io (session : F.t) ~today ~saved ~question step =
   match
@@ -1402,6 +1633,10 @@ let run io command (session : F.t) ~today =
     | `Pace_target -> pace_target io session ~today
     | `Fx -> fx io session ~today
     | `Todo action -> todo io session ~today action
+    | `Register words -> register io session words
+    | `Month words -> month io session ~today words
+    | `Report_ie words -> report_ie io session ~today words
+    | `Day words -> day io session ~today words
   with Quit ->
     say io "Nothing was saved.";
     `Stopped

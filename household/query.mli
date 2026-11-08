@@ -12,6 +12,10 @@ val parse : string list -> (t, string) result
 (** Refuses [bad-date:<text>], [bad-amount:<text>], [empty-term:<term>] and
     [unknown-field:<name>]. *)
 
+val days : string -> (string option * string option) option
+(** A period word as (first day, first day after), either open: [2026], [2026-10],
+    [2026-10-05], [A..B]; [None] if it is not one. *)
+
 val matches : Book.t -> t -> Book.entry -> bool
 
 val find : Book.t -> t -> Book.entry list
