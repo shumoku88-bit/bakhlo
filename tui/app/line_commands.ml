@@ -361,6 +361,292 @@ let pace io (session : F.t) ~today =
         (Daily_pace_why.lines ~width_of:Notty_render.width_of ~width:80 ~book p));
   `Stopped
 
+(* 7. `bk plans`: plans in series (Schedule). `bk plans` prints each series: who
+   receives, who pays, the next amount, the next and last day filled and how many
+   are open, with the monitored cadence and first missing month when
+   scheduled-coverage.tsv watches that series. `more` fills the coming months,
+   `amount` changes the amount from a day on, `cancel` cancels chosen plans; each
+   shows a Preview and saves its changes together, all or none. *)
+module Sch = Bakhlo_household.Schedule
+module Cov = Scheduled_coverage
+
+let names book loci = String.concat " + " (List.map (name book) loci)
+
+let monitoring (session : F.t) book ~today =
+  match config session "scheduled-coverage.tsv" with
+  | Ok (Some text) -> (
+      match Cov.of_string text with
+      | Error _ -> []
+      | Ok rules -> (
+          match Cov.project rules ~plans:(B.plans book) ~today ~months:12 with
+          | Ok (_, rows) -> rows
+          | Error _ -> []))
+  | Ok None | Error _ -> []
+
+let series_cells book rows ~today (plans : B.plan list) =
+  let first = List.hd plans and last = List.nth plans (List.length plans - 1) in
+  let shape = Sch.shape first in
+  let watched = List.find_opt (fun (r : Cov.row) -> Cov.matches r.rule first) rows in
+  [
+    Left (names book shape.positive);
+    Left (names book shape.negative);
+    Right
+      (match Sch.simple_amount first with Some q -> money book first.measure q | None -> "split");
+    Left first.measure;
+    Left first.day;
+    Left last.day;
+    Right (string_of_int (List.length plans));
+    Left
+      (String.concat ", "
+         ((if first.day < today then [ "overdue" ] else [])
+         @
+         match watched with
+         | None -> []
+         | Some r ->
+             Cov.cadence_label r.rule.every_months
+             :: (match r.first_missing with Some m -> [ "missing " ^ m ] | None -> [])));
+  ]
+
+(* The heading names each column of a series. *)
+let series_heading =
+  [
+    Left ""; Left "to"; Left "from"; Right "amount"; Left ""; Left "next"; Left "last"; Right "open";
+  ]
+
+let rec choose_series io book rows ~today all =
+  let shown = List.filteri (fun i _ -> i < 9) all in
+  print_table io
+    (series_heading
+    :: List.mapi (fun i s -> Right (string_of_int (i + 1)) :: series_cells book rows ~today s) shown
+    );
+  if List.length all > 9 then say io "  … type the start of a name to narrow";
+  let answer = ask io ~default:"1" "Series" in
+  match int_of_string_opt answer with
+  | Some n when n >= 1 && n <= List.length shown -> List.nth shown (n - 1)
+  | _ -> (
+      let starts text =
+        String.starts_with ~prefix:(String.lowercase_ascii answer) (String.lowercase_ascii text)
+      in
+      let moves (p : B.plan) =
+        List.exists (fun (locus, _) -> starts locus || starts (B.label book locus)) p.changes
+      in
+      match List.filter (fun s -> moves (List.hd s)) all with
+      | [] ->
+          say io (Printf.sprintf "No series moves a Locus starting with %S." answer);
+          choose_series io book rows ~today all
+      | [ s ] -> s
+      | narrowed -> choose_series io book rows ~today narrowed)
+
+let plan_rows book plans =
+  List.map
+    (fun (p : B.plan) ->
+      Left p.day
+      :: List.concat_map
+           (fun (locus, q) -> [ Left (name book locus); Right (signed book p.measure q) ])
+           p.changes)
+    plans
+
+(* Saving several plan changes: a Preview, then Enter saves them together. *)
+let publish_plans io (session : F.t) ~title changes rows =
+  say io "";
+  say io ("  " ^ title);
+  print_table io rows;
+  say io "";
+  match String.lowercase_ascii (ask io ~default:"y" "Save? (y / n)") with
+  | "y" | "yes" -> (
+      match F.publish session changes with
+      | F.Written _ ->
+          say io "Saved.";
+          `Saved
+      | F.Conflict ->
+          say io "The book changed while you were typing; nothing was saved. Run it again.";
+          `Stopped
+      | F.Refused_input why ->
+          say io ("Not saved: " ^ why);
+          `Stopped
+      | F.Uncertain _ ->
+          say io
+            "The save could not be confirmed. Do not repeat it: open the book (bk) and check \
+             whether it is there.";
+          `Stopped)
+  | _ ->
+      say io "Nothing was saved.";
+      `Stopped
+
+(* Numbers like "1-3 5", or Enter for all. *)
+let pick_numbers answer count =
+  if String.trim answer = "" then Some (List.init count (fun i -> i + 1))
+  else
+    let one word =
+      match String.split_on_char '-' word with
+      | [ n ] -> Option.map (fun n -> [ n ]) (int_of_string_opt n)
+      | [ a; b ] -> (
+          match (int_of_string_opt a, int_of_string_opt b) with
+          | Some a, Some b when a <= b -> Some (List.init (b - a + 1) (fun i -> a + i))
+          | _ -> None)
+      | _ -> None
+    in
+    let words = List.filter (( <> ) "") (String.split_on_char ' ' answer) in
+    let picked = List.map one words in
+    if List.exists Option.is_none picked then None
+    else
+      let numbers = List.sort_uniq compare (List.concat_map Option.get picked) in
+      if List.for_all (fun n -> n >= 1 && n <= count) numbers then Some numbers else None
+
+let rec ask_day io ~default prompt =
+  match Bakhlo_household.Day.normalize (ask io ~default prompt) with
+  | Ok day -> day
+  | Error _ ->
+      say io "Enter a real date (YYYY-MM-DD).";
+      ask_day io ~default prompt
+
+let plans_more io (session : F.t) book series rows =
+  let source = List.nth series (List.length series - 1) in
+  let watched = List.find_opt (fun (r : Cov.row) -> Cov.matches r.rule source) rows in
+  let every =
+    let default =
+      match watched with
+      | Some r when r.rule.every_months > 0 -> string_of_int r.rule.every_months
+      | _ -> "1"
+    in
+    let rec months () =
+      match int_of_string_opt (ask io ~default "Every how many months") with
+      | Some n when n >= 1 && n <= 12 -> n
+      | _ ->
+          say io "Enter 1 to 12.";
+          months ()
+    in
+    months ()
+  in
+  let rec count () =
+    match int_of_string_opt (ask io ~default:"3" "How many more") with
+    | Some n when n >= 1 && n <= 24 -> n
+    | _ ->
+        say io "Enter 1 to 24.";
+        count ()
+  in
+  let count = count () in
+  (* A month without the last plan's day is dated by the person, or skipped. *)
+  let rec days k acc =
+    if k > count then List.rev acc
+    else
+      match Sch.slot ~anchor:source.day ~every_months:every k with
+      | None -> List.rev acc
+      | Some (Sch.Dated day) -> days (k + 1) (day :: acc)
+      | Some (Sch.Missing { year; month; day }) -> (
+          let prompt =
+            Printf.sprintf "%04d-%02d has no day %d. Date (Enter skips that month)" year month day
+          in
+          match ask io prompt with
+          | "" -> days (k + 1) acc
+          | text -> (
+              match Bakhlo_household.Day.normalize text with
+              | Ok date when date > source.day -> days (k + 1) (date :: acc)
+              | _ ->
+                  say io "Enter a real date after the last plan, or Enter to skip.";
+                  days k acc))
+  in
+  match days 1 [] with
+  | [] ->
+      say io "No plans to add.";
+      `Stopped
+  | days ->
+      let plans =
+        List.map
+          (fun day -> { source with B.id = F.new_id (); day; paid_by = None; cancelled_on = None })
+          days
+      in
+      publish_plans io session ~title:"New plans"
+        (List.map (fun plan -> B.Put_plan { replace = false; plan }) plans)
+        (plan_rows book plans)
+
+let plans_amount io (session : F.t) book series ~today =
+  let from = ask_day io ~default:today "From" in
+  match List.filter (fun (p : B.plan) -> p.day >= from) series with
+  | [] ->
+      say io ("No open plan in this series from " ^ from ^ ".");
+      `Stopped
+  | plans -> (
+      let measure = (List.hd plans).measure in
+      let rec amount () =
+        match B.parse_amount book ~measure (ask io "New amount") with
+        | Ok q -> q
+        | Error _ ->
+            say io "Enter a positive amount (digits grouped by three, or arithmetic).";
+            amount ()
+      in
+      let amount = amount () in
+      match Sch.change_amount plans ~amount with
+      | Error "unchanged" ->
+          say io "Every plan already has that amount.";
+          `Stopped
+      | Error _ ->
+          say io "A split plan cannot be changed in bulk; change it on its own.";
+          `Stopped
+      | Ok changed ->
+          publish_plans io session
+            ~title:(Printf.sprintf "New amount %s from %s" (money book measure amount) from)
+            (List.map (fun plan -> B.Put_plan { replace = true; plan }) changed)
+            (List.map
+               (fun (p : B.plan) ->
+                 let before =
+                   match List.find_opt (fun (o : B.plan) -> o.id = p.id) plans with
+                   | Some o -> Option.value ~default:Z.zero (Sch.simple_amount o)
+                   | None -> Z.zero
+                 in
+                 [
+                   Left p.day;
+                   Right (money book measure before);
+                   Left "->";
+                   Right (money book measure amount);
+                   Left measure;
+                 ])
+               changed))
+
+let plans_cancel io (session : F.t) book series ~today =
+  print_table io
+    (List.mapi (fun i row -> Right (string_of_int (i + 1)) :: row) (plan_rows book series));
+  let rec chosen () =
+    match
+      pick_numbers
+        (ask io "Cancel which? (Enter for all, or numbers like 1-3 5)")
+        (List.length series)
+    with
+    | Some numbers -> List.map (fun n -> List.nth series (n - 1)) numbers
+    | None ->
+        say io "Enter numbers from the list, like 1-3 5.";
+        chosen ()
+  in
+  let plans = chosen () in
+  let day = ask_day io ~default:today "Cancelled on" in
+  publish_plans io session
+    ~title:(Printf.sprintf "Cancel %d plan(s) on %s" (List.length plans) day)
+    (List.map (fun (p : B.plan) -> B.Cancel_plan { id = p.id; day }) plans)
+    (plan_rows book plans)
+
+let plans io (session : F.t) ~today action =
+  let book = session.book in
+  let rows = monitoring session book ~today in
+  match Sch.series book with
+  | [] ->
+      say io "No open plans.";
+      `Stopped
+  | all -> (
+      match action with
+      | `List ->
+          print_table io
+            (series_heading
+            :: List.mapi
+                 (fun i s -> Right (string_of_int (i + 1)) :: series_cells book rows ~today s)
+                 all);
+          `Stopped
+      | (`More | `Amount | `Cancel) as action -> (
+          let series = choose_series io book rows ~today all in
+          match action with
+          | `More -> plans_more io session book series rows
+          | `Amount -> plans_amount io session book series ~today
+          | `Cancel -> plans_cancel io session book series ~today))
+
 let run io command (session : F.t) ~today =
   try
     match command with
@@ -368,6 +654,7 @@ let run io command (session : F.t) ~today =
     | `Pay -> pay io session ~today
     | `Balances -> balances io session
     | `Pace -> pace io session ~today
+    | `Plans action -> plans io session ~today action
   with Quit ->
     say io "Nothing was saved.";
     `Stopped

@@ -190,7 +190,98 @@ let run_all () =
     && contains out "-4,936 jpy/day" && contains out "-83,900 free" && contains out "17 days left")
     "bk-pace-prints-the-breakdown";
   require (F.read "scratch/bk-print/book.txt" = book_text) "bk-bal-and-pace-write-nothing";
+  (* `bk plans`: a rent series watched monthly, a phone bill due on the 31st and
+     salary, on 2026-11-08. Lines are built by hand from the column widths. *)
+  let plans_text =
+    String.concat "\n"
+      [
+        "BOOK\t1";
+        "MEASURE\tjpy\t0";
+        "LOCUS\tbank\tBank\t";
+        "LOCUS\trent\tRent\t";
+        "LOCUS\tphone\tPhone\t";
+        "LOCUS\tsalary\tSalary\t";
+        "PLAN\trent-11\t2026-11-27\tjpy";
+        "CHANGE\tbank\t-80000";
+        "CHANGE\trent\t80000";
+        "ENDPLAN";
+        "PLAN\trent-12\t2026-12-27\tjpy";
+        "CHANGE\tbank\t-80000";
+        "CHANGE\trent\t80000";
+        "ENDPLAN";
+        "PLAN\tphone-10\t2026-10-31\tjpy";
+        "CHANGE\tbank\t-3000";
+        "CHANGE\tphone\t3000";
+        "ENDPLAN";
+        "PLAN\tsal-11\t2026-11-25\tjpy";
+        "CHANGE\tsalary\t-300000";
+        "CHANGE\tbank\t300000";
+        "ENDPLAN";
+        "END";
+        "";
+      ]
+  in
+  let plans name action answers =
+    let dir = "scratch/" ^ name in
+    Unix.mkdir dir 0o700;
+    Unix.mkdir (dir ^ "/config") 0o700;
+    write (dir ^ "/book.txt") plans_text;
+    write (dir ^ "/config/scheduled-coverage.tsv") "Rent\t2026-11-27\t1\tbank\trent\n";
+    let io, out = script answers in
+    let result = L.run io (`Plans action) (F.load (dir ^ "/book.txt")) ~today:"2026-11-08" in
+    (result, Buffer.contents out, F.read (dir ^ "/book.txt"))
+  in
+  let result, out, after = plans "bk-plans" `List [] in
+  require
+    (result = `Stopped && after = plans_text
+    && out
+       = "     to     from     amount       next        last        open\n\
+         \  1  Phone  Bank      3,000  jpy  2026-10-31  2026-10-31     1  overdue\n\
+         \  2  Bank   Salary  300,000  jpy  2026-11-25  2026-11-25     1\n\
+         \  3  Rent   Bank     80,000  jpy  2026-11-27  2026-12-27     2  monthly, missing 2027-01\n"
+    )
+    "bk-plans-lists-series";
+  (* More: the 31st has no November, so the person dates it. *)
+  let result, out, after = plans "bk-plans-more" `More [ "Ph"; ""; ""; "2026-11-30"; "" ] in
+  require
+    (result = `Saved
+    && contains out "2026-11 has no day 31."
+    && contains out
+         "  New plans\n\
+         \  2026-11-30  Bank  -3,000  Phone  +3,000\n\
+         \  2026-12-31  Bank  -3,000  Phone  +3,000\n\
+         \  2027-01-31  Bank  -3,000  Phone  +3,000\n"
+    && List.for_all
+         (fun day ->
+           contains after ("\t" ^ day ^ "\tjpy\nCHANGE\tbank\t-3000\nCHANGE\tphone\t3000"))
+         [ "2026-11-30"; "2026-12-31"; "2027-01-31" ])
+    "bk-plans-more-fills-and-asks-missing-days";
+  (* Amount: from a day on, two-row plans get the new amount. *)
+  let result, out, after = plans "bk-plans-amount" `Amount [ "Re"; "2026-12-01"; "85,000"; "" ] in
+  require
+    (result = `Saved
+    && contains out "  New amount 85,000 from 2026-12-01\n  2026-12-27  80,000  ->  85,000  jpy\n"
+    && contains after "PLAN\trent-12\t2026-12-27\tjpy\nCHANGE\tbank\t-85000\nCHANGE\trent\t85000"
+    && contains after "PLAN\trent-11\t2026-11-27\tjpy\nCHANGE\tbank\t-80000")
+    "bk-plans-amount-changes-from-a-day";
+  let result, out, after = plans "bk-plans-same" `Amount [ "Re"; ""; "80000" ] in
+  require
+    (result = `Stopped && contains out "Every plan already has that amount." && after = plans_text)
+    "bk-plans-amount-unchanged-writes-nothing";
+  (* Cancel: chosen plans only, on the given day. *)
+  let result, _, after = plans "bk-plans-cancel" `Cancel [ "Re"; "2"; ""; "" ] in
+  require
+    (result = `Saved
+    && contains after
+         "PLAN\trent-12\t2026-12-27\tjpy\n\
+          CHANGE\tbank\t-80000\n\
+          CHANGE\trent\t80000\n\
+          CANCELLED\t2026-11-08\n\
+          ENDPLAN"
+    && contains after
+         "PLAN\trent-11\t2026-11-27\tjpy\nCHANGE\tbank\t-80000\nCHANGE\trent\t80000\nENDPLAN")
+    "bk-plans-cancel-cancels-chosen-plans";
   print_endline
-    "PASS: bk r, pay, bal and pace: pick Loci and plans, balance rows, reuse earlier rows, word \
-     refusals as the screens, and save only after the Preview (EOF, n and conflicts write \
-     nothing)."
+    "PASS: bk r, pay, bal, pace and plans: pick Loci, plans and series, balance rows, reuse \
+     earlier rows, fill, re-price and cancel series, word refusals as the screens, and save only \
+     after the Preview (EOF, n and conflicts write nothing)."

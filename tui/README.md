@@ -19,7 +19,11 @@ Mac実IME／フォント、LOAMの実行対照、P7・運用認定は別。
 普段の記帳は`./tools/household`（家計簿を開き、終了時にcommit・push）。`bk r`は実績を、`bk pay`は
 予定の支払いを、画面を開かずに1行ずつ答えて記帳する（Locusは先頭の文字で選び、Enterで釣り合う金額、
 PreviewのあとEnterで保存。終わればいつもどおりcommit・push）。`bk bal`はBalances（Current）の行を、
-`bk pace`は今日の目安とその内訳（Daily Paceの`?`と同じ）を印刷して終わる。
+`bk pace`は今日の目安とその内訳（Daily Paceの`?`と同じ）を印刷して終わる。`bk plans`は予定の流れ
+（同じ口座の組のまだの予定）ごとに、次の期日・どこまで入っているか・残りの数を表で出す
+（`scheduled-coverage.tsv`で見守る流れは周期と最初の抜けた月も）。`bk plans more`は補充（その月に
+同じ日がなければ日付を聞く）、`bk plans amount`はある日からの一括の金額変更、`bk plans cancel`は
+選んだ予定の一括取り消し。どれもPreviewのあとEnterでまとめて保存する。
 LOAMとの比較は`./ui`、別の端末で`./ui loam`。どちらも家計簿の同じ`book.txt`の、別々のコピーを開く
 （LOAMは共通形式を直接読む。2026-10-25本人決定）。取り直すときだけ`./tools/compare refresh`。
 毎回の取得は新しい世代を作り、両UIの試用編集はそれぞれのコピーにだけ残る。家計簿は読むだけで、

@@ -7,6 +7,20 @@ toolchain. This file keeps the last week's entries (from 2026-11-02); entries fr
 2026-10-31 are in Git at `5b48008:docs/VERIFICATION.md`, earlier ones (including the bounded
 Solo5-SPT engine boot) at `90a5867:docs/VERIFICATION.md`.
 
+## bk plans (2026-11-08)
+
+- User request: the Scheduled operations as commands. `bk plans` prints each series (to,
+  from, next amount, next and last day filled, open count; overdue, and the cadence and
+  first missing month when `scheduled-coverage.tsv` watches it). `bk plans more` fills the
+  coming months from the last plan (a month without its day is dated by the person or
+  skipped), `amount` re-prices a series from a day on, `cancel` cancels chosen plans
+  (numbers and ranges). Each previews and saves its changes together through
+  `Book_file.publish`; rules are `Schedule`'s.
+- Synthetic checks with hand-built lines: the series list with its heading, filling with
+  a missing 31st, a re-price from a day, an unchanged re-price writing nothing, and a
+  chosen cancellation. All passed on the first run; a wrong missing month made the list
+  check fail. `./tools/check` exited 0. Not executed: household use.
+
 ## Plans in series move to the core (2026-11-08)
 
 - Before the `bk plans` commands: grouping open plans into series (same Measure and

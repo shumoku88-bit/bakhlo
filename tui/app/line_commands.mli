@@ -9,12 +9,13 @@ type io = { read : unit -> string option; print : string -> unit }
 
 val run :
   io ->
-  [ `Record | `Pay | `Balances | `Pace ] ->
+  [ `Record | `Pay | `Balances | `Pace | `Plans of [ `List | `More | `Amount | `Cancel ] ] ->
   Book_file.t ->
   today:string ->
   [ `Saved | `Stopped ]
 (** [`Balances] and [`Pace] print the Balances (Current) rows and Daily Pace's
-    breakdown and save nothing. *)
+    breakdown and save nothing. [`Plans] lists plans in series, or fills,
+    re-prices or cancels one series after a Preview. *)
 
 val terminal : io
 (** Standard input and output. *)
