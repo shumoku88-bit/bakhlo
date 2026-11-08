@@ -27,6 +27,10 @@ Solo5-SPT engine boot) at `90a5867:docs/VERIFICATION.md`.
   Checks pin both; a wrong hand line count was replaced by the whole expected text.
   CI for `8d172e7` passed on its fifth attempt (attempts 1-4 failed at `setup-ocaml`
   with HTTP 504, before any build step).
+- Follow-up (user request): after a saved record or payment, `bk r` / `bk pay` ask
+  "Record another?" / "Pay another?" (Enter: no). The next one works on the book as saved,
+  so its earlier rows include the one just saved and no conflict arises; a check pins
+  this, and using the book from before the save made it fail.
 
 ## Plans in series move to the core (2026-11-08)
 

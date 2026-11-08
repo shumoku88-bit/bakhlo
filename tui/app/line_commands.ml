@@ -167,9 +167,9 @@ let save io (session : F.t) (tx : R.transaction) =
       match
         F.publish session [ B.Put_entry { replace = tx.replace; entry = tx.entry; plan = tx.plan } ]
       with
-      | F.Written _ ->
+      | F.Written session ->
           say io "Saved.";
-          `Saved
+          `Saved session
       | F.Conflict ->
           say io "The book changed while you were typing; nothing was saved. Run it again.";
           `Stopped
@@ -197,7 +197,7 @@ let rec compose io (session : F.t) ~mode ~day ~memo ~original_amount measure row
   | Ok tx -> (
       match save io session tx with
       | `Edit -> compose io session ~mode ~day ~memo ~original_amount measure rows
-      | (`Saved | `Stopped) as finished -> finished)
+      | (`Saved _ | `Stopped) as finished -> finished)
 
 (* 4. `bk r`. A memo recorded before offers its earlier rows, newest first. *)
 let earlier_rows book memo =
@@ -324,7 +324,7 @@ let pay io (session : F.t) ~today =
                   | `Edit ->
                       compose io session ~mode ~day ~memo ~original_amount:None draft.measure
                         (as_form_rows book draft)
-                  | (`Saved | `Stopped) as finished -> finished))))
+                  | (`Saved _ | `Stopped) as finished -> finished))))
 
 (* 6. `bk bal` and `bk pace` print what the Balances screen (Current) and Daily
    Pace's breakdown (`?`) show, from the same configuration files, and exit. *)
@@ -660,11 +660,25 @@ let plans io (session : F.t) ~today action =
           | `Amount -> plans_amount io session book series ~today
           | `Cancel -> plans_cancel io session book series ~today))
 
+(* 8. After a saved record or payment, another one may follow on the saved book. *)
+let rec again io (session : F.t) ~today ~saved ~question step =
+  match
+    try step io session ~today
+    with Quit ->
+      say io "Nothing was saved.";
+      `Stopped
+  with
+  | `Saved session -> (
+      match String.lowercase_ascii (try ask io ~default:"n" question with Quit -> "n") with
+      | "y" | "yes" -> again io session ~today ~saved:true ~question step
+      | _ -> `Saved)
+  | `Stopped -> if saved then `Saved else `Stopped
+
 let run io command (session : F.t) ~today =
   try
     match command with
-    | `Record -> record io session ~today
-    | `Pay -> pay io session ~today
+    | `Record -> again io session ~today ~saved:false ~question:"Record another? (y / n)" record
+    | `Pay -> again io session ~today ~saved:false ~question:"Pay another? (y / n)" pay
     | `Balances -> balances io session
     | `Pace -> pace io session ~today
     | `Plans action -> plans io session ~today action

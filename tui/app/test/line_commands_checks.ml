@@ -88,6 +88,42 @@ let run_all () =
     (result = `Saved && contains out "Amount 2 [+1,000]"
     && contains after "DESC\tlunch\nEFFECT\twallet\tjpy\t-1000\nEFFECT\tfood\tjpy\t1000\nENDTX")
     "bk-r-last-earlier-row-balances";
+  (* Another record follows on the saved book: it offers the one just saved. *)
+  let result, out, after =
+    run "bk-r-another" `Record
+      [
+        "";
+        "ramen";
+        "wallet";
+        "-500";
+        "food";
+        "";
+        "";
+        "";
+        "y";
+        "";
+        "ramen";
+        "1";
+        "";
+        "";
+        "";
+        "";
+        "";
+        "";
+        "n";
+      ]
+  in
+  let ramen = "DESC\tramen\nEFFECT\twallet\tjpy\t-500\nEFFECT\tfood\tjpy\t500\nENDTX" in
+  let count text part =
+    List.length (Base.String.substr_index_all text ~may_overlap:false ~pattern:part)
+  in
+  require
+    (result = `Saved
+    && contains out "Record another? (y / n) [n]: "
+    && contains out "  1  Wallet  -500  Food  +500"
+    && count after ramen = 2
+    && not (contains out "The book changed"))
+    "bk-r-another-on-the-saved-book";
   (* An answer that matches nothing says how to quit and does not reprint the list. *)
   let result, out, after = run "bk-pay-quit" `Pay [ "q" ] in
   require
