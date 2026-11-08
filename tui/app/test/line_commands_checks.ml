@@ -66,7 +66,7 @@ let run_all () =
     run "bk-r" `Record [ ""; "ramen"; "wa"; "1"; "-1200"; "fo"; ""; ""; "" ]
   in
   require (result = `Saved) "bk-r-saves";
-  require (contains out "  1  wallet  Wallet\n  2  water   Water") "bk-r-numbers-several-loci";
+  require (contains out "  1  Wallet\n  2  Water\n") "bk-r-numbers-several-loci";
   require (contains out "Amount 2 [+1,200]") "bk-r-offers-the-balancing-amount";
   require
     (contains after
@@ -150,10 +150,27 @@ let run_all () =
   let result, out = printed `Balances in
   require
     (result = `Stopped
-    && contains out "  Wallet [wallet]  -900  jpy\n"
-    && contains out "  Food [food]      +900  jpy\n"
-    && contains out "  カード [card]       0  jpy\n")
+    && contains out "  Wallet  -900  jpy\n"
+    && contains out "  Food    +900  jpy\n"
+    && contains out "  カード     0  jpy\n")
     "bk-bal-prints-current-balances";
+  (* The ID is shown only when two Loci share a label (a label equal to its ID is the ID). *)
+  Unix.mkdir "scratch/bk-names" 0o700;
+  write "scratch/bk-names/book.txt"
+    "BOOK\t1\n\
+     MEASURE\tjpy\t0\n\
+     LOCUS\ta\tSame\t\n\
+     LOCUS\tb\tSame\t\n\
+     LOCUS\tc\tc\t\n\
+     ZERO-ORIGIN\ta\tjpy\n\
+     ZERO-ORIGIN\tb\tjpy\n\
+     ZERO-ORIGIN\tc\tjpy\n\
+     END\n";
+  let io, out = script [] in
+  ignore (L.run io `Balances (F.load "scratch/bk-names/book.txt") ~today:"2026-11-08");
+  require
+    (Buffer.contents out = "  Same [a]  0  jpy\n  Same [b]  0  jpy\n  c         0  jpy\n")
+    "bk-bal-names-loci-by-label";
   let result, out = printed `Pace in
   require
     (result = `Stopped

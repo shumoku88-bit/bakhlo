@@ -38,6 +38,10 @@ Solo5-SPT engine boot) at `90a5867:docs/VERIFICATION.md`.
   cut. Covers `bk bal`, the plan list of `bk pay`, the Locus choices and earlier rows of
   `bk r`. The synthetic checks pin hand-built lines, including a Japanese-named Locus;
   one extra space there made the check fail.
+- Follow-up (user: the `[ID]` after each name made the columns ragged): `bk` lists name
+  a Locus by its display name only; the ID (the book's internal name) is added only when
+  two Loci share a label, and a Locus whose label is its ID shows the ID. Pinned by a
+  synthetic book with a shared label; one extra space there made the check fail.
 
 ## Lighter docs (2026-11-08)
 

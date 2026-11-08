@@ -64,9 +64,18 @@ let table rows =
 
 let print_table io rows = List.iter (say io) (table rows)
 
+(* A Locus by its display name; the ID is the book's internal name, shown only
+   when there is no label or another Locus has the same one. *)
 let name book locus =
   let label = B.label book locus in
-  if label = "" || label = locus then locus else label
+  let shared =
+    List.exists
+      (fun other -> other <> locus && B.label book other = label)
+      (Option.value ~default:[] (B.approved_loci book))
+  in
+  if label = "" || label = locus then locus
+  else if shared then label ^ " [" ^ locus ^ "]"
+  else label
 
 (* 1. Choosing a Locus: the screens' candidates (approved Loci whose ID or label
    starts with the answer, an exact ID first). One candidate is taken at once;
@@ -81,9 +90,7 @@ let rec choose_locus io book query =
   | many -> (
       let shown = List.filteri (fun i _ -> i < 9) many in
       print_table io
-        (List.mapi
-           (fun i id -> [ Right (string_of_int (i + 1)); Left id; Left (name book id) ])
-           shown);
+        (List.mapi (fun i id -> [ Right (string_of_int (i + 1)); Left (name book id) ]) shown);
       if List.length many > 9 then say io "  … type more letters to narrow";
       let answer = ask io "Number or more letters" in
       match int_of_string_opt answer with
@@ -294,8 +301,7 @@ let balances io (session : F.t) =
   let book = session.book in
   let account = function
     | Balance_items.Account_row { locus; measure; value; _ } ->
-        let label = B.label book locus in
-        let shown = if label = "" || label = locus then locus else label ^ " [" ^ locus ^ "]" in
+        let shown = name book locus in
         Some
           (match value with
           | Book_display.Exact n -> [ Left shown; Right (signed book measure n); Left measure ]
