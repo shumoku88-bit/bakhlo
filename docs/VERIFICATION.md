@@ -7,21 +7,17 @@ toolchain. This file keeps the last week's entries (from 2026-11-02); entries fr
 2026-10-31 are in Git at `5b48008:docs/VERIFICATION.md`, earlier ones (including the bounded
 Solo5-SPT engine boot) at `90a5867:docs/VERIFICATION.md`.
 
-## One way to choose in every bk command (2026-11-09)
+From 2026-11-09 (user decision) an entry names its commit and says what ran and its
+result, keeping synthetic checks, CI, latest-data paired comparison, physical terminal/IME,
+human acceptance and P7/power loss apart. What changed and why is that commit's message.
 
-- Studied from qemacs (one minibuffer completes every kind of name): `cli/line_commands.ml`
-  had five hand-written choosers (account, plan, series, record, Attention matter) with
-  different Enter, narrowing and refusal behavior, and three copies of the save outcome
-  wording. Now one `choose`, one `published` and one `confirmed`; the file went from
-  1,719 to 1,688 lines.
-- Intentional changes, pinned in `cli/test/line_commands_checks.ml`: in a numbered
-  account list Enter takes the first (it went back to the Locus prompt) and an answer
-  that matches nothing asks again in the list; `bk todo done/drop` show the first nine
-  and narrow by the start of a matter (they listed all and accepted numbers only); a
-  record list that matches nothing now says "more terms" instead of "the start of a name".
-- `./tools/check` passed (build, samples, bk command checks, privacy scan). ocamlformat is
-  not installed here: formatting **not executed**, lines kept within the existing style.
-  Latest-data paired comparison **not executed** (no Core change; choosing only).
+## One way to choose in every bk command (858b489, 2026-11-09)
+
+- `./tools/check` passed (build, samples, bk command checks, privacy scan), with new checks
+  `bk-r-enter-takes-the-first-locus`, `bk-r-letters-narrow-the-loci` and
+  `bk-todo-done-narrows-by-text`. CI for `858b489` succeeded.
+- **Not executed:** ocamlformat (not installed here; lines kept within the existing
+  style), latest-data paired comparison (no Core change), physical terminal and IME.
 
 ## The TUI is removed (2026-11-09)
 

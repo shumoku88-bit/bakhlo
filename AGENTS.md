@@ -4,7 +4,8 @@
 state) first, then the nearest implementation/interface and the relevant parts of
 `docs/SEMANTIC_CONTRACT.md`. Other docs are on-demand references, not a reading
 list or a backlog. This file holds rules and user decisions only: put status in
-HANDOFF or the ledgers and evidence in `docs/VERIFICATION.md`, never here.
+HANDOFF, what comes next in `tasks/todo.md`, what changed and why in the commit message
+and what ran with its result in `docs/VERIFICATION.md`, never here.
 
 ## Principles (user decision: 2026-10-20)
 
@@ -38,7 +39,10 @@ HANDOFF or the ledgers and evidence in `docs/VERIFICATION.md`, never here.
   `6453e14`).
 - Choose one bounded slice, read its owner and dependencies, preserve existing
   features, add narrow regression checks, run `./tools/check` (it includes the bk
-  command checks), review the exact diff, update ledger/evidence, push.
+  command checks), review the exact diff, push. User decision (2026-11-09, from qemacs):
+  the commit message says what changed and why (a subject, then one bullet per change);
+  `docs/VERIFICATION.md` records only what ran and its result, not the change again;
+  `tasks/todo.md` loses the item in the commit that finishes it.
   If something could not run, record **not executed**; never fabricate success,
   infer a missing balance or weaken Preview/save refusal.
 - After pushing, inspect the CI run for the **matching commit SHA**
