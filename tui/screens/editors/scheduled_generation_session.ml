@@ -199,29 +199,25 @@ let extend_limit t e =
 (* Occurrences come from the original source anchor; a missing nominal day is
    unresolved, never clamped into an invented date. *)
 let extend_candidates ~observed_at ~limit ~cadence_months ~source_day =
-  match (Day.parts source_day, Day.parts observed_at, Day.parts limit) with
-  | ( Ok (source_year, source_month, nominal_day),
-      Ok (observed_year, observed_month, _),
-      Ok (limit_year, limit_month, _) ) ->
-      let observed_index = month_index observed_year observed_month in
-      let limit_index = month_index limit_year limit_month in
-      let rec loop k acc =
-        let index = month_index source_year source_month + (k * cadence_months) in
-        if index > limit_index then List.rev acc
-        else
-          let year = index / 12 and month = (index mod 12) + 1 in
-          if year > 9999 || index < observed_index then loop (k + 1) acc
-          else if nominal_day > Day.days_in_month ~year ~month then
-            if month_start year month < limit then
-              loop (k + 1) (Missing { year; month; nominal_day } :: acc)
-            else loop (k + 1) acc
-          else
-            let day = Printf.sprintf "%04d-%02d-%02d" year month nominal_day in
-            if day < observed_at || day >= limit then loop (k + 1) acc
-            else loop (k + 1) (Dated day :: acc)
-      in
-      loop 1 []
-  | _ -> []
+  let module Sch = Bakhlo_household.Schedule in
+  let month_of = function
+    | Sch.Dated day -> String.sub day 0 7
+    | Sch.Missing { year; month; _ } -> Printf.sprintf "%04d-%02d" year month
+  in
+  let rec loop k acc =
+    match Sch.slot ~anchor:source_day ~every_months:cadence_months k with
+    | None -> List.rev acc
+    | Some slot when month_of slot > String.sub limit 0 7 -> List.rev acc
+    | Some slot when month_of slot < String.sub observed_at 0 7 -> loop (k + 1) acc
+    | Some (Sch.Dated day) ->
+        if day < observed_at || day >= limit then loop (k + 1) acc
+        else loop (k + 1) (Dated day :: acc)
+    | Some (Sch.Missing { year; month; day }) ->
+        if month_start year month < limit then
+          loop (k + 1) (Missing { year; month; nominal_day = day } :: acc)
+        else loop (k + 1) acc
+  in
+  loop 1 []
 
 let extend_plans ~new_id ~(source : B.plan) candidates resolutions =
   let rec days acc = function

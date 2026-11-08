@@ -22,17 +22,7 @@ type t = {
 
 type outcome = Updated of t | Closed | Publish of B.plan list * string
 
-let negative_loci (plan : B.plan) =
-  plan.changes
-  |> List.filter_map (fun (locus, amount) -> if Z.sign amount < 0 then Some locus else None)
-  |> List.sort_uniq String.compare
-
-let positive_loci (plan : B.plan) =
-  plan.changes
-  |> List.filter_map (fun (locus, amount) -> if Z.sign amount > 0 then Some locus else None)
-  |> List.sort_uniq String.compare
-
-let shape plan = (negative_loci plan, positive_loci plan)
+module Sch = Bakhlo_household.Schedule
 
 let valid_date date =
   match Day.normalize date with
@@ -40,19 +30,9 @@ let valid_date date =
   | Error _ -> false
 
 let matching_candidates book (source : B.plan) =
-  let open_plans = B.open_plans book in
-  if not (List.exists (( = ) source) open_plans) then
-    Error "Source is no longer a current-open Scheduled plan."
-  else if negative_loci source = [] || positive_loci source = [] then
-    Error "Source needs both negative and positive Locus sides."
-  else
-    Ok
-      (open_plans
-      |> List.filter (fun (plan : B.plan) ->
-          plan.measure = source.measure && shape plan = shape source)
-      |> List.sort (fun (left : B.plan) right ->
-          let by_date = String.compare left.day right.day in
-          if by_date = 0 then String.compare left.id right.id else by_date))
+  Result.map_error
+    (fun _ -> "Source is no longer a current-open Scheduled plan.")
+    (Sch.series_of book source)
 
 let create ~book ~base_revision ~from_day (source : B.plan) =
   match matching_candidates book source with
@@ -125,11 +105,7 @@ let selected_plans session eligible =
   else if session.selected = [] then Error "Check at least one candidate."
   else Ok (List.filter (fun (plan : B.plan) -> List.mem plan.id session.selected) eligible)
 
-let simple_amount (plan : B.plan) =
-  match plan.changes with
-  | [ (a, x); (b, y) ] when a <> b && Z.sign x * Z.sign y < 0 ->
-      Some (if Z.sign x > 0 then x else y)
-  | _ -> None
+let simple_amount = Sch.simple_amount
 
 let build_replacements session =
   match validate_parameters session with
@@ -138,33 +114,14 @@ let build_replacements session =
       match selected_plans session eligible with
       | Error message -> Error message
       | Ok selected -> (
-          let split = List.find_opt (fun plan -> simple_amount plan = None) selected in
-          match split with
-          | Some plan ->
+          match Sch.change_amount selected ~amount with
+          | Ok replacements -> Ok replacements
+          | Error "unchanged" -> Error "Selected amounts are already unchanged. Nothing to publish."
+          | Error _ ->
+              let split = List.find (fun p -> simple_amount p = None) selected in
               Error
-                (O.visible plan.id
-               ^ ": split postings require individual editing; no allocation was guessed.")
-          | None ->
-              let replacements =
-                List.filter_map
-                  (fun (plan : B.plan) ->
-                    let current_amount = simple_amount plan in
-                    if current_amount = Some amount then None
-                    else
-                      Some
-                        {
-                          plan with
-                          changes =
-                            List.map
-                              (fun (locus, value) ->
-                                (locus, if Z.sign value < 0 then Z.neg amount else amount))
-                              plan.changes;
-                        })
-                  selected
-              in
-              if replacements = [] then
-                Error "Selected amounts are already unchanged. Nothing to publish."
-              else Ok replacements))
+                (O.visible split.B.id
+               ^ ": split postings require individual editing; no allocation was guessed.")))
 
 let preview_rows session plans =
   List.concat_map

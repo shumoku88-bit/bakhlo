@@ -211,3 +211,58 @@ let%expect_test "every Scheduled sample gives its listed answer" =
 let%expect_test "every Actual change gives its listed answer" =
   run "records";
   [%expect {| 13 applied, 41 refused, 0 pace answers, 0 failures |}]
+
+(* 5. Plans in series (series.answers): grouping, a batch amount change and the
+   replenishment dates, by Bakhlo_household.Schedule. *)
+module Sch = Bakhlo_household.Schedule
+
+let series_answer use (q : question) =
+  let book =
+    match context use "BOOK" with
+    | Some name -> ( match B.read (read "scheduled" name) with Ok b -> b | Error why -> bad why)
+    | None -> bad "USE BOOK required"
+  in
+  let plan id =
+    match List.find_opt (fun (p : B.plan) -> p.id = id) (B.plans book) with
+    | Some p -> p
+    | None -> bad ("plan " ^ id)
+  in
+  let ids plans = List.map (fun (p : B.plan) -> p.id) plans in
+  match q.header with
+  | [ "SERIES" ] -> row q.header :: List.map (fun s -> row ("GROUP" :: ids s)) (Sch.series book)
+  | "SERIES-OF" :: id :: _ -> (
+      match Sch.series_of book (plan id) with
+      | Ok s -> [ row ("SERIES-OF" :: id :: ids s) ]
+      | Error why -> [ row [ "SERIES-OF"; id; "REFUSED"; why ] ])
+  | [ "AMOUNT"; amount ] ->
+      let input, _ = split_at (fun fs -> fs = [ "ENDINPUT" ]) q.body in
+      let plans = List.map plan (values "PLAN" input) in
+      (row q.header :: input)
+      @ "ENDINPUT"
+        ::
+        (match Sch.change_amount plans ~amount:(Z.of_string amount) with
+        | Error why -> [ "REFUSED\t" ^ why ]
+        | Ok changed ->
+            List.map
+              (fun (p : B.plan) ->
+                row
+                  ("PLAN" :: p.id
+                  :: List.concat_map (fun (locus, q) -> [ locus; Z.to_string q ]) p.changes))
+              changed)
+  | "SLOT" :: anchor :: every :: k :: _ -> (
+      let question = [ "SLOT"; anchor; every; k ] in
+      match Sch.slot ~anchor ~every_months:(int_of_string every) (int_of_string k) with
+      | Some (Sch.Dated day) -> [ row (question @ [ day ]) ]
+      | Some (Sch.Missing { year; month; day }) ->
+          [
+            row (question @ [ "MISSING"; Printf.sprintf "%04d-%02d" year month; string_of_int day ]);
+          ]
+      | None -> [ row (question @ [ "NONE" ]) ])
+  | _ -> bad ("series question " ^ row q.header)
+
+let%expect_test "plans in series give their listed answers" =
+  let counts = create () in
+  check counts ~dir:"scheduled" ~file:"series.answers" ~blocks:[ "SERIES"; "AMOUNT" ]
+    ~answer:series_answer;
+  Printf.printf "%d series answers, %d failures\n" counts.answers counts.failures;
+  [%expect {| 17 series answers, 0 failures |}]

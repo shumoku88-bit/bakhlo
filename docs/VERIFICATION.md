@@ -7,6 +7,17 @@ toolchain. This file keeps the last week's entries (from 2026-11-02); entries fr
 2026-10-31 are in Git at `5b48008:docs/VERIFICATION.md`, earlier ones (including the bounded
 Solo5-SPT engine boot) at `90a5867:docs/VERIFICATION.md`.
 
+## Plans in series move to the core (2026-11-08)
+
+- Before the `bk plans` commands: grouping open plans into series (same Measure and
+  signed Loci), the batch amount change and the replenishment date rule moved from the
+  Scheduled editors into `household/schedule.ml`; the bulk and generation editors call it
+  and keep their wording. An unreachable refusal went (an admitted plan always has both
+  sides). `test/scheduled/series.answers` pins 17 hand-written answers (series, a series
+  from a plan, five amount changes, eight dates incl. leap years and missing days); the
+  first run had 0 sample failures (only the count in the expect line was off), and a
+  wrong leap-day answer failed at its line. TUI self-check exited 0.
+
 ## Line commands bk r and bk pay (2026-11-08)
 
 - User request: try recording without the TUI first. `bk r` records an Actual and `bk pay`

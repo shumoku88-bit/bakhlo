@@ -8,6 +8,9 @@ module Amount = Amount
 module Record = Record
 (** Pure Actual form construction and editing rules, without screen wording. *)
 
+module Schedule = Schedule
+(** Plans in series: batch amount changes and replenishment dates. *)
+
 module Day = Day
 (** The household's days and the arithmetic over them. *)
 
