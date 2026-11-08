@@ -33,11 +33,9 @@ HANDOFF or the ledgers and evidence in `docs/VERIFICATION.md`, never here.
 - Single maintainer: commit/push small, reviewed, tested slices directly to `main`.
   No branch/PR for ordinary changes; isolate only large/risky/parallel experiments.
   Never force-push or overwrite/commit another worker's uncommitted edits.
-- At the start of a pass, inspect remote HEAD, pending edits and `tasks/todo.md`.
-  `docs/LOAM_UI_GAP_LEDGER.ja.md` is the only per-screen gap ledger;
-  `docs/CUTOVER_DIFF_LEDGER.ja.md` is the user's summary for the five daily-use
-  areas (Record, Scheduled, Loci, Balances, Daily Pace) — update its rows in the same
-  slice when a difference is found, fixed or compared, linking details elsewhere.
+- At the start of a pass, inspect remote HEAD, pending edits and `tasks/todo.md`. The
+  per-screen LOAM ledgers and the cutover checklist went with the TUI (in Git up to
+  `6453e14`).
 - Choose one bounded slice, read its owner and dependencies, preserve existing
   features, add narrow regression checks, run `./tools/check` (it includes the bk
   command checks), review the exact diff, update ledger/evidence, push.
@@ -83,7 +81,7 @@ HANDOFF or the ledgers and evidence in `docs/VERIFICATION.md`, never here.
   actually needed — no speculative budget code. Fava and
   hledger export are out of scope (other output/diagnostics are not, without a
   separate decision). Internal structures need not match LOAM; observable results and
-  safety behavior must. Cutover is a separate decision (`docs/CUTOVER_CHECKLIST.ja.md`).
+  safety behavior must. The cutover was done on 2026-10-21.
 - Today's spending guide is Daily Pace (`bk pace`; plain `bk` prints it first). The
   commands are described in `cli/README.md`; English first.
 - Reports (user decision 2026-10-22): improve on LOAM rather than copy it, keeping

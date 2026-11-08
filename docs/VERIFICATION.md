@@ -24,6 +24,11 @@ Solo5-SPT engine boot) at `90a5867:docs/VERIFICATION.md`.
 - `./tools/check` exited 0: all samples, the launcher cram test and every bk check (now
   `cli/test/cli_checks.exe`) pass, including the hand-built Japanese table lines with
   the new width table. Real-terminal IME use is not qualified.
+- Docs follow (same day): the TUI-only docs (TUI ownership, UI direction, the per-screen
+  LOAM gap ledger, the five-area diff ledger, the cutover checklist) are in Git up to
+  `6453e14`; ARCHITECTURE describes cli/store/household/book_txt; `tasks/todo.md` keeps the
+  plan and open decisions. cppo, ocamlbuild and topkg (Notty's build tools) left the lock
+  too: 51 locked packages.
 
 ## bk reg, month, report ie, day (2026-11-08)
 

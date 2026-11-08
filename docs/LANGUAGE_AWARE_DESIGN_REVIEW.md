@@ -8,7 +8,7 @@ fragile persistence shortcuts or unnecessary long-lived process overhead.
 
 ## When and how
 
-- During parser, store, index, query, TUI or event-loop changes, inspect only the
+- During parser, store, index, query or command changes, inspect only the
   relevant path and one or two meaningful neighbors. Unrelated work does not need an audit.
 - During active development, roughly fortnightly is a suggested opportunity to review
   changes since the last review and existing measurements, not a mandatory schedule.

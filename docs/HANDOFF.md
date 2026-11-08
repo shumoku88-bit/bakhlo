@@ -1,8 +1,7 @@
 # Handoff
 
 Current state in one page. Rules and user decisions: [AGENTS.md](../AGENTS.md).
-Per-screen progress: [UI gap ledger](LOAM_UI_GAP_LEDGER.ja.md). Daily-use summary:
-[cutover diff ledger](CUTOVER_DIFF_LEDGER.ja.md). What actually ran:
+The commands: [cli/README](../cli/README.md). What actually ran:
 [VERIFICATION](VERIFICATION.md). The previous long handoff (per-feature evidence up
 to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
 
@@ -74,8 +73,7 @@ After pushing, check CI for the matching commit SHA.
 
 1. The Zig rewrite: the core (~6,000 lines) and its samples, then the bk commands (~3,500
    lines with their checks).
-2. Daily-use parity in the five areas of the cutover diff ledger, ordered by
-   `tasks/todo.md`.
+2. Whatever the household misses in daily use, ordered by `tasks/todo.md`.
 3. Startup snapshot only when startup is felt slow.
 4. Performance: profile the remaining Actual scan/sort costs before indexing; GADT
    expansion showed no benefit (study in Git at

@@ -53,8 +53,7 @@ Enterで保存する。金額欄では`500+300`、`(500+300)/2`などの式を�
 
 - [現在の状態と次の作業](docs/HANDOFF.md)、[作業規則](AGENTS.md)
 - [構成](docs/ARCHITECTURE.md)、[意味の契約](docs/SEMANTIC_CONTRACT.md)、[開発手順](docs/DEVELOPMENT.md)
-- [UI方針](docs/UI_DIRECTION.ja.md)、[画面別の差分台帳](docs/LOAM_UI_GAP_LEDGER.ja.md)、
-  [普段使い5領域の差分](docs/CUTOVER_DIFF_LEDGER.ja.md)、[LOAM機能の棚卸し](docs/CUTOVER_CHECKLIST.ja.md)
+- [bkのコマンド](cli/README.md)、[答えの見本](test/README.md)
 - [検証記録](docs/VERIFICATION.md)（2026-10-20より前は`90a5867`の同じファイル）
 
 実データ・秘密情報はGitに入れない（`./tools/privacy-scan`）。

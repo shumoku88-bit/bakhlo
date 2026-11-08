@@ -77,18 +77,15 @@ Reports are short issue/PR notes; `HANDOFF.md` stays focused on current work.
 
 `.ocamlformat` pins **0.29.0**, target syntax **5.4.1**, default profile and 100-column margin.
 Comment/docstring rewriting is disabled to keep evidence prose intact. Use
-`./tools/format --check` or `./tools/format --apply` (Dune @fmt / fmt, including `tui/`).
-`tui/` carries its own `dune-project`, which keeps the root `.ocamlformat` from reaching it,
-so `tui/.ocamlformat` is a symlink to `../.ocamlformat`: one canonical pinned config on both
-sides of that nested project boundary, not a second copy to keep in step. The wrapper rejects a
+`./tools/format --check` or `./tools/format --apply` (Dune @fmt / fmt). The wrapper rejects a
 missing/wrong local formatter, never installs or falls back to a global tool. Apply finishes
 with a clean @fmt check: Dune 3.24.2 can return 1 for diffs it has already promoted.
 Formatting is optional developer tooling, NOT a main runtime/test dependency or CI gate;
-`bootstrap`, `check` and normal builds use the main 56 locked packages without it.
-Additions to the original 50: Parsexp v0.17.0 (outer S-expression adapter) and, on
-2026-10-21, notty-community 0.2.4 with uutf, cppo, ocamlbuild and topkg (TUI terminal adapter;
-the last three are build tools). Neither reaches the Domain or the book; neither addition
-required a compiler upgrade.
+`bootstrap`, `check` and normal builds use the main 51 locked packages without it.
+Additions to the original 50: Parsexp v0.17.0 (outer S-expression adapter). Notty, uutf
+and their build tools cppo, ocamlbuild and topkg (the TUI terminal adapter, 2026-10-21) left
+with the TUI on 2026-11-09; the bk commands use
+only standard input and output and their own display-width table.
 Separate formatting-only commits from meaning/refactor changes. Do not reflow payload fixtures,
 normalize identities or weaken compiler policy to make layout pass.
 
@@ -101,9 +98,9 @@ Qualified on macOS x86_64 on 2026-10-27 by recreating this formatter root with
 `ocaml-system.5.4.1`, Dune 3.24.2 and ocamlformat 0.29.0 from the recipe below; a 5.4.1
 formatting target and the wrapper's version/pin checks passed. At compiler migration time
 `./tools/format --check` was not clean: the same 15 pre-existing source/Dune layout diffs
-and the nested `tui/` config warnings appeared on the 5.3.0 and 5.4.1 baselines. Those
+and the then nested TUI config warnings appeared on the 5.3.0 and 5.4.1 baselines. Those
 layouts were corrected in a formatting-only change on 2026-10-27, so the check now exits 0
-with no warnings, `tui/` included ([verification](VERIFICATION.md)). Fix layouts in their
+with no warnings ([verification](VERIFICATION.md)). Fix layouts in their
 own commits and never mass-apply while changing the compiler. No other platform's formatter
 bootstrap is claimed.
 
