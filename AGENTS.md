@@ -39,15 +39,15 @@ HANDOFF or the ledgers and evidence in `docs/VERIFICATION.md`, never here.
   areas (Record, Scheduled, Loci, Balances, Daily Pace) — update its rows in the same
   slice when a difference is found, fixed or compared, linking details elsewhere.
 - Choose one bounded slice, read its owner and dependencies, preserve existing
-  features, add narrow regression checks, run `./tools/check` and
-  `./tools/tui --self-check`, review the exact diff, update ledger/evidence, push.
+  features, add narrow regression checks, run `./tools/check` (it includes the bk
+  command checks), review the exact diff, update ledger/evidence, push.
   If something could not run, record **not executed**; never fabricate success,
   infer a missing balance or weaken Preview/save refusal.
 - After pushing, inspect the CI run for the **matching commit SHA**
-  (`core.yml`: Core and TUI build and tests, plus a Linux PTY smoke). Synthetic green ≠
-  physical-terminal, IME, paired-parity or P7 acceptance. Investigate failures.
+  (`core.yml`: build, samples and bk command tests). Synthetic green ≠ physical-terminal,
+  IME, paired-parity or P7 acceptance. Investigate failures.
 - Parallel AI work: agree file/function ownership first; shared Shell/API changes are
-  serialized. Per-screen state/input/painting live in `tui/screens/<screen>`.
+  serialized.
 
 ## Latest-data comparison (user decision: 2026-10-19)
 
@@ -71,8 +71,8 @@ HANDOFF or the ledgers and evidence in `docs/VERIFICATION.md`, never here.
 ## Product
 
 - User decision (2026-11-08): the household uses Bakhlo through `bk` line commands, not a
-  full-screen TUI. The TUI is removed once every operation the household uses has a
-  command; LOAM's screens are no longer reproduced. LOAM stays the behavioral reference
+  full-screen TUI; the TUI was removed (2026-11-09, in Git up to `a346668`) and LOAM's
+  screens are no longer reproduced. LOAM stays the behavioral reference
   for what can be recorded and seen (recording/editing, plans, balances, Daily Pace,
   reports), not for appearance. Commands ask one line at a time, show a Preview before
   every save, name things by display name (IDs are internal), align tables by display
@@ -84,8 +84,8 @@ HANDOFF or the ledgers and evidence in `docs/VERIFICATION.md`, never here.
   hledger export are out of scope (other output/diagnostics are not, without a
   separate decision). Internal structures need not match LOAM; observable results and
   safety behavior must. Cutover is a separate decision (`docs/CUTOVER_CHECKLIST.ja.md`).
-- Today's spending guide is Daily Pace (`bk pace`). Until the TUI is removed,
-  `docs/UI_DIRECTION.ja.md` and `tui/README.md` describe it; English first.
+- Today's spending guide is Daily Pace (`bk pace`; plain `bk` prints it first). The
+  commands are described in `cli/README.md`; English first.
 - Reports (user decision 2026-10-22): improve on LOAM rather than copy it, keeping
   what LOAM did well (Trend look, I&E summary with Scheduled split, period compare).
   Order reports by what the household's data shows matters; default to the configured
@@ -130,7 +130,7 @@ user-approved migration of `../bakhlo-data` (Principles).
 
 - Cutover (user decision 2026-10-21): the operational household is `../bakhlo-data`
   (imported once by `./tools/import-loam`; see its `LOAM-RECORD.md`). The AI never
-  writes it; only the user records through the TUI. AI checks use copies in ignored
+  writes it; only the user records, through `bk`. AI checks use copies in ignored
   scratch. The user opens it with `./tools/household`, which on exit commits changes and
   pushes them to the private GitHub backup `shumoku88-bit/bakhlo-data` (user decision
   2026-10-21); never make that repository public. `../loam-data` is the frozen LOAM

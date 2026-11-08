@@ -1,9 +1,0 @@
-(library
- (name bakhlo_screen_exchange)
- (wrapped false)
- (libraries
-  bakhlo_tui_kit
-  bakhlo_tui_book
-  bakhlo_tui_protocol
-  bakhlo.household
-  zarith))

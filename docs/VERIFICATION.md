@@ -7,6 +7,24 @@ toolchain. This file keeps the last week's entries (from 2026-11-02); entries fr
 2026-10-31 are in Git at `5b48008:docs/VERIFICATION.md`, earlier ones (including the bounded
 Solo5-SPT engine boot) at `90a5867:docs/VERIFICATION.md`.
 
+## The TUI is removed (2026-11-09)
+
+- User decisions: the TUI goes once the bk commands cover what the household uses
+  (2026-11-08); settlements, never used here, are dropped; the remaining reports are not
+  added for now. `tui/` (about 43,800 lines with its checks), `tools/tui`,
+  `tools/ci-tui-pty`, `tools/arch` with `test/arch.t`, the paired-UI example and the CI PTY
+  lane are deleted (in Git up to `a346668`). Notty and uutf are no longer dependencies.
+- `cli/` holds the commands and the few pure helpers they used from the TUI (Draft
+  wording, Book_display, Locus roles, Attention, coverage rules, balance view), plus
+  `Width` (an own East Asian width table instead of Notty), `Config` (settings files beside
+  the book) and `Pace` (today's pace, What-if and target plans, moved from the Daily Pace
+  screens). The pace breakdown is printed as a table. Plain `bk` prints today's pace and
+  the command list. `tools/household` builds and runs `cli/bakhlo.exe`; its cram test
+  follows; `./ui` runs bk commands on comparison copies or the synthetic preview.
+- `./tools/check` exited 0: all samples, the launcher cram test and every bk check (now
+  `cli/test/cli_checks.exe`) pass, including the hand-built Japanese table lines with
+  the new width table. Real-terminal IME use is not qualified.
+
 ## bk reg, month, report ie, day (2026-11-08)
 
 - `bk reg <account> [terms]` lists an account's records with the balance at the end of

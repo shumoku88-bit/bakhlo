@@ -1,4 +1,4 @@
-name: Build and tests (Core and TUI)
+name: Build and tests (core and bk commands)
 
 on:
   push:
@@ -9,11 +9,9 @@ on:
       - "book_txt/**"
       - "test/**"
       - "examples/**"
-      - "tui/**"
+      - "cli/**"
       - "store/**"
       - "tools/check"
-      - "tools/arch/**"
-      - "tools/ci-tui-pty"
       - "tools/household"
       - "dune*"
       - "bakhlo.opam*"
@@ -25,11 +23,9 @@ on:
       - "book_txt/**"
       - "test/**"
       - "examples/**"
-      - "tui/**"
+      - "cli/**"
       - "store/**"
       - "tools/check"
-      - "tools/arch/**"
-      - "tools/ci-tui-pty"
       - "tools/household"
       - "dune*"
       - "bakhlo.opam*"
@@ -53,12 +49,5 @@ jobs:
         run: opam install . --deps-only --with-test --locked -y
       - name: Build
         run: opam exec -- dune build
-      - name: Contract, regression and synthetic TUI tests
+      - name: Samples, regression and synthetic bk command tests
         run: opam exec -- dune runtest
-      # A real PTY: keys, resize, Ctrl-Q, cold reopen and the narrow Record Preview
-      # refusal on the synthetic fixture; never household data, macOS IME or LOAM.
-      - name: Linux PTY keyboard, resize and non-writing matrix
-        run: |
-          sudo apt-get update -q && sudo apt-get install -y --no-install-recommends expect
-          install -d -m 0700 scratch
-          tools/ci-tui-pty _build/default/tui/app/bakhlo_tui.exe examples/book.txt

@@ -1,0 +1,10 @@
+; Every bk command on synthetic books (cli_checks.ml).
+
+(executable
+ (name cli_checks)
+ (libraries bakhlo_cli bakhlo.household bakhlo.store base unix zarith))
+
+(rule
+ (alias runtest)
+ (action
+  (run %{exe:cli_checks.exe})))

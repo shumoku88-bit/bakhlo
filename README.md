@@ -12,48 +12,43 @@ LOAMは凍結し、互換の参照としてだけ使う。
 - 残高が不明なことと、明示的にゼロであることを区別する。
 - 入力ミスの訂正と、実際の返金・取消を区別する。
 - 正データは訂正済みの明細でよい。長期の履歴はGitに任せる。
-- 普段はTUIで編集する。手編集のしやすさより、保存費用・復元の確実さと短く直接的な実装を優先する。
+- 普段は`bk`のコマンドで記帳する。手編集のしやすさより、保存費用・復元の確実さと短く直接的な実装を優先する。
 
-**LOAMのユーザー向け機能・見た目・操作感と細部を、Bakhloでも再現する。**
+**LOAMで記録し見られたことを、`bk`のコマンドで使えるようにする（画面は再現しない、本人決定 2026-11-08）。**
 予算配分・予算振替・予算消化・用途routing・Budget Windowだけは、実際に必要になるまで延期する。
 Favaとhledgerへの出力は対象外。内部実装・保存構造までLOAMと同じにする必要はない。
 
 ## 使う
 
 ```sh
-./tools/household   # 家計簿を開き、終了時に変更をcommitしてpushする
-./ui --demo         # 合成データだけで試す（scratch/ui-preview）
-./ui                # LOAM比較：最後の取得世代のBakhloコピー
+bk                  # 今日の目安とコマンドの一覧（bk は ./tools/household を呼ぶ）
+bk r                # 記帳。bk help で全コマンド
+./ui --demo [COMMAND] # 合成データだけで試す（scratch/ui-preview）
+./ui [COMMAND]      # 比較用：最後の取得世代のBakhloコピーでコマンド
 ./ui loam           # 同じ世代のLOAMコピー（別の端末で）
 ```
 
 バックアップの失敗は警告して異常終了する。ローカルの記帳は残り、pushできなかった
-commitは次回に再送する。TUI自体が異常終了した場合は、その終了コードを保つ。
+commitは次回に再送する。bakhlo自体が異常終了した場合は、その終了コードを保つ。
 
 ランチャーは共有ツリーを使わず、push済みの`origin/main`を専用のworktree（`.run/`）で
 ビルドして実行し、実行するcommitを1行で示す。オフラインやビルド失敗時は直前のバイナリ
 を使い、バイナリが1つもなければ起動を拒否する。ランチャー本体（このスクリプト）は
-作業ツリーから実行し、`origin/main`に固定されるのはTUIバイナリだけである。
+作業ツリーから実行し、`origin/main`に固定されるのはbakhloのバイナリだけである。
 
 比較コピーは`scratch/comparison`内だけにあり、原本には書き込まない（家計簿の`book.txt`を
 Bakhlo用とLOAM用に1つずつ写す）。取り直すときは`./tools/compare refresh`、比較後は
 `./tools/compare clean-copies`。
 手順と制約は[AGENTS.md](AGENTS.md)の Latest-data comparison。
 
-盆栽Homeから`Enter`／`a`でActual（期間窓で記録を一覧）、`r`でRecord、`s`でScheduled、
-`b`でBalances、`d`でDaily Paceへ進む。`Space`で階層型Commands。
-RecordはEnter／Ctrl-SでPreviewを開き、**Publishを選んでEnterしたときだけ記帳する**。
-Esc／Cancelは下書きを保持する。
-金額欄では`500+300`、`(500+300)/2`などの式を整数／有理数で計算する。先頭の`-`／`+`は式全体の向き。
-通貨の最小単位に収まらない結果・ゼロ除算は拒否し、下書きを保持する。
-キー・保存・復旧の詳細は[tui/README](tui/README.md)。
+コマンドと保存の決まりは[cli/README](cli/README.md)。どのコマンドも保存の前にPreviewを見せ、
+Enterで保存する。金額欄では`500+300`、`(500+300)/2`などの式を正確に計算する。
 
 ## 開発
 
 ```sh
 ./tools/bootstrap          # リポジトリ内に隔離したOCaml環境（初回のみ）
-./tools/check              # CoreとTUIのビルド・テスト・アーキテクチャ検査・privacy-scan
-./tools/tui --self-check   # TUIの合成検査だけを回す（./tools/checkにも含まれる）
+./tools/check              # ビルド、見本、bkの合成検査、privacy-scan
 ```
 
 - [現在の状態と次の作業](docs/HANDOFF.md)、[作業規則](AGENTS.md)

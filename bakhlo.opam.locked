@@ -25,7 +25,6 @@ depends: [
   "fieldslib" {= "v0.17.0" & with-test}
   "jane-street-headers" {= "v0.17.0" & with-test}
   "jst-config" {= "v0.17.0" & with-test}
-  "notty-community" {= "0.2.4"}
   "ocaml" {= "5.4.1"}
   "ocaml-base-compiler" {= "5.4.1"}
   "ocaml-compiler" {= "5.4.1"}
@@ -62,7 +61,6 @@ depends: [
   "stdlib-shims" {= "0.3.0" & with-test}
   "time_now" {= "v0.17.0" & with-test}
   "topkg" {= "1.1.1"}
-  "uutf" {= "1.0.4"}
   "zarith" {= "1.14"}
 ]
 build: ["dune" "build" "-p" name "-j" jobs "@install"]

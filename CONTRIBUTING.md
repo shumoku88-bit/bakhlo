@@ -22,7 +22,7 @@ cutover require their own decisions. See [accepted dependency budget](docs/adr/0
 ## Functional core and explicit edges
 
 Domain/Application/S-expression code computes immutable values; `store/` owns file I/O
-and `tui/shell` the remaining effects. No hidden clock, filesystem, randomness, global
+and `cli/` the remaining effects (asking, printing, settings files). No hidden clock, filesystem, randomness, global
 business state or reverse UI dependency in the engine.
 `Result.bind` sequences values, not effects; `Printf.sprintf` is formatting, not output.
 

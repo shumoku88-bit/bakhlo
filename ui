@@ -5,36 +5,35 @@ root=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
 cd "$root"
 umask 077
 usage() {
-  printf '%s\n' './ui             Bakhlo on the selected copy of the household book.txt' \
-    './ui loam        LOAM on its own copy of the same book.txt (no build)' \
-    './ui --demo      Synthetic-only UI preview' \
-    'Space -> Commands -> Theme: terminal colors or Bakhlo Light / Dark'
+  printf '%s\n' './ui [COMMAND]          a bk command on the selected copy of the household book.txt' \
+    './ui loam              LOAM on its own copy of the same book.txt (no build)' \
+    './ui --demo [COMMAND]  a bk command on a synthetic preview book'
 }
-if [ "$#" -gt 1 ]; then usage >&2; exit 2; fi
-mode=${1:-bakhlo}
-case "$mode" in
+mode=bakhlo
+case "${1:-}" in
   --help|-h) usage; exit 0 ;;
-  bakhlo|loam|--demo) ;;
-  *) usage >&2; exit 2 ;;
+  loam) mode=loam; shift; if [ "$#" -ne 0 ]; then usage >&2; exit 2; fi ;;
+  --demo) mode=--demo; shift ;;
 esac
-if [ ! -t 0 ] || [ ! -t 1 ]; then
-  printf '%s\n' 'Run ./ui in an interactive terminal.' >&2
+if [ "$mode" = loam ] && { [ ! -t 0 ] || [ ! -t 1 ]; }; then
+  printf '%s\n' 'Run ./ui loam in an interactive terminal.' >&2
   exit 2
 fi
 if [ -L "$root/scratch" ]; then
   printf '%s\n' 'Comparison directories must not be symlinks.' >&2; exit 2
 fi
+./tools/opam exec -- dune build --root . cli/bakhlo.exe
+bin=$root/_build/default/cli/bakhlo.exe
 if [ "$mode" = --demo ]; then
   trial=$root/scratch/ui-preview
-  if [ -L "$trial" ] || [ -L "$trial/config" ]; then
+  if [ -L "$trial" ]; then
     printf '%s\n' 'Preview directories must not be symlinks.' >&2; exit 2
   fi
   if [ ! -e "$trial" ]; then
     mkdir -p "$root/scratch"
     mkdir "$trial"
-    ./tools/tui --copy-from examples/book.txt --book "$trial/book.txt"
+    "$bin" --copy-from examples/book.txt --book "$trial/book.txt"
   fi
-  config=$trial/config
 else
   state=$root/scratch/comparison
   if [ -L "$state" ] || [ -L "$state/CURRENT" ] || [ ! -f "$state/CURRENT" ]; then
@@ -57,24 +56,18 @@ else
     printf '%s\n' 'Incomplete comparison copy; nothing opened.' >&2; exit 2
   fi
   if [ "$mode" = loam ]; then
-    bin=$root/../loam/.lake/build/bin/loam
-    if [ ! -x "$bin" ] || [ -L "$trial/loam" ] || [ ! -f "$trial/loam/book.txt" ]; then
+    loam=$root/../loam/.lake/build/bin/loam
+    if [ ! -x "$loam" ] || [ -L "$trial/loam" ] || [ ! -f "$trial/loam/book.txt" ]; then
       printf '%s\n' 'Existing LOAM executable or comparison copy unavailable. No build or live fallback.' >&2
       exit 2
     fi
     printf '%s\n' 'LOAM on a comparison copy only; the household is recorded in Bakhlo.'
-    exec "$bin" tui "$trial/loam"
+    exec "$loam" tui "$trial/loam"
   fi
-  config=$state/ui-config
   trial=$trial/bakhlo
-  if [ -L "$config" ]; then
-    printf '%s\n' 'Comparison settings must not be a symlink.' >&2; exit 2
-  fi
 fi
 if [ ! -d "$trial" ] || [ -L "$trial/book.txt" ] || [ ! -f "$trial/book.txt" ]; then
   printf '%s\n' 'Comparison book unavailable; existing trial was not replaced.' >&2
   exit 2
 fi
-# Theme settings are independent of both ledger copies and ordinary UI settings.
-export BAKHLO_CONFIG_HOME="$config"
-exec ./tools/tui --book "$trial/book.txt"
+exec "$bin" --book "$trial/book.txt" "$@"

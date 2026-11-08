@@ -1,36 +1,34 @@
 #!/bin/sh
-# Daily household launcher (user decision 2026-10-21): open the household book in
-# the TUI, then on exit commit any change and push it to the household's own Git
+# Daily household launcher (user decision 2026-10-21): run a bk command on the household
+# book, then commit any change and push it to the household's own Git
 # remote (an off-site backup). A failed push keeps the local commit and is
 # retried next time, even without a new change. Any backup problem (staging,
 # diff, commit, missing upstream, pending log, push) warns, keeps Git's own
-# reason visible, and fails the exit; a nonzero TUI exit is reported unchanged
+# reason visible, and fails the exit; a nonzero bakhlo exit is reported unchanged
 # and takes precedence.
 #
 # The launcher runs pushed code only (user decision 2026-10-22): AI workers edit
 # and build the shared tree, so it never runs that tree. This script itself runs
-# from the working tree; only the TUI binary is pinned to origin/main. It fetches
+# from the working tree; only the bakhlo binary is pinned to origin/main. It fetches
 # origin/main, keeps an ignored worktree at .run/src detached at that commit,
-# builds the TUI there with the existing switch and installs the built binary at
-# .run/bakhlo_tui.exe, which it always runs. The install copies to a temporary
+# builds bakhlo there with the existing switch and installs the built binary at
+# .run/bakhlo.exe, which it always runs. The install copies to a temporary
 # name and renames it, so a failed build (Dune may remove or replace its
 # target) never takes the last good binary away. Its own _build means no Dune
 # lock conflict with the shared tree. Offline keeps the last built binary; a
 # failed build keeps it and names the commit; without any binary the launcher
 # refuses. The line that names the commit names the installed one only: without
 # the stamp it says the commit is unknown.
-# Arguments go to the binary after --book: `r` records an Actual, `pay` pays a
-# plan (one-line answers), `bal` / `pace` print balances and today's pace and `plans`
-# lists, fills, re-prices or cancels plans in series
-# (tui/app/line_commands.ml) instead of opening the TUI.
+# Arguments go to the binary after --book: a bk command (bk help lists them,
+# cli/command_line.ml); none prints today's pace and the list.
 # BAKHLO_HOUSEHOLD overrides the household directory (default: ../bakhlo-data).
 set -u
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
 household=${BAKHLO_HOUSEHOLD:-$root/../bakhlo-data}
 run_dir=$root/.run
 worktree=$run_dir/src
-binary=$run_dir/bakhlo_tui.exe
-target=$worktree/_build/default/tui/app/bakhlo_tui.exe
+binary=$run_dir/bakhlo.exe
+target=$worktree/_build/default/cli/bakhlo.exe
 stamp=$run_dir/built-commit
 
 if [ ! -f "$household/book.txt" ] || [ ! -d "$household/.git" ]; then
@@ -85,7 +83,7 @@ if [ -n "$want" ]; then
   if [ -n "$head" ] && { [ "$built" != "$head" ] || [ ! -x "$binary" ]; }; then
     printf 'Building bakhlo %s …\n' "$(short "$head")"
     if "$root/tools/opam" exec -- dune build --no-print-directory --root "$worktree" \
-      tui/app/bakhlo_tui.exe >/dev/null; then
+      cli/bakhlo.exe >/dev/null; then
       # Install atomically: a copy under a temporary name, then a rename.
       if cp "$target" "$binary.tmp.$$" && chmod 755 "$binary.tmp.$$" && mv -f "$binary.tmp.$$" "$binary"
       then
@@ -104,7 +102,7 @@ if [ -n "$want" ]; then
 fi
 
 if [ ! -x "$binary" ]; then
-  printf '%s\n' 'No TUI binary is built for the launcher; run it once online so the pushed code is built.' >&2
+  printf '%s\n' 'No bakhlo binary is built for the launcher; run it once online so the pushed code is built.' >&2
   exit 2
 fi
 if [ -n "$built" ]; then
@@ -115,7 +113,7 @@ else
   printf '%s\n' 'Running bakhlo from an unknown commit.'
 fi
 
-# Warn and stop: a nonzero TUI exit wins; otherwise the backup problem is the failure.
+# Warn and stop: a nonzero bakhlo exit wins; otherwise the backup problem is the failure.
 fail() {
   printf '%s\n' "$*" >&2
   if [ "$status" -ne 0 ]; then
@@ -125,10 +123,9 @@ fail() {
 }
 
 cd "$root"
-# Notty keeps the terminal's VMIN/VTIME, and a TUI run earlier in the same tab
-# can leave VMIN=0: every read then returns at once with no input, which Notty
-# takes as end of input, so the TUI closes right after its first paint. Restore
-# blocking reads first; Notty puts back these settings when it exits.
+# A full-screen program run earlier in the same tab can leave VMIN=0: every read
+# then returns at once with no input, which a command would take as end of input.
+# Restore blocking reads first.
 if [ -t 0 ]; then
   stty min 1 time 0
 fi

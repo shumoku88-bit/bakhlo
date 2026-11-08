@@ -32,19 +32,12 @@ The dated log of earlier passes is in Git at `5b48008:docs/HANDOFF.md`; evidence
   samples in one format (`test/README.md`): `amounts`, `common_format`, `periods`,
   `reports`, `records`, `scheduled`. A rewrite in another language is done when it
   passes them; `test/samples.ml` is the one reader.
-- **TUI.** English Notty TUI (user decision 2026-10-21) in the main Dune build, covered by
-  `./tools/check` and CI: bonsai Home, hierarchical Commands, Record/Preview, Actual with
-  period windows, Scheduled, Selected Day, Balances/Observe, Daily Pace, Manage Loci,
-  Exchange, Attention, settlements and reports. The typography series (Actual, Balances,
-  Scheduled List, Daily Pace, Record/Preview) is published. Remaining gaps and acceptance
-  are in the [UI gap ledger](LOAM_UI_GAP_LEDGER.ja.md). Latest-data speed (2026-10-23):
-  Home ~51 ms (LOAM ~242), Actual All `j` 8.8 / 7.3 ms, Daily Pace `d` 9.5 / 6.6 ms;
-  synthetic 109.5k Actual Down+paint is still ~235 ms.
-- **Trial (2026-11-08):** `bk r` and `bk pay` record and pay with one-line answers, and
-  `bk bal` / `bk pace` print balances and today's pace, and `bk plans` lists, fills,
-  re-prices and cancels plans in series, instead
-  of the TUI. The user tries them for a week or two; TUI screens not opened in that time
-  are candidates for removal.
+- **Commands, no TUI.** User decision (2026-11-08): the household uses `bk` line commands
+  (`cli/`, [cli/README](../cli/README.md)); the TUI was removed on 2026-11-09 (in Git up to
+  `a346668`), settlements with it (never used). Plain `bk` prints today's pace and the
+  command list; every command previews before it saves through the single writer.
+  Remaining reports (activity, stock and flow, trend, liquidity, multicurrency) are not
+  commands for now; their calculations stay in `household/` with their samples.
 - **Unqualified:** P7 (persistent post-save acknowledgement), power loss, real macOS
   IME, human acceptance.
 
@@ -56,12 +49,10 @@ The dated log of earlier passes is in Git at `5b48008:docs/HANDOFF.md`; evidence
 - `book_txt/book_txt.ml(i)`: the common `book.txt` format (read, admit, print, balance).
 - `store/book_file.ml`: the single writer of `book.txt` (load, whole-file publish,
   conflict and uncertain outcomes, copies).
-- `tui/`: `shell/` (state, dispatch, publication, files), `screens/<screen>/` (per-screen
-  state, input, painting), `book/` (screen wording and display data), `protocol/screen.mli`
-  (Shell ↔ screen contract), `app/` (Notty terminal + CLI entry), `scenarios/`
-  (cross-screen checks). Keys, recovery commands and UI rules: [tui/README](../tui/README.md).
+- `cli/`: the bk commands (`line_commands.ml`, `command_line.ml`), their wording (`draft.ml`),
+  display width, settings files and Daily Pace from them; `cli/test/` checks every command.
 - `test/`: the answer samples, and Core tests (`book_cold_reload_tests.ml`,
-  `book_txt_tests.ml`, `book_file_tests.ml` guard storage); the TUI self-check.
+  `book_txt_tests.ml`, `book_file_tests.ml` guard storage).
 - Removed code and docs (old CLI, typed Effect layer, application layer, LOAM import,
   migration tools, studies) are listed with their last commits in Git at
   `5b48008:docs/HANDOFF.md` (Code map).
@@ -69,12 +60,11 @@ The dated log of earlier passes is in Git at `5b48008:docs/HANDOFF.md`; evidence
 ## Verify and continue
 
 ```sh
-./tools/check                 # Core build, tests, architecture check
-./tools/tui --self-check      # all synthetic TUI suites (also in ./tools/check)
+./tools/check                 # build, samples, bk command checks, privacy scan
 ./tools/startup-probe         # synthetic load, save and response timings (1k / 36.5k / 109.5k)
 ./tools/privacy-scan [--all]  # no private household text in the repository (in check)
 ./tools/compare refresh       # fresh copies of the household book.txt (see AGENTS.md)
-./ui  /  ./ui loam            # Bakhlo and LOAM on those copies
+./ui [COMMAND] / ./ui loam     # a bk command and LOAM on those copies
 ```
 
 Use a fresh ignored trial directory for manual runs; never overwrite a previous one.
@@ -82,8 +72,8 @@ After pushing, check CI for the matching commit SHA.
 
 ## Next candidates
 
-1. The TUI is about 43,000 lines against a ~5,300-line core: shrink it in OCaml, or build
-   small screens in the Zig rewrite (the user's decision, pending).
+1. The Zig rewrite: the core (~6,000 lines) and its samples, then the bk commands (~3,500
+   lines with their checks).
 2. Daily-use parity in the five areas of the cutover diff ledger, ordered by
    `tasks/todo.md`.
 3. Startup snapshot only when startup is felt slow.
