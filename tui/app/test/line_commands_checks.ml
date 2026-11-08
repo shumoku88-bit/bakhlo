@@ -336,6 +336,25 @@ let run_all () =
     && contains after
          "PLAN\trent-11\t2026-11-27\tjpy\nCHANGE\tbank\t-80000\nCHANGE\trent\t80000\nENDPLAN")
     "bk-plans-cancel-cancels-chosen-plans";
+  (* `bk find`: the matching records by display name, then their count; a bad
+     term is worded, not searched for. *)
+  let found words =
+    let io, out = script [] in
+    ignore
+      (L.run io (`Find words)
+         (F.load (fresh ("bk-find-" ^ String.concat "-" words)))
+         ~today:"2026-11-08");
+    Buffer.contents out
+  in
+  require
+    (found [ "wallet"; "2026-11" ]
+    = "  2026-11-01  lunch  Wallet  -900 jpy  Food  +900 jpy\n1 record\n")
+    "bk-find-lists-matching-records";
+  require (found [ "acct:salary" ] = "0 records\n") "bk-find-counts-none";
+  require
+    (found [ "2026-02-30" ]
+   = "Not a period: \"2026-02-30\". Use 2026, 2026-10, 2026-10-05 or A..B.\n")
+    "bk-find-words-a-bad-period";
   (* bk help lists every command, and every listed command runs: with no answers
      it stops and writes nothing. *)
   List.iter

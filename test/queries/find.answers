@@ -1,0 +1,146 @@
+# 記録の検索（bk find）。どの語も満たす記録を、記帳順に ENTRY <ID> で答える。
+# 帳簿：a 9/30 lunch 財布→食費 900、b 10/1 ランチ 1,200、c 10/15 家賃 80,000、d 10/31 Coffee 財布→Cafe 450、
+# e 11/1 Bank→財布 1,000（メモなし）、f 11/2 lunch Bank→食費 12.50 usd。
+USE	BOOK	book.txt
+# ただの語：口座のIDか表示名、またはメモに含まれる
+FIND	food
+ENTRY	a
+ENTRY	b
+ENTRY	f
+ENDFIND
+FIND	食費
+ENTRY	a
+ENTRY	b
+ENTRY	f
+ENDFIND
+FIND	lunch
+ENTRY	a
+ENTRY	f
+ENDFIND
+# ASCIIの大文字小文字は区別しない
+FIND	LUNCH
+ENTRY	a
+ENTRY	f
+ENDFIND
+FIND	ランチ
+ENTRY	b
+ENDFIND
+# 語はすべて満たす（AND）
+FIND	food	2026-10
+ENTRY	b
+ENDFIND
+# acct: は口座だけ、memo: はメモだけを見る
+FIND	memo:food
+ENDFIND
+FIND	acct:lunch
+ENDFIND
+FIND	acct:wallet
+ENTRY	a
+ENTRY	b
+ENTRY	d
+ENTRY	e
+ENDFIND
+# 期間：年・月・日、A..B（Bを含まない、どちらかは空でもよい）、date: を付けても同じ
+FIND	2026-10
+ENTRY	b
+ENTRY	c
+ENTRY	d
+ENDFIND
+FIND	2026
+ENTRY	a
+ENTRY	b
+ENTRY	c
+ENTRY	d
+ENTRY	e
+ENTRY	f
+ENDFIND
+FIND	2026-10-31
+ENTRY	d
+ENDFIND
+FIND	2026-10..2026-11
+ENTRY	b
+ENTRY	c
+ENTRY	d
+ENDFIND
+FIND	2026-10..
+ENTRY	b
+ENTRY	c
+ENTRY	d
+ENTRY	e
+ENTRY	f
+ENDFIND
+FIND	..2026-10
+ENTRY	a
+ENDFIND
+FIND	date:2026-11
+ENTRY	e
+ENTRY	f
+ENDFIND
+# 金額：どれかの行の大きさをそのMeasureの単位で比べる（usdの12.50は1250 quanta）
+FIND	amt:1200
+ENTRY	b
+ENDFIND
+FIND	amt:>1000
+ENTRY	b
+ENTRY	c
+ENDFIND
+FIND	amt:>=1000
+ENTRY	b
+ENTRY	c
+ENTRY	e
+ENDFIND
+# 12.50 usd は 500 usd より小さい
+FIND	amt:<500
+ENTRY	d
+ENTRY	f
+ENDFIND
+# jpyでは12.50は書けないので、usdの行だけが等しい
+FIND	amt:12.50
+ENTRY	f
+ENDFIND
+FIND	wallet	amt:>1000
+ENTRY	b
+ENDFIND
+# 範囲でも書ける（終わりを含まない）。シェルで引用符が要らない
+FIND	amt:1000..
+ENTRY	b
+ENTRY	c
+ENTRY	e
+ENDFIND
+FIND	amt:..1000
+ENTRY	a
+ENTRY	d
+ENTRY	f
+ENDFIND
+FIND	amt:1000..2000
+ENTRY	b
+ENTRY	e
+ENDFIND
+# 範囲は1つの行が満たす。usdの12.50は1000..に届かない
+FIND	lunch	amt:1000..
+ENDFIND
+# 語がなければ全部
+FIND
+ENTRY	a
+ENTRY	b
+ENTRY	c
+ENTRY	d
+ENTRY	e
+ENTRY	f
+ENDFIND
+# 書けない語は推測せず拒否する
+FIND	date:2026-13
+REFUSED	bad-date:2026-13
+ENDFIND
+FIND	2026-02-30
+REFUSED	bad-date:2026-02-30
+ENDFIND
+FIND	amt:
+REFUSED	bad-amount:
+ENDFIND
+FIND	foo:bar
+REFUSED	unknown-field:foo
+ENDFIND
+FIND	memo:
+REFUSED	empty-term:memo:
+ENDFIND

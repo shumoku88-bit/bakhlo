@@ -11,6 +11,9 @@ module Record = Record
 module Schedule = Schedule
 (** Plans in series: batch amount changes and replenishment dates. *)
 
+module Query = Query
+(** Finding records with hledger-like terms. *)
+
 module Day = Day
 (** The household's days and the arithmetic over them. *)
 

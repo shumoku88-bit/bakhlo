@@ -2,6 +2,7 @@ module Book = Book
 module Amount = Amount
 module Record = Record
 module Schedule = Schedule
+module Query = Query
 module Day = Day
 module Period = Period
 module Income_expense = Income_expense

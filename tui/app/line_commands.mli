@@ -9,7 +9,12 @@ type io = { read : unit -> string option; print : string -> unit }
 
 val run :
   io ->
-  [ `Record | `Pay | `Balances | `Pace | `Plans of [ `List | `More | `Amount | `Cancel ] ] ->
+  [ `Record
+  | `Pay
+  | `Balances
+  | `Pace
+  | `Plans of [ `List | `More | `Amount | `Cancel ]
+  | `Find of string list ] ->
   Book_file.t ->
   today:string ->
   [ `Saved | `Stopped ]

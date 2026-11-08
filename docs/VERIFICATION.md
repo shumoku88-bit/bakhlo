@@ -7,6 +7,18 @@ toolchain. This file keeps the last week's entries (from 2026-11-02); entries fr
 2026-10-31 are in Git at `5b48008:docs/VERIFICATION.md`, earlier ones (including the bounded
 Solo5-SPT engine boot) at `90a5867:docs/VERIFICATION.md`.
 
+## bk find (2026-11-08)
+
+- User decision: TUI replaced by `bk` commands (AGENTS Product, `tasks/todo.md`). First
+  of the remaining commands: `bk find` lists records matching every term, hledger-style:
+  a plain word in a Locus name/ID or memo, `acct:`, `memo:`, periods (`2026`, `2026-10`,
+  `2026-10-05`, `A..B`, `date:`), amounts (`amt:1200`, ranges `amt:1000..` that need no
+  shell quoting, `>`/`<` forms). Rules in `household/query.ml`; a word shaped like a period
+  but invalid is refused, never searched for.
+- `test/queries/find.answers` pins 32 hand-written queries (first run: 0 failures after
+  the expect count; dropping one expected record failed at its line). CLI checks pin the
+  printed table, the count and a worded refusal. `./tools/check` exited 0.
+
 ## bk plans (2026-11-08)
 
 - User request: the Scheduled operations as commands. `bk plans` prints each series (to,

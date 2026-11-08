@@ -13,10 +13,15 @@ let commands =
     ([ "plans"; "more" ], `Plans `More, "fill the coming months of a series");
     ([ "plans"; "amount" ], `Plans `Amount, "change a series' amount from a day on");
     ([ "plans"; "cancel" ], `Plans `Cancel, "cancel plans of a series");
+    ( [ "find" ],
+      `Find [],
+      "records matching every term: a name or memo, 2026-10, A..B, acct:, memo:, amt:1000.." );
   ]
 
 let line_command words =
-  List.find_map (fun (w, command, _) -> if w = words then Some command else None) commands
+  match words with
+  | "find" :: terms -> Some (`Find terms)
+  | _ -> List.find_map (fun (w, command, _) -> if w = words then Some command else None) commands
 
 let help =
   let rows =

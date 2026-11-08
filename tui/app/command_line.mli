@@ -1,6 +1,11 @@
 val commands :
   (string list
-  * [ `Record | `Pay | `Balances | `Pace | `Plans of [ `List | `More | `Amount | `Cancel ] ]
+  * [ `Record
+    | `Pay
+    | `Balances
+    | `Pace
+    | `Plans of [ `List | `More | `Amount | `Cancel ]
+    | `Find of string list ]
   * string)
   list
 (** The bk commands after the book: their words, what runs and one line about it. *)

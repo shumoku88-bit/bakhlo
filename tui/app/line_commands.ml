@@ -660,6 +660,43 @@ let plans io (session : F.t) ~today action =
           | `Amount -> plans_amount io session book series ~today
           | `Cancel -> plans_cancel io session book series ~today))
 
+(* 9. `bk find`: records matching every term (Query), oldest first, each row by
+   display name, then how many there are. *)
+let query_refusal why =
+  let after prefix =
+    String.sub why (String.length prefix) (String.length why - String.length prefix)
+  in
+  match why with
+  | _ when String.starts_with ~prefix:"bad-date:" why ->
+      Printf.sprintf "Not a period: %S. Use 2026, 2026-10, 2026-10-05 or A..B." (after "bad-date:")
+  | _ when String.starts_with ~prefix:"bad-amount:" why ->
+      Printf.sprintf "Not an amount: %S. Use amt:1200, amt:>1000 or amt:<=500."
+        (after "bad-amount:")
+  | _ when String.starts_with ~prefix:"unknown-field:" why ->
+      Printf.sprintf "Unknown field %S. Use acct:, memo:, date: or amt:." (after "unknown-field:")
+  | _ when String.starts_with ~prefix:"empty-term:" why ->
+      Printf.sprintf "%S needs something after the colon." (after "empty-term:")
+  | _ -> why
+
+let entry_cells book (e : B.entry) =
+  [ Left e.day; Left (Option.value ~default:"" e.memo) ]
+  @ List.concat_map
+      (fun (p : B.posting) ->
+        [ Left (name book p.locus); Right (signed book p.measure p.amount ^ " " ^ p.measure) ])
+      e.effects
+
+let find io (session : F.t) words =
+  let book = session.book in
+  (match Bakhlo_household.Query.parse words with
+  | Error why -> say io (query_refusal why)
+  | Ok query ->
+      let found = Bakhlo_household.Query.find book query in
+      print_table io (List.map (entry_cells book) found);
+      say io
+        (Printf.sprintf "%d record%s" (List.length found)
+           (if List.length found = 1 then "" else "s")));
+  `Stopped
+
 (* 8. After a saved record or payment, another one may follow on the saved book. *)
 let rec again io (session : F.t) ~today ~saved ~question step =
   match
@@ -682,6 +719,7 @@ let run io command (session : F.t) ~today =
     | `Balances -> balances io session
     | `Pace -> pace io session ~today
     | `Plans action -> plans io session ~today action
+    | `Find words -> find io session words
   with Quit ->
     say io "Nothing was saved.";
     `Stopped

@@ -1,0 +1,33 @@
+BOOK	1
+MEASURE	jpy	0
+MEASURE	usd	2
+LOCUS	wallet	財布	
+LOCUS	food	食費	
+LOCUS	bank	Bank	
+LOCUS	rent	Rent	
+LOCUS	cafe	Cafe	
+TX	a	2026-09-30	DESC	lunch
+EFFECT	wallet	jpy	-900
+EFFECT	food	jpy	900
+ENDTX
+TX	b	2026-10-01	DESC	ランチ
+EFFECT	wallet	jpy	-1200
+EFFECT	food	jpy	1200
+ENDTX
+TX	c	2026-10-15	DESC	rent October
+EFFECT	bank	jpy	-80000
+EFFECT	rent	jpy	80000
+ENDTX
+TX	d	2026-10-31	DESC	Coffee
+EFFECT	wallet	jpy	-450
+EFFECT	cafe	jpy	450
+ENDTX
+TX	e	2026-11-01
+EFFECT	bank	jpy	-1000
+EFFECT	wallet	jpy	1000
+ENDTX
+TX	f	2026-11-02	DESC	lunch
+EFFECT	bank	usd	-1250
+EFFECT	food	usd	1250
+ENDTX
+END
