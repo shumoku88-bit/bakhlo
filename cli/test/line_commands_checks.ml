@@ -78,7 +78,8 @@ let run_all () =
     run "bk-r-first" `Record [ ""; "ramen"; "wa"; ""; "-1200"; "fo"; ""; ""; "" ]
   in
   require
-    (result = `Saved && contains out "  2  Water\nAccount [1]: Amount 1"
+    (result = `Saved
+    && contains out "  2  Water\nAccount [1]: Amount 1"
     && contains after "EFFECT\twallet\tjpy\t-1200\n")
     "bk-r-enter-takes-the-first-locus";
   let result, _, after =
@@ -504,7 +505,8 @@ let run_all () =
     "bk-todo-lists-open-matters";
   (* A matter is chosen like a plan: the start of its text narrows to it. *)
   require
-    (contains (todo `Done [ "x"; "ol"; "" ])
+    (contains
+       (todo `Done [ "x"; "ol"; "" ])
        "Which [1]: Nothing matches \"x\". Type a number or the start of a matter; Ctrl-D quits.\n\
         Which [1]: \n\
        \  Done\n\

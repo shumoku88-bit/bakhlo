@@ -16,8 +16,9 @@ human acceptance and P7/power loss apart. What changed and why is that commit's 
 - `./tools/check` passed (build, samples, bk command checks, privacy scan), with new checks
   `bk-r-enter-takes-the-first-locus`, `bk-r-letters-narrow-the-loci` and
   `bk-todo-done-narrows-by-text`. CI for `858b489` succeeded.
-- **Not executed:** ocamlformat (not installed here; lines kept within the existing
-  style), latest-data paired comparison (no Core change), physical terminal and IME.
+- `./tools/format --check` was not run before that commit (it was wrongly taken to be
+  unavailable); its formatting came in the next commit, after which the check is clean.
+- **Not executed:** latest-data paired comparison (no Core change), physical terminal and IME.
 
 ## The TUI is removed (2026-11-09)
 

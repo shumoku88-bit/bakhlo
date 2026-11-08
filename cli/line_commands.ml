@@ -121,8 +121,7 @@ let rec choose io ~what ~by ?heading ~cells ~narrow items =
             say io why;
             answer ()
         | Ok [] ->
-            say io
-              (Printf.sprintf "Nothing matches %S. Type a number or %s; Ctrl-D quits." text by);
+            say io (Printf.sprintf "Nothing matches %S. Type a number or %s; Ctrl-D quits." text by);
             answer ()
         | Ok [ item ] -> item
         | Ok narrowed -> choose io ~what ~by ?heading ~cells ~narrow narrowed)
@@ -591,9 +590,7 @@ let confirmed io ~title rows =
 let publish_changes io (session : F.t) ~title changes rows =
   if not (confirmed io ~title rows) then `Stopped
   else
-    match published io (F.publish session changes) with
-    | `Saved _ -> `Saved
-    | `Stopped -> `Stopped
+    match published io (F.publish session changes) with `Saved _ -> `Saved | `Stopped -> `Stopped
 
 (* Numbers like "1-3 5", or Enter for all. *)
 let pick_numbers answer count =
