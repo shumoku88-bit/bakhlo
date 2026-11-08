@@ -1,21 +1,7 @@
-(* Reports and the Actual's day totals as language-neutral answers.
-
-   Each sample in test/reports is a book (and, for cycles, a boundary-presets.tsv)
-   with question blocks. A block names a report and its inputs and is followed by
-   the answer; this runner prints the whole block again from Bakhlo's
-   core and compares the text. The files are the specification a rewrite must
-   pass (test/reports/README.md); this runner only proves Bakhlo agrees. *)
 module B = Bakhlo_household.Book
 
-let dir = "reports"
-let read name = In_channel.with_open_bin (Filename.concat dir name) In_channel.input_all
-let lines text = List.filter (fun l -> l <> "") (String.split_on_char '\n' text)
-let fields = String.split_on_char '\t'
 let money = Z.to_string
-
-exception Bad_sample of string
-
-let bad why = raise (Bad_sample why)
+let bad = Samples.bad
 
 (* 1. The Actual's EXPENSE total of the entries in [start, end): per Measure, the
    nonzero sums, and PARTIAL when an effect has no role. *)
@@ -235,16 +221,17 @@ let multicurrency book ~start ~stop =
    (Locus, Measure) cell. *)
 let inputs keyword body =
   List.filter_map
-    (fun l -> match fields l with [ k; v ] when k = keyword -> Some v | _ -> None)
+    (fun l -> match Samples.fields l with [ k; v ] when k = keyword -> Some v | _ -> None)
     body
 
 let cells keyword body =
   List.filter_map
-    (fun l -> match fields l with [ k; locus; m ] when k = keyword -> Some (locus, m) | _ -> None)
+    (fun l ->
+      match Samples.fields l with [ k; locus; m ] when k = keyword -> Some (locus, m) | _ -> None)
     body
 
 let answer ~presets book header body =
-  match fields header with
+  match Samples.fields header with
   | [ "EXPENSE-TOTAL"; start; stop ] -> expense_total book ~start ~stop
   | [ "INCOME-EXPENSE"; start; stop ] -> income_expense book ~start ~stop
   | [ "TRANSACTIONS-FLOW"; start; stop ] -> transactions_flow book ~start ~stop
@@ -266,46 +253,35 @@ let answer ~presets book header body =
 let question_inputs body =
   List.filter
     (fun l ->
-      match fields l with ("TRACK" | "LIABILITY" | "LOCUS" | "POOL") :: _ -> true | _ -> false)
+      match Samples.fields l with
+      | ("TRACK" | "LIABILITY" | "LOCUS" | "POOL") :: _ -> true
+      | _ -> false)
     body
 
-let kind header = List.hd (fields header)
+let blocks =
+  [
+    "EXPENSE-TOTAL";
+    "INCOME-EXPENSE";
+    "TRANSACTIONS-FLOW";
+    "STOCK-FLOW";
+    "TREND";
+    "TREND-DEFAULT";
+    "TREND-CATALOG";
+    "LIQUIDITY";
+    "MULTICURRENCY";
+  ]
 
-(* A block runs from its header to END followed by the header's first field. *)
-let blocks text =
-  let rec split acc = function
-    | [] -> if acc = [] then [] else bad "question without its END line"
-    | line :: rest when acc <> [] && line = "END" ^ kind (List.nth acc (List.length acc - 1)) ->
-        List.rev (line :: acc) :: split [] rest
-    | line :: rest -> split (line :: acc) rest
+let answer use (q : Samples.question) =
+  let path =
+    match Samples.context use "BOOK" with Some p -> p | None -> bad "USE BOOK required"
   in
-  split [] (lines text)
+  let book = match B.read (Samples.read "reports" path) with Ok b -> b | Error why -> bad why in
+  let presets = Option.map (Samples.read "reports") (Samples.context use "PRESETS") in
+  let header = Samples.row q.header in
+  (header :: question_inputs q.body) @ answer ~presets book header q.body
 
 let%expect_test "every report sample gives its listed answer" =
-  let failures = ref 0 and answers = ref 0 in
-  let fail name why =
-    incr failures;
-    Printf.printf "FAIL %s: %s\n" name why
-  in
-  List.iter
-    (fun row ->
-      match fields row with
-      | [ name; book; presets; _note ] -> (
-          try
-            let book = match B.read (read book) with Ok b -> b | Error why -> bad why in
-            let presets = if presets = "-" then None else Some (read presets) in
-            List.iter
-              (fun block ->
-                incr answers;
-                let header = List.hd block and body = List.tl block in
-                let printed =
-                  (header :: question_inputs body) @ answer ~presets book header body
-                  @ [ "END" ^ kind header ]
-                in
-                if printed <> block then fail name ("answer differs:\n" ^ String.concat "\n" printed))
-              (blocks (read (name ^ ".answers")))
-          with Bad_sample why -> fail name ("bad sample: " ^ why))
-      | _ -> fail row "bad cases row")
-    (List.tl (lines (read "cases.tsv")));
-  Printf.printf "%d report answers, %d failures\n" !answers !failures;
+  let counts = Samples.create () in
+  Samples.run counts ~dir:"reports" ~blocks ~answer;
+  Printf.printf "%d report answers, %d failures\n" counts.answers counts.failures;
   [%expect {| 102 report answers, 0 failures |}]

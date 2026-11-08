@@ -1,3 +1,6 @@
+USE	BOOK	liquidity-exact.txt
+USE	PRESETS	-
+# 流動性：負残高と負になる経路、巨大整数とscale 2、今日が期限、予定のない正確な0、非正規日付と空のマスの拒否
 LIQUIDITY	2026-10-20	2026-10-31
 POOL	negative	jpy
 CURRENT	-500

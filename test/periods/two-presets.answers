@@ -1,3 +1,5 @@
+# 2つのpresetが重なる日は、どちらかを選ばずに拒否する
+USE	PRESETS	two-presets.tsv
 CYCLE	2027-02-01	pay	2027-01-25	2027-02-25
 CYCLE	2027-02-20	REFUSED	ambiguous:2027-02-20
 CYCLE	2027-03-01	pension	2027-02-15	2027-04-15

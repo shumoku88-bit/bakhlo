@@ -6,6 +6,27 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## One sample format and reader (2026-11-08)
+
+- The six sample folders share one format (`test/README.md`): `#` notes, `USE <name> <file|->`
+  context, one-line or `END<KIND>` block questions, reprint-and-compare by
+  `test/samples.ml(i)`; runners keep only their per-kind answers. Every `cases.tsv`,
+  `.changes` and `.pace` file went (95 files): notes became `#` lines, change samples
+  became `APPLY` blocks in one `changes.answers` per folder. A script compared every
+  APPLY block with the old change lines, expected code, before-book and pace answers
+  (no difference). Counts unchanged: amounts 78, periods 73, reports 102, common
+  format 5+59, Scheduled 14/14/27, Actual changes 13/41.
+- Record: `OPEN ENTRY|PLAN` replaces EDITABLE, POSTINGS and PAY-DRAFT (10 questions);
+  MOVEMENT went. An admitted book has no empty, zero or unbalanced Movement or undeclared
+  Measure, and a form has one Measure and positive amounts, so `movement_fault`,
+  `of_effects`, `pair` and their screen messages were unreachable and were removed
+  (`Record.open_edit` / `open_plan` remain; `movement:unbalanced` is now `unbalanced`).
+  Dropped as unreachable: EDITABLE unknown-scale, POSTINGS invalid / unknown-scale and
+  five MOVEMENT faults. Record questions: 37 -> 28 (10 OPEN, 18 FORM).
+- Breaking one answer each in reports, scheduled, records changes and forms gave four
+  `FAIL <file>:<line>` lines; restored. `./tools/check` and `./tools/tui --self-check`
+  exited 0. Started by omp, which stopped on its usage limit; finished by hand.
+
 ## Record form tidy and one amount rule (2026-11-08)
 
 - User decision: the Original field reads amounts with `Amount.parse_positive`, as the

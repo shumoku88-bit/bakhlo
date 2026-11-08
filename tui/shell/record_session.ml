@@ -127,34 +127,23 @@ let rows_of_draft (draft : R.t) =
     draft.rows
 
 let of_edit ~book entry =
-  match A.edit_refusal ~book entry with
-  | Some why -> Error why
-  | None -> (
-      match R.of_effects book entry.B.effects with
-      | Error why -> Error why
-      | Ok draft ->
-          let t =
-            blank ~mode:(A.Actual (R.Edit entry)) ~focus:1 ~phase:Form ~day:entry.day
-              ~measure:draft.measure
-          in
-          Ok
-            {
-              t with
-              description = Option.value ~default:"" entry.memo;
-              rows = rows_of_draft draft;
-              original_amount = entry.original_amount;
-            })
-
-(* The postings of a still-open Scheduled occurrence. *)
-let open_plan_draft ~book plan =
-  match R.open_plan_draft ~book plan with
-  | Error "plan-already-paid" -> Error (tr "This Scheduled occurrence is already completed.")
-  | Error "plan-cancelled" -> Error (tr "This Scheduled occurrence is cancelled.")
-  | Error "invalid-plan-posting" -> Error (tr "Invalid Scheduled coordinates.")
-  | result -> result
+  match A.open_edit ~book entry with
+  | Error why -> Error why
+  | Ok draft ->
+      let t =
+        blank ~mode:(A.Actual (R.Edit entry)) ~focus:1 ~phase:Form ~day:entry.day
+          ~measure:draft.measure
+      in
+      Ok
+        {
+          t with
+          description = Option.value ~default:"" entry.memo;
+          rows = rows_of_draft draft;
+          original_amount = entry.original_amount;
+        }
 
 let of_edit_plan ~book (plan : B.plan) =
-  match open_plan_draft ~book plan with
+  match A.open_plan ~book plan with
   | Error why -> Error why
   | Ok draft ->
       let t =
@@ -163,7 +152,7 @@ let of_edit_plan ~book (plan : B.plan) =
       Ok { t with rows = rows_of_draft draft }
 
 let of_plan ?day ~book (plan : B.plan) =
-  match open_plan_draft ~book plan with
+  match A.open_plan ~book plan with
   | Error why -> Error why
   | Ok draft ->
       let day = Option.value ~default:plan.day day in

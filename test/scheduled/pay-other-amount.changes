@@ -1,5 +1,0 @@
-PUT-ENTRY	NEW	phone-2027-01
-TX	tx-0005	2027-02-01	DESC	phone bill, higher
-EFFECT	wallet	jpy	-3240
-EFFECT	phone	jpy	3240
-ENDTX

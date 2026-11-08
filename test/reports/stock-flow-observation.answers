@@ -1,3 +1,6 @@
+USE	BOOK	stock-flow-observation.txt
+USE	PRESETS	-
+# 残高と流れ：日付のない確認は今だけ正確で、窓の両端を埋めない
 STOCK-FLOW	jpy	2026-10-01	2026-11-01
 TRACK	debt	jpy
 COORD	debt	observation-undated	?	400	0	?	?	400

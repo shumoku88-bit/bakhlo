@@ -1,3 +1,6 @@
+USE	BOOK	trend-reversal.txt
+USE	PRESETS	trend-history.tsv
+# 推移：返金は独立した日の負の実績で、周期の合計では元の支出と相殺する
 TREND	2026-10-16	DAY	ALL-HISTORY
 LOCUS	a	jpy
 SCOPE	2026-10-15	2026-10-17	ALL-HISTORY

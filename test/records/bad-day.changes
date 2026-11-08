@@ -1,5 +1,0 @@
-PUT-ENTRY	NEW	-
-TX	bad	2027-02-29
-EFFECT	bank	jpy	-1
-EFFECT	food	jpy	1
-ENDTX

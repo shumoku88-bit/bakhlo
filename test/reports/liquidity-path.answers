@@ -1,3 +1,6 @@
+USE	BOOK	liquidity-path.txt
+USE	PRESETS	-
+# 流動性：複数マスの和、同日予定の相殺点、支払済・取消・別Measureや選択内で相殺する期限切れの除外、当日残高を含む最低点と期限日の包含
 LIQUIDITY	2026-10-20	2026-10-31
 POOL	wallet	jpy
 POOL	bank	jpy

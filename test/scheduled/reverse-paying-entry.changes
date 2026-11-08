@@ -1,6 +1,0 @@
-PUT-ENTRY	NEW	-
-TX	tx-0005	2027-02-02	DESC	rent refunded
-EFFECT	bank	jpy	80000
-EFFECT	rent	jpy	-80000
-REVERSAL-OF	tx-0004
-ENDTX

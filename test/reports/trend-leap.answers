@@ -1,3 +1,6 @@
+USE	BOOK	trend-leap.txt
+USE	PRESETS	trend-leap.tsv
+# 推移：閏年の2月は29日で、2月29日の翌日は3月1日。自然な窓の末日は周期と月なら完了
 TREND	2028-02-29	MONTH	ALL-HISTORY
 LOCUS	a	jpy
 SCOPE	2028-02-01	2028-03-01	ALL-HISTORY

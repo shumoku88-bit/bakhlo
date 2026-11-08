@@ -10,7 +10,8 @@ type mode = Actual of R.mode | Plan_new | Plan_edit of B.plan
 type payload = Entry_tx of R.transaction | Plan_tx of { plan : B.plan; replace : bool }
 type transaction_error = { message : string }
 
-val edit_refusal : book:B.t -> B.entry -> string option
+val open_edit : book:B.t -> B.entry -> (R.t, string) result
+val open_plan : book:B.t -> B.plan -> (R.t, string) result
 
 val build_transaction :
   new_id:(unit -> string) ->

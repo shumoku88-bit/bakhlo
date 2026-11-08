@@ -1,3 +1,6 @@
+USE	BOOK	originals.txt
+USE	PRESETS	-
+# 多通貨の元の金額：正の支出がある普通の実績だけ数え、役割のない実績・正の支出がない実績・両替は数えずに理由を出す
 MULTICURRENCY	2027-03-01	2027-04-01
 ORDINARY	jpy	800
 ORIGINAL	usd	700

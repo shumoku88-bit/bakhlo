@@ -1,3 +1,5 @@
+# 境界日が増えていなければ拒否する
+USE	PRESETS	ng-not-increasing.tsv
 CYCLE	2027-02-10	REFUSED	malformed
 WINDOW	2027-02-10	CYCLE	0	REFUSED	malformed
 WINDOW	2027-02-10	MONTH	0	2027-02-01	2027-03-01

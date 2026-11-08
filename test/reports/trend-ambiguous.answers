@@ -1,3 +1,6 @@
+USE	BOOK	base.txt
+USE	PRESETS	two-presets.tsv
+# 推移の周期が2つ重なる日：どちらも選ばず ambiguous で拒否する。重ならない日は1つのpresetの窓で答える
 TREND	2027-02-10	CYCLE	ALL-HISTORY
 LOCUS	food	jpy
 REFUSED	ambiguous:2027-02-10

@@ -1,3 +1,6 @@
+USE	BOOK	stock-flow-history.txt
+USE	PRESETS	-
+# 残高と流れ：窓より前の実績、内部振替、起点残高付きの有界履歴とそれ以前、全履歴、空の0起点
 STOCK-FLOW	jpy	2026-10-01	2026-11-01
 TRACK	a	jpy
 COORD	a	zero-origin	20	30	0	30	50	90

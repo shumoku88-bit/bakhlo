@@ -1,3 +1,6 @@
+USE	BOOK	trend-history.txt
+USE	PRESETS	empty.tsv
+# 推移：存在する空の周期ファイルは窓がないのでno-cycleで拒否する。ファイル自体がないnot-configuredとは分ける
 TREND	2026-10-16	DAY	ALL-HISTORY
 LOCUS	a	jpy
 REFUSED	no-cycle:2026-10-16

@@ -1,142 +1,62 @@
-MOVEMENT	empty
-ENDINPUT
-FAULT	empty
-ENDMOVEMENT
-MOVEMENT	zero-row
-EFFECT	bank	jpy	-5
-EFFECT	food	jpy	0
-ENDINPUT
-FAULT	zero:2
-ENDMOVEMENT
-MOVEMENT	zero-before-measure
-EFFECT	bank	jpy	-5
-EFFECT	food	usd	0
-ENDINPUT
-FAULT	zero:2
-ENDMOVEMENT
-MOVEMENT	measure-row
-EFFECT	bank	jpy	-5
-EFFECT	food	usd	5
-ENDINPUT
-FAULT	measure-differs:2:jpy:usd
-ENDMOVEMENT
-MOVEMENT	unbalanced
-EFFECT	bank	jpy	-5
-EFFECT	food	jpy	4
-ENDINPUT
-FAULT	unbalanced
-ENDMOVEMENT
-MOVEMENT	balanced-split
-EFFECT	bank	jpy	-5
-EFFECT	food	jpy	2
-EFFECT	food	jpy	3
-ENDINPUT
-OK
-ENDMOVEMENT
-EDITABLE	pair	base.txt
-TX	seed	2027-01-10	DESC	meal
-EFFECT	bank	jpy	-100	b
-EFFECT	food	jpy	100	f
-ENDTX
-ENDINPUT
-OK
-ENDEDITABLE
-EDITABLE	multiple	base.txt
-TX	split	2027-01-12	DESC	shared meal
-EFFECT	bank	jpy	-75
-EFFECT	food	jpy	30
-EFFECT	food	jpy	45
-ORIGINAL	usd	50
-MERCHANT	sample-cafe
-ENDTX
-ENDINPUT
-OK
-ENDEDITABLE
-EDITABLE	exchange	new-exchange.after.txt
-TX	fx	2027-01-12
-EFFECT	bank	jpy	-160	s
-EFFECT	fee	jpy	10
-EFFECT	bank	usd	100	d
-EXCHANGE	s	d
-ENDTX
-ENDINPUT
-REFUSED	linked-entry
-ENDEDITABLE
-EDITABLE	refunded-target	refund-paid.after.txt
-TX	seed	2027-01-10	DESC	meal
-EFFECT	bank	jpy	-100	b
-EFFECT	food	jpy	100	f
-ENDTX
-ENDINPUT
-REFUSED	linked-entry
-ENDEDITABLE
-EDITABLE	refund	refund-paid.after.txt
-TX	refund	2027-01-12
-EFFECT	bank	jpy	100
-EFFECT	food	jpy	-100
-REVERSAL-OF	seed
-ENDTX
-ENDINPUT
-REFUSED	linked-entry
-ENDEDITABLE
-EDITABLE	mixed	base.txt
-TX	probe	2027-01-12
-EFFECT	bank	jpy	-1
-EFFECT	food	usd	1
-ENDTX
-ENDINPUT
-REFUSED	single-measure-movement-required
-ENDEDITABLE
-EDITABLE	unknown-scale	base.txt
-TX	probe	2027-01-12
-EFFECT	bank	eur	-5
-EFFECT	food	eur	2
-EFFECT	food	eur	3
-ENDTX
-ENDINPUT
-REFUSED	measure-scale-not-supplied
-ENDEDITABLE
-POSTINGS	exact-rows	base.txt
-TX	probe	2027-01-12
-EFFECT	bank	usd	-123	b
-EFFECT	food	usd	23	f1
-EFFECT	food	usd	100	f2
-ENDTX
-ENDINPUT
+# 訂正で実績を開く・支払いや編集で予定を開くときのフォーム。
+# 帳簿のEffectがそのまま行になり、順序・鍵・符号・Measureの小数桁を保つ。
+USE	BOOK	open.txt
+# 普通の2行の実績
+OPEN	ENTRY	seed
+MEASURE	jpy
+ROW	b	bank	-100
+ROW	f	food	100
+ENDOPEN
+# 同じLocusの複数行。scale 2では1.00のように小数桁をそろえて出す
+OPEN	ENTRY	usd-split
 MEASURE	usd
 ROW	b	bank	-1.23
 ROW	f1	food	0.23
 ROW	f2	food	1.00
-ENDPOSTINGS
-POSTINGS	invalid	base.txt
-TX	probe	2027-01-12
-ENDTX
-ENDINPUT
-REFUSED	single-measure-movement-required
-ENDPOSTINGS
-POSTINGS	unknown-scale	base.txt
-TX	probe	2027-01-12
-EFFECT	bank	eur	-1
-EFFECT	food	eur	1
-ENDTX
-ENDINPUT
-REFUSED	measure-scale-not-supplied
-ENDPOSTINGS
-PAY-DRAFT	open	base.txt	open
-ENDINPUT
+ENDOPEN
+# まだの予定は鍵のない行で開く
+OPEN	PLAN	open
 MEASURE	jpy
 ROW	-	bank	-300
 ROW	-	food	300
-ENDPAY-DRAFT
-PAY-DRAFT	paid	base.txt	paid
-ENDINPUT
+ENDOPEN
+# 払い済み・取消済みの予定は開かない
+OPEN	PLAN	paid
 REFUSED	plan-already-paid
-ENDPAY-DRAFT
-PAY-DRAFT	cancelled	base.txt	cancelled
-ENDINPUT
+ENDOPEN
+OPEN	PLAN	cancelled
 REFUSED	plan-cancelled
-ENDPAY-DRAFT
-FORM	new-expression	base.txt	NEW	-	fresh
+ENDOPEN
+USE	BOOK	new-split.after.txt
+# 原額と店のある実績も、Effectだけを行にして開く
+OPEN	ENTRY	split
+MEASURE	jpy
+ROW	-	bank	-75
+ROW	-	food	30
+ROW	-	food	45
+ENDOPEN
+USE	BOOK	multi-measure.after.txt
+# 2つのMeasureにまたがる実績は1つのMeasureのフォームにならない
+OPEN	ENTRY	multi
+REFUSED	single-measure-movement-required
+ENDOPEN
+USE	BOOK	new-exchange.after.txt
+# 両替は訂正で開かない
+OPEN	ENTRY	fx
+REFUSED	linked-entry
+ENDOPEN
+USE	BOOK	refund-paid.after.txt
+# 返金した実績とその返金も開かない
+OPEN	ENTRY	seed
+REFUSED	linked-entry
+ENDOPEN
+OPEN	ENTRY	refund
+REFUSED	linked-entry
+ENDOPEN
+# Recordフォームの入力から実績を作る。日付→行の解析→原額のMeasure→釣合い→Bookの順に見る。
+USE	BOOK	base.txt
+# new-expression
+FORM	NEW	-	fresh
 DAY	２０２７／１／１２
 MEMO	calculated meal
 MEASURE	jpy
@@ -153,7 +73,8 @@ EFFECT	food	jpy	300
 ORIGINAL	usd	50
 ENDTX
 ENDFORM
-FORM	edit-key	base.txt	EDIT	seed	unused
+# edit-key
+FORM	EDIT	seed	unused
 DAY	2027.1.8
 MEMO	changed locus
 MEASURE	jpy
@@ -166,7 +87,9 @@ EFFECT	fee	jpy	-120
 EFFECT	food	jpy	120	f
 ENDTX
 ENDFORM
-FORM	edit-original	new-split.after.txt	EDIT	split	unused
+USE	BOOK	new-split.after.txt
+# edit-original
+FORM	EDIT	split	unused
 DAY	2027-01-13
 MEMO	
 MEASURE	jpy
@@ -184,7 +107,9 @@ ORIGINAL	usd	50
 MERCHANT	sample-cafe
 ENDTX
 ENDFORM
-FORM	edit-kept-keys	base.txt	EDIT	seed	unused
+USE	BOOK	base.txt
+# edit-kept-keys
+FORM	EDIT	seed	unused
 DAY	2027-01-10
 MEMO	meal
 MEASURE	jpy
@@ -197,7 +122,8 @@ EFFECT	bank	jpy	-100	b
 EFFECT	food	jpy	100	f
 ENDTX
 ENDFORM
-FORM	pay-other-amount	base.txt	PAY	open	paid-now
+# pay-other-amount
+FORM	PAY	open	paid-now
 DAY	2027-01-12
 MEMO	early payment
 MEASURE	jpy
@@ -210,28 +136,32 @@ EFFECT	bank	jpy	-250
 EFFECT	food	jpy	250
 ENDTX
 ENDFORM
-FORM	bad-day-first	base.txt	NEW	-	fresh
+# bad-day-first
+FORM	NEW	-	fresh
 DAY	not-a-day
 MEMO	
 MEASURE	jpy
 ENDINPUT
 REFUSED	day-format
 ENDFORM
-FORM	impossible-day	base.txt	NEW	-	fresh
+# impossible-day
+FORM	NEW	-	fresh
 DAY	2027-02-29
 MEMO	
 MEASURE	jpy
 ENDINPUT
 REFUSED	day-format
 ENDFORM
-FORM	empty	base.txt	NEW	-	fresh
+# empty
+FORM	NEW	-	fresh
 DAY	2027-01-12
 MEMO	
 MEASURE	jpy
 ENDINPUT
 REFUSED	postings:posting-required
 ENDFORM
-FORM	zero	base.txt	NEW	-	fresh
+# zero
+FORM	NEW	-	fresh
 DAY	2027-01-12
 MEMO	
 MEASURE	jpy
@@ -240,7 +170,8 @@ ROW	-	food	0
 ENDINPUT
 REFUSED	postings:row-2: non-positive-amount
 ENDFORM
-FORM	precision	base.txt	NEW	-	fresh
+# precision
+FORM	NEW	-	fresh
 DAY	2027-01-12
 MEMO	
 MEASURE	usd
@@ -249,7 +180,8 @@ ROW	-	food	1
 ENDINPUT
 REFUSED	postings:row-1: amount-precision
 ENDFORM
-FORM	parse-before-locus	base.txt	NEW	-	fresh
+# parse-before-locus
+FORM	NEW	-	fresh
 DAY	2027-01-12
 MEMO	
 MEASURE	jpy
@@ -258,7 +190,8 @@ ROW	-	food	1/0
 ENDINPUT
 REFUSED	postings:row-2: division-by-zero
 ENDFORM
-FORM	empty-locus	base.txt	NEW	-	fresh
+# empty-locus
+FORM	NEW	-	fresh
 DAY	2027-01-12
 MEMO	
 MEASURE	jpy
@@ -267,7 +200,8 @@ ROW	-		5
 ENDINPUT
 REFUSED	postings:row-2: empty-locus
 ENDFORM
-FORM	empty-measure	base.txt	NEW	-	fresh
+# empty-measure
+FORM	NEW	-	fresh
 DAY	2027-01-12
 MEMO	
 MEASURE	
@@ -276,7 +210,8 @@ ROW	-	food	5
 ENDINPUT
 REFUSED	postings:row-1: unknown-measure
 ENDFORM
-FORM	original-before-balance	base.txt	NEW	-	fresh
+# original-before-balance
+FORM	NEW	-	fresh
 DAY	2027-01-12
 MEMO	
 MEASURE	jpy
@@ -286,16 +221,18 @@ ORIGINAL	eur	10
 ENDINPUT
 REFUSED	original-measure
 ENDFORM
-FORM	unbalanced	base.txt	NEW	-	fresh
+# unbalanced
+FORM	NEW	-	fresh
 DAY	2027-01-12
 MEMO	
 MEASURE	jpy
 ROW	-	bank	-5
 ROW	-	food	4
 ENDINPUT
-REFUSED	movement:unbalanced
+REFUSED	unbalanced
 ENDFORM
-FORM	duplicate	base.txt	NEW	-	seed
+# duplicate
+FORM	NEW	-	seed
 DAY	2027-01-12
 MEMO	
 MEASURE	jpy
@@ -304,7 +241,8 @@ ROW	-	food	5
 ENDINPUT
 REFUSED	admission:duplicate-entry
 ENDFORM
-FORM	paid	base.txt	PAY	paid	fresh
+# paid
+FORM	PAY	paid	fresh
 DAY	2027-01-12
 MEMO	
 MEASURE	jpy
@@ -313,7 +251,8 @@ ROW	-	food	5
 ENDINPUT
 REFUSED	admission:plan-already-paid
 ENDFORM
-FORM	unoffered	base.txt	NEW	-	fresh
+# unoffered
+FORM	NEW	-	fresh
 DAY	2027-01-12
 MEMO	
 MEASURE	jpy

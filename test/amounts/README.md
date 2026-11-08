@@ -3,7 +3,7 @@
 文字から厳密な最小単位の整数への変換と、その整数の小数表示を、言語に依存しない問いと答えで書く。
 すべて合成。答えは手書きで、Bakhloでの確認は `test/amounts_tests.ml`。
 
-`input.answers` の1行が1つの問いと答え（タブ区切り）：
+`input.answers` の問いはすべて1行（書き方は `test/README.md`）：
 
 ```
 POSITIVE	0	(500+300)/2	400

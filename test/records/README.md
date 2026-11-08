@@ -6,10 +6,8 @@ Actualの追加・訂正・日付訂正・返金・店の分類と、Recordフ�
 
 ## 帳簿の変更
 
-`cases.tsv` は `test/scheduled/` と同じ4列（見本名、変更前の帳簿、`ok`か拒否コード、説明）。
-`<名前>.changes` の変更をまとめて適用する。成功なら `<名前>.after.txt` の全bytesと一致し、
-1つでも拒否なら何も変えない。共通runnerは `test/scheduled_tests.ml`。Scheduled側の28件も
-同じrunnerで確認する。HIDDENの訂正・返金と予定の支払いの他の境界はそちらの見本も契約。
+`changes.answers` は `test/scheduled/` と同じ `APPLY` のブロックで、同じ確認
+（`test/scheduled_tests.ml`）で通す。HIDDENの訂正・返金と予定の支払いの他の境界はそちらの見本も契約。
 
 変更は `PUT-ENTRY NEW|REPLACE <予定ID|->` とTXブロック、
 `CORRECT-ENTRY-DATE <実績ID> <日付>`、および次の行（実ファイルはtab区切り）：
@@ -38,29 +36,24 @@ CLASSIFY-MERCHANTの店名欄だけは `\t`・`\r`・`\n`・`\\` をdecodeし、
 
 ## Recordの問い
 
-`forms.answers` の1ブロックが1つの問い。先頭は種類・見本名・帳簿などの入力、
-`ENDINPUT` までが入力、次が答え、最後が `END<種類>`。全ブロックの文字が一致すれば正しい。
+`forms.answers` の問いはすべてブロック（書き方は `test/README.md`）。`USE	BOOK` の帳簿で答える。
 実装は `household/record.ml`、確認は `test/records_tests.ml`。
 
-- `MOVEMENT <名前>`：EFFECTの列。答えは `OK` か `FAULT <コード>`。
-  `empty`、`zero:<1始まりの行>`、`measure-differs:<行>:<初めのMeasure>:<違うMeasure>`、
-  `unbalanced`。各行ではzeroをMeasure違いより先に、行の問題を合計より先に見る。
-- `EDITABLE <名前> <帳簿>`：TXブロック。`OK` または `REFUSED <コード>`。
-  `linked-entry`（両替、返金、その元）、`single-measure-movement-required`、
-  `measure-scale-not-supplied`。通常の2行はpairとして先に認める。
-- `POSTINGS <名前> <帳簿>`：TXのeffectsをフォームに戻す。
-  答えは `MEASURE` と `ROW <鍵|-> <Locus> <符号付きdecimal>`、またはREFUSED。
-- `PAY-DRAFT <名前> <帳簿> <予定ID>`：まだの予定を同じROWの形へ。
-  払い済み・取消済み・不正座標・単一MeasureのMovementでない・scaleなしは拒否。
-- `FORM <名前> <帳簿> NEW|EDIT|PAY <対象ID|-> <新ID>`：DAY、MEMO、MEASURE、
-  `ROW <鍵|-> <Locus> <符号付き入力>` と任意の `ORIGINAL <Measure> <quanta>`。
-  先頭のASCII +/-を方向として読み、残りを正の金額の式として読む。EditはLocusを変えた行だけ
-  鍵を落とす。答えは `RESULT NEW|REPLACE <予定ID|->` とTX、または `REFUSED <コード>`。
+- `OPEN	ENTRY	<実績ID>` / `OPEN	PLAN	<予定ID>`：訂正で実績を、支払いや編集で予定を開いたときの
+  フォーム。答えは `MEASURE	<Measure>` と、Effectの順に `ROW	<鍵|->	<Locus>	<符号付きdecimal>`
+  （Measureの小数桁で書く）、または `REFUSED	<コード>`。読み込んだ帳簿には空・0・不釣合いの
+  動きや宣言のないMeasureがないので、拒否は実績なら `linked-entry`（両替、返金、返金された元）と
+  `single-measure-movement-required`（2つのMeasure）、予定なら `plan-already-paid` と `plan-cancelled`。
+- `FORM	NEW|EDIT|PAY	<対象ID|->	<新ID>`：DAY、MEMO、MEASURE、
+  `ROW	<鍵|->	<Locus>	<符号付き入力>` と任意の `ORIGINAL	<Measure>	<quanta>` を `ENDINPUT` まで並べ、
+  その後に答え。先頭のASCII +/-を方向として読み、残りを正の金額の式として読む
+  （`test/amounts/` のPOSITIVE）。EditはLocusを変えた行だけ鍵を落とす。答えは
+  `RESULT	NEW|REPLACE	<予定ID|->` とTX、または `REFUSED	<コード>`。
   Editは新IDを使わず、元のORIGINAL・Merchantを保持する。Payは新しい実績で予定を閉じる。
-  日付→行の解析→原額のMeasure→釣合い→Bookの順で検査する。拒否は
-  `day-format`、`postings:<行のコード>`、`original-measure`、`movement:<fault>`、
-  `admission:<Bookのコード>`。Day.normalizeは実在する日だけを返すので、日付の拒否は `day-format` の1つ。
+  日付→行の解析→原額のMeasure→釣合い→Bookの順で見る。拒否は `day-format`、
+  `postings:<行のコード>`、`original-measure`、`unbalanced`、`admission:<Bookのコード>`。
+  フォームは1つのMeasureで、金額は正なので、行が0やMeasure違いになることはない。
 
 画面に残るもの：Payで予定日と今日のどちらを初期日として渡すか、最大6行、行の追加・削除、
-補完操作、Ctrl-Uのsuspense補助、Original欄の操作（金額はRecordの行と同じく `test/amounts/` のPOSITIVEで読む）、フォーカス・caret・paste・Preview/Publish・
-通知文・draft保持・非保存。これらはフォームの操作で、今回のコア抽出の対象ではない。
+補完操作、Ctrl-Uのsuspense補助、Original欄の操作（金額はRecordの行と同じく `test/amounts/` の
+POSITIVEで読む）、フォーカス・caret・paste・Preview/Publish・通知文・draft保持・非保存。

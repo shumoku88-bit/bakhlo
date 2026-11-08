@@ -1,5 +1,0 @@
-PUT-ENTRY	NEW	phone-2027-09
-TX	tx-0005	2027-02-01	DESC	phone bill
-EFFECT	bank	jpy	-3000
-EFFECT	phone	jpy	3000
-ENDTX

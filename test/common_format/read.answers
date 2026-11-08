@@ -1,0 +1,128 @@
+# すべての種類の行を含む
+READ	ok-full.txt	OK
+# 何もない帳簿
+READ	ok-empty.txt	OK
+# ANCHORより後の記帳だけを足す（ALSOなし）
+READ	ok-anchor-delta.txt	OK
+# 記帳が1件もないうちに数えた（ANCHOR -）。ALSOのt2だけは含まれている
+READ	ok-anchor-start.txt	OK
+# 両替の取り消しは合計が0にならない
+READ	ok-exchange-reversal.txt	OK
+# メモにUTF-8でないバイト
+READ	ng-not-utf8.txt	REFUSED	not-utf8	7
+# 8行目が\r\nで終わる
+READ	ng-crlf.txt	REFUSED	crlf	8
+# 最後のENDの後に改行がない
+READ	ng-no-final-newline.txt	REFUSED	no-final-newline	11
+# 版が2
+READ	ng-bad-header.txt	REFUSED	bad-header	1
+# ENDがない
+READ	ng-missing-end.txt	REFUSED	missing-end	10
+# ENDの後に行がある
+READ	ng-after-end.txt	REFUSED	after-end	12
+# 空行
+READ	ng-blank-line.txt	REFUSED	blank-line	7
+# 知らない種類の行
+READ	ng-unknown-line-kind.txt	REFUSED	unknown-line	7
+# EFFECTの欄が足りない
+READ	ng-unknown-line-fields.txt	REFUSED	unknown-line	8
+# TXの外のEFFECT
+READ	ng-unknown-line-outside.txt	REFUSED	unknown-line	11
+# MEASUREがLOCUSより後
+READ	ng-section-order.txt	REFUSED	section-order	3
+# TXの中でNONMERCHANTの後にEFFECT
+READ	ng-section-order-tx.txt	REFUSED	section-order	10
+# ENDTXがない
+READ	ng-unclosed-block.txt	REFUSED	unclosed-block	7
+# IDに空白
+READ	ng-bad-token.txt	REFUSED	bad-token	7
+# TXのIDが-
+READ	ng-bad-token-dash.txt	REFUSED	bad-token	7
+# \xというエスケープ
+READ	ng-bad-escape.txt	REFUSED	bad-escape	7
+# DESCの後が空
+READ	ng-empty-text.txt	REFUSED	empty-text	7
+# 2月30日
+READ	ng-bad-date.txt	REFUSED	bad-date	7
+# 先頭に余分な0
+READ	ng-bad-integer.txt	REFUSED	bad-integer	8
+# jpyが2回
+READ	ng-duplicate-measure.txt	REFUSED	duplicate-measure	3
+# foodが2回
+READ	ng-duplicate-locus.txt	REFUSED	duplicate-locus	5
+# foodのROLEが2回
+READ	ng-duplicate-role.txt	REFUSED	duplicate-role	7
+# tx-0001が2回
+READ	ng-duplicate-tx.txt	REFUSED	duplicate-tx	11
+# plan-1が2回
+READ	ng-duplicate-plan.txt	REFUSED	duplicate-plan	15
+# attention-1が2回
+READ	ng-duplicate-item.txt	REFUSED	duplicate-item	12
+# 宣言していないusd
+READ	ng-unknown-measure.txt	REFUSED	unknown-measure	8
+# LOCUSにないbread
+READ	ng-unknown-locus.txt	REFUSED	unknown-locus	8
+# PAID-BYが存在しない記帳
+READ	ng-unknown-tx-paid-by.txt	REFUSED	unknown-tx	14
+# ANCHORが存在しない記帳
+READ	ng-unknown-tx-anchor.txt	REFUSED	unknown-tx	11
+# 存在しないITEMを閉じる
+READ	ng-unknown-item.txt	REFUSED	unknown-item	11
+# COSTは役割でない
+READ	ng-bad-role.txt	REFUSED	bad-role	6
+# suspenseに役割
+READ	ng-suspense-role.txt	REFUSED	suspense-role	8
+# 桁数がマイナス
+READ	ng-bad-scale.txt	REFUSED	bad-scale	2
+# 桁数が10
+READ	ng-bad-scale-large.txt	REFUSED	bad-scale	2
+# HIDDENでない5つ目の欄
+READ	ng-bad-hidden.txt	REFUSED	bad-hidden	4
+# 同じ記帳で鍵kが2回
+READ	ng-duplicate-key.txt	REFUSED	duplicate-key	9
+# EFFECTの金額が0
+READ	ng-zero-amount-tx.txt	REFUSED	zero-amount	8
+# EFFECTのないTX
+READ	ng-no-effect-tx.txt	REFUSED	no-effect	7
+# 合計が10
+READ	ng-unbalanced-tx.txt	REFUSED	unbalanced	7
+# 両替の元の合計がプラス
+READ	ng-bad-exchange.txt	REFUSED	bad-exchange	16
+# 半額だけの取り消し
+READ	ng-reversal-not-inverse.txt	REFUSED	reversal-not-inverse	14
+# tx-0001を2回取り消す
+READ	ng-reversal-reused.txt	REFUSED	reversal-reused	19
+# ORIGINALの金額が負
+READ	ng-bad-original.txt	REFUSED	bad-original	10
+# CHANGEの金額が0
+READ	ng-zero-amount-plan.txt	REFUSED	zero-amount	12
+# CHANGEのないPLAN
+READ	ng-no-effect-plan.txt	REFUSED	no-effect	11
+# CHANGEの合計が-10
+READ	ng-unbalanced-plan.txt	REFUSED	unbalanced	11
+# tx-0001が2つの予定を支払う
+READ	ng-paid-by-reused.txt	REFUSED	paid-by-reused	19
+# PAID-BYとCANCELLEDの両方
+READ	ng-section-order-plan.txt	REFUSED	section-order	15
+# tx-0001にbankのEFFECTがない
+READ	ng-opening-missing-coordinate.txt	REFUSED	opening-missing-coordinate	12
+# ZERO-ORIGINとASSERTが同じ組
+READ	ng-support-overlap.txt	REFUSED	support-overlap	13
+# 同じZERO-ORIGINが2回
+READ	ng-duplicate-support.txt	REFUSED	duplicate-support	12
+# ASSERTのないHISTORY-FROM
+READ	ng-history-unanchored.txt	REFUSED	history-unanchored	11
+# ASSERTのないANCHOR
+READ	ng-empty-anchor.txt	REFUSED	empty-anchor	11
+# 指す記帳のすぐ次をALSO
+READ	ng-also-redundant-next.txt	REFUSED	also-redundant	16
+# 指す記帳そのものをALSO
+READ	ng-also-redundant.txt	REFUSED	also-redundant	12
+# 同じALSOが2回
+READ	ng-duplicate-also.txt	REFUSED	duplicate-also	21
+# DUE_ONなのに日付がない
+READ	ng-bad-due.txt	REFUSED	bad-due	11
+# 閉じ方がDONE
+READ	ng-bad-close.txt	REFUSED	bad-close	12
+# 同じITEMを2回閉じる
+READ	ng-duplicate-close.txt	REFUSED	duplicate-close	13

@@ -1,3 +1,6 @@
+USE	BOOK	trend-history.txt
+USE	PRESETS	trend-thirty.tsv
+# 推移：直近30日は観察日を含む30暦日、今月は暦の1日から
 TREND	2026-10-31	DAY	LAST-30-DAYS
 LOCUS	a	jpy
 SCOPE	2026-10-02	2026-11-01	LAST-30-DAYS

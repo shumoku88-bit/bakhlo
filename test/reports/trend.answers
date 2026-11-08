@@ -1,3 +1,6 @@
+USE	BOOK	base.txt
+USE	PRESETS	presets.tsv
+# 推移：科目ごとの記帳の合計を周期・月・日に分ける。周期と月は日数で割って切り捨て、自然な窓全体ならCOMPLETE、切られた窓と観察日の日単位の点はPARTIAL
 TREND	2027-02-10	CYCLE	ALL-HISTORY
 LOCUS	food	jpy
 LOCUS	rent	jpy

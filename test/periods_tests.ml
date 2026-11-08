@@ -1,19 +1,6 @@
-(* Periods as language-neutral answers.
-
-   Each sample in test/periods is a boundary-presets.tsv (or none) and a list of
-   questions, one per line, each followed on the same line by its answer. The
-   files are the specification a rewrite must pass (test/periods/README.md); this
-   runner only proves Bakhlo's Period agrees. *)
 module P = Bakhlo_household.Period
 
-let dir = "periods"
-let read name = In_channel.with_open_bin (Filename.concat dir name) In_channel.input_all
-let lines text = List.filter (fun l -> l <> "") (String.split_on_char '\n' text)
-let fields = String.split_on_char '\t'
-
-exception Bad_sample of string
-
-let bad why = raise (Bad_sample why)
+let bad = Samples.bad
 
 let span = function
   | "DAY" -> P.Day
@@ -36,9 +23,11 @@ let range name =
       | _ -> bad ("range " ^ name))
 
 (* The answer to one question, printed as the line that should hold it. *)
-let answer config line =
+let answer_line use (q : Samples.question) =
+  let config = Option.map (Samples.read "periods") (Samples.context use "PRESETS") in
+  let line = Samples.row q.header in
   let pair = function Ok (a, b) -> a ^ "\t" ^ b | Error why -> "REFUSED\t" ^ P.code why in
-  match fields line with
+  match q.header with
   | "CYCLE" :: day :: _ ->
       String.concat "\t"
         [
@@ -66,26 +55,10 @@ let answer config line =
       String.concat "\t" [ "SAME-AGE"; start; stop; string_of_int days; first; last ]
   | _ -> bad ("question " ^ line)
 
+let answer use q = [ answer_line use q ]
+
 let%expect_test "every period sample gives its listed answer" =
-  let failures = ref 0 and answers = ref 0 in
-  let fail name why =
-    incr failures;
-    Printf.printf "FAIL %s: %s\n" name why
-  in
-  List.iter
-    (fun row ->
-      match fields row with
-      | [ name; presets; _note ] -> (
-          try
-            let config = if presets = "-" then None else Some (read presets) in
-            List.iter
-              (fun line ->
-                incr answers;
-                let got = answer config line in
-                if got <> line then fail name ("want " ^ line ^ "\n  got  " ^ got))
-              (lines (read (name ^ ".answers")))
-          with Bad_sample why -> fail name ("bad sample: " ^ why))
-      | _ -> fail row "bad cases row")
-    (List.tl (lines (read "cases.tsv")));
-  Printf.printf "%d answers, %d failures\n" !answers !failures;
+  let counts = Samples.create () in
+  Samples.run counts ~dir:"periods" ~blocks:[] ~answer;
+  Printf.printf "%d answers, %d failures\n" counts.answers counts.failures;
   [%expect {| 73 answers, 0 failures |}]

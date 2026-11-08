@@ -8,6 +8,11 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
 
 ## Where things stand (2026-11-08)
 
+- 2026-11-08: all six sample folders share one answer-file format and one reader
+  (`test/README.md`, `test/samples.ml`); no `cases.tsv` or per-sample change files remain.
+  Record questions are `OPEN` and `FORM`.
+  [Evidence](VERIFICATION.md#one-sample-format-and-reader-2026-11-08).
+
 - 2026-11-08: Actual's language-neutral samples now cover 54 Book changes,
   78 typed amount answers and 56 Record questions. Pure form rules moved to
   `household/record.ml`; screen wording and save bytes stay unchanged. One runner

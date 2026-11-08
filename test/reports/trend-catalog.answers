@@ -1,3 +1,6 @@
+USE	BOOK	trend-catalog.txt
+USE	PRESETS	-
+# 推移の候補：使用可能な科目と指定Measureで記帳済の科目の和集合を科目順に並べ、他のMeasureを混ぜない
 TREND-CATALOG	jpy
 CATALOG	a	jpy
 CATALOG	b	jpy

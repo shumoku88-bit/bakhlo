@@ -374,13 +374,14 @@ CLOSE	attention-1	2027-02-20	RESOLVED
 `test/common_format/` に置く。中身はすべて合成。
 
 - `ok-*.txt`：受け入れるファイル。読んで書き直すと、バイト単位で同じにならなければいけない。
-  同じ名前の `.answers` に、今の残高の期待値を書く（`BALANCE	<科目>	<Measure>	<金額>` か
-  `BALANCE	<科目>	<Measure>	UNKNOWN`）。
+  同じ名前の `.answers` に、`USE	BOOK	<ファイル>` に続けて今の残高の期待値を書く
+  （`BALANCE	<科目>	<Measure>	<金額>` か `BALANCE	<科目>	<Measure>	UNKNOWN`）。
 - `ng-*.txt`：拒否するファイル。1つのファイルは決まりを**ちょうど1つだけ**破る。
-- `cases.tsv`：見本ごとの期待（`ok`、または拒否の理由のコードと行番号）。
+- `read.answers`：ファイルごとの期待（`READ	<ファイル>	OK`、または
+  `READ	<ファイル>	REFUSED	<コード>	<行番号>`）。答えのファイルの書き方は `test/README.md`。
 
 予定の作成・置換・取消・実績での支払いと今日の目安の見本は `test/scheduled/`
-（書き方はそこの `README.md`）。変更前の帳簿・変更・変更後の帳簿または拒否の理由を組にする。
+（書き方はそこの `README.md`）。変更前の帳簿・変更・変更後の帳簿または拒否の理由を1つの問いにする。
 報告（収支・活動・残高と流れ・推移・流動性・多通貨）とActualの日・期間のEXPENSE合計の見本は
 `test/reports/`（同じ帳簿への問いと答え）。
 

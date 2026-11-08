@@ -1,8 +1,0 @@
-PUT-ENTRY	NEW	-
-TX	split	2027-01-12	DESC	shared meal
-EFFECT	bank	jpy	-75
-EFFECT	food	jpy	30
-EFFECT	food	jpy	45
-ORIGINAL	usd	50
-MERCHANT	sample-cafe
-ENDTX

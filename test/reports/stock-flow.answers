@@ -1,3 +1,6 @@
+USE	BOOK	base.txt
+USE	PRESETS	-
+# 残高と流れ：始まりと終わりの残高を根拠ごとに組み立てる。開始の記帳は流れに数えず、その日に始まる窓の始まりは不明。根拠のない科目は表から外して名前を出す
 STOCK-FLOW	jpy	2027-01-01	2027-02-01
 TRACK	bank	jpy
 TRACK	wallet	jpy

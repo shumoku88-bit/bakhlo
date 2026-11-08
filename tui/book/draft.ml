@@ -13,16 +13,22 @@ type mode = Actual of R.mode | Plan_new | Plan_edit of B.plan
 type payload = Entry_tx of R.transaction | Plan_tx of { plan : B.plan; replace : bool }
 type transaction_error = { message : string }
 
-let edit_refusal ~book entry =
-  Option.map
+let open_edit ~book entry =
+  Result.map_error
     (function
       | "linked-entry" -> tr "Entries with Exchange or Reversal links cannot be edited here."
       | "single-measure-movement-required" ->
           tr "Only ordinary single-Measure Movements can be edited here."
-      | "measure-scale-not-supplied" ->
-          tr "The Measure scale is not supplied; editing is unavailable."
       | why -> format_message "Multi-posting edit refused (%s)" why)
-    (R.edit_refusal ~book entry)
+    (R.open_edit ~book entry)
+
+let open_plan ~book plan =
+  Result.map_error
+    (function
+      | "plan-already-paid" -> tr "This Scheduled occurrence is already completed."
+      | "plan-cancelled" -> tr "This Scheduled occurrence is cancelled."
+      | why -> why)
+    (R.open_plan ~book plan)
 
 let posting_message why =
   let has fragment = Base.String.is_substring why ~substring:fragment in
@@ -40,14 +46,7 @@ let posting_message why =
 let message ~plan = function
   | R.Day_format -> tr "Enter a valid Gregorian date (YYYY-MM-DD, YYYY/MM/DD or YYYY.MM.DD)."
   | R.Postings why -> posting_message why
-  | R.Movement R.Empty -> tr "At least one posting is required."
-  | R.Movement (R.Zero position) ->
-      format_message "Posting %d is zero. Enter a nonzero amount." position
-  | R.Movement (R.Measure_differs { position; expected; actual }) ->
-      format_message "Posting %d Measure (%s) differs from the other postings (%s)." position actual
-        expected
-  | R.Movement R.Unbalanced ->
-      tr "The signed postings are unbalanced; their exact sum must be zero."
+  | R.Unbalanced -> tr "The signed postings are unbalanced; their exact sum must be zero."
   | R.Original_measure -> tr "The Measure scale is not supplied in this book."
   | R.Admission { reason; id } -> (
       match reason with

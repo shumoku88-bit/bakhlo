@@ -1,6 +1,0 @@
-PUT-ENTRY	NEW	-
-TX	second	2027-01-13
-EFFECT	bank	jpy	100
-EFFECT	food	jpy	-100
-REVERSAL-OF	seed
-ENDTX

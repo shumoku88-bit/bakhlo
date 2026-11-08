@@ -1,6 +1,5 @@
 module A = Bakhlo_household.Amount
 
-(* The answers are hand-written; only input fields are interpreted here. *)
 let text s =
   let b = Buffer.create (String.length s) in
   let rec loop i =
@@ -21,33 +20,24 @@ let text s =
   loop 0;
   Buffer.contents b
 
-let%expect_test "typed amount samples" =
-  let failures = ref 0 in
-  let rows =
-    In_channel.with_open_bin "amounts/input.answers" In_channel.input_all
-    |> String.split_on_char '\n'
-    |> List.filter (fun s -> s <> "")
+let answer _use (q : Samples.question) =
+  let result =
+    match q.header with
+    | [ "FORMAT"; scale; quanta; _want ] ->
+        [ "FORMAT"; scale; quanta; A.format ~decimals:(int_of_string scale) (Z.of_string quanta) ]
+    | (("POSITIVE" | "SIGNED") as kind) :: scale :: input :: _ -> (
+        let parse = if kind = "POSITIVE" then A.parse_positive else A.parse_signed in
+        [ kind; scale; input ]
+        @
+        match parse ~decimals:(int_of_string scale) (text input) with
+        | Ok n -> [ Z.to_string n ]
+        | Error code -> [ "REFUSED"; code ])
+    | _ -> Samples.bad "amount question"
   in
-  List.iteri
-    (fun index line ->
-      let fields = String.split_on_char '\t' line in
-      let got, want =
-        match fields with
-        | [ "FORMAT"; scale; quanta; want ] ->
-            (A.format ~decimals:(int_of_string scale) (Z.of_string quanta), want)
-        | (("POSITIVE" | "SIGNED") as kind) :: scale :: input :: answer ->
-            let parse = if kind = "POSITIVE" then A.parse_positive else A.parse_signed in
-            let got =
-              match parse ~decimals:(int_of_string scale) (text input) with
-              | Ok n -> [ Z.to_string n ]
-              | Error code -> [ "REFUSED"; code ]
-            in
-            (String.concat "\t" got, String.concat "\t" answer)
-        | _ -> failwith ("bad amount sample: " ^ line)
-      in
-      if got <> want then (
-        incr failures;
-        Printf.printf "FAIL amounts/input.answers:%d: want %s, got %s\n" (index + 1) want got))
-    rows;
-  Printf.printf "%d amount answers, %d failures\n" (List.length rows) !failures;
+  [ Samples.row result ]
+
+let%expect_test "typed amount samples" =
+  let counts = Samples.create () in
+  Samples.run counts ~dir:"amounts" ~blocks:[] ~answer;
+  Printf.printf "%d amount answers, %d failures\n" counts.answers counts.failures;
   [%expect {| 78 amount answers, 0 failures |}]

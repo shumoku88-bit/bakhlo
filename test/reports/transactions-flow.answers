@@ -1,3 +1,6 @@
+USE	BOOK	base.txt
+USE	PRESETS	-
+# 活動：触れた(科目, Measure)ごとの増減。総量の大きい順、同じなら科目・Measureの順。各行に動かした実績
 TRANSACTIONS-FLOW	2027-01-15	2027-01-21
 ROW	bank	jpy	0	-80000	-80000	80000	1
 FROM	2027-01-15	tx-0005	-80000

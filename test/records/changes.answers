@@ -1,0 +1,475 @@
+USE	BOOK	base.txt
+# 同じLocusの2行・メモ・原額・店
+APPLY	new-split
+PUT-ENTRY	NEW	-
+TX	split	2027-01-12	DESC	shared meal
+EFFECT	bank	jpy	-75
+EFFECT	food	jpy	30
+EFFECT	food	jpy	45
+ORIGINAL	usd	50
+MERCHANT	sample-cafe
+ENDTX
+AFTER	new-split.after.txt
+ENDAPPLY
+# 明示した店なし
+APPLY	new-nonmerchant
+PUT-ENTRY	NEW	-
+TX	nobody	2027-01-12
+EFFECT	bank	jpy	-5
+EFFECT	food	jpy	5
+NONMERCHANT
+ENDTX
+AFTER	new-nonmerchant.after.txt
+ENDAPPLY
+# 鍵付き両替と手数料
+APPLY	new-exchange
+PUT-ENTRY	NEW	-
+TX	fx	2027-01-12
+EFFECT	bank	jpy	-160	s
+EFFECT	fee	jpy	10
+EFFECT	bank	usd	100	d
+EXCHANGE	s	d
+ENDTX
+AFTER	new-exchange.after.txt
+ENDAPPLY
+# 同じIDと位置で金額・メモ・日付を訂正し予定リンクを保持
+APPLY	replace-paid
+PUT-ENTRY	REPLACE	-
+TX	seed	2027-01-08	DESC	corrected
+EFFECT	bank	jpy	-120	b
+EFFECT	food	jpy	120	f
+ENDTX
+AFTER	replace-paid.after.txt
+ENDAPPLY
+# 日付だけの訂正は予定を変えない
+APPLY	date-paid
+CORRECT-ENTRY-DATE	seed	2027-01-01
+AFTER	date-paid.after.txt
+ENDAPPLY
+# 逆の実績を末尾に足す。予定は払い済みのまま
+APPLY	refund-paid
+PUT-ENTRY	NEW	-
+TX	refund	2027-01-12
+EFFECT	food	jpy	-100	f
+EFFECT	bank	jpy	100	b
+REVERSAL-OF	seed
+ENDTX
+AFTER	refund-paid.after.txt
+ENDAPPLY
+# 未分類を店にする。メモから推測しない
+APPLY	classify-shop
+CLASSIFY-MERCHANT	seed	MERCHANT	sample-cafe
+AFTER	classify-shop.after.txt
+ENDAPPLY
+# 未分類を店なしにする
+APPLY	classify-none
+CLASSIFY-MERCHANT	seed	NONMERCHANT
+AFTER	classify-none.after.txt
+ENDAPPLY
+# 空のメモはDESCなし
+APPLY	empty-memo
+PUT-ENTRY	NEW	-
+TX	empty-memo	2027-01-12	DESC	
+EFFECT	bank	jpy	-1
+EFFECT	food	jpy	1
+ENDTX
+AFTER	empty-memo.after.txt
+ENDAPPLY
+USE	BOOK	classify-shop.after.txt
+# 同じ店を保ったメモの訂正
+APPLY	preserve-merchant
+PUT-ENTRY	REPLACE	-
+TX	seed	2027-01-10	DESC	new memo
+EFFECT	bank	jpy	-100	b
+EFFECT	food	jpy	100	f
+MERCHANT	sample-cafe
+ENDTX
+AFTER	preserve-merchant.after.txt
+ENDAPPLY
+USE	BOOK	new-exchange.after.txt
+# 両替の返金はMeasureごとに0でなくてよい
+APPLY	refund-exchange
+PUT-ENTRY	NEW	-
+TX	fx-refund	2027-01-13
+EFFECT	bank	jpy	160	s
+EFFECT	fee	jpy	-10
+EFFECT	bank	usd	-100	d
+REVERSAL-OF	fx
+ENDTX
+AFTER	refund-exchange.after.txt
+ENDAPPLY
+USE	BOOK	base.txt
+# 既存IDを新規追加しない
+APPLY	duplicate
+PUT-ENTRY	NEW	-
+TX	seed	2027-01-12
+EFFECT	bank	jpy	-1
+EFFECT	food	jpy	1
+ENDTX
+REFUSED	duplicate-entry
+ENDAPPLY
+# ないIDは訂正できない
+APPLY	unknown-edit
+PUT-ENTRY	REPLACE	-
+TX	missing	2027-01-12
+EFFECT	bank	jpy	-1
+EFFECT	food	jpy	1
+ENDTX
+REFUSED	unknown-entry
+ENDAPPLY
+# 空ID
+APPLY	empty-id
+PUT-ENTRY	NEW	-
+TX		2027-01-12
+EFFECT	bank	jpy	-1
+EFFECT	food	jpy	1
+ENDTX
+REFUSED	invalid-entry-id
+ENDAPPLY
+# ANCHORの記号はTX IDにしない
+APPLY	bad-id
+PUT-ENTRY	NEW	-
+TX	-	2027-01-12
+EFFECT	bank	jpy	-1
+EFFECT	food	jpy	1
+ENDTX
+REFUSED	entry-admission:bad-token
+ENDAPPLY
+# 少なくとも1行必要
+APPLY	empty-effects
+PUT-ENTRY	NEW	-
+TX	bad	2027-01-12
+ENDTX
+REFUSED	entry-admission:no-effect
+ENDAPPLY
+# 合計0でも0行は拒否
+APPLY	zero-effect
+PUT-ENTRY	NEW	-
+TX	bad	2027-01-12
+EFFECT	bank	jpy	0
+ENDTX
+REFUSED	entry-admission:zero-amount
+ENDAPPLY
+# Measureごとの合計は0
+APPLY	unbalanced
+PUT-ENTRY	NEW	-
+TX	bad	2027-01-12
+EFFECT	bank	jpy	-2
+EFFECT	food	jpy	1
+ENDTX
+REFUSED	entry-admission:unbalanced
+ENDAPPLY
+# 未知のMeasure
+APPLY	unknown-measure
+PUT-ENTRY	NEW	-
+TX	bad	2027-01-12
+EFFECT	bank	eur	-1
+EFFECT	food	eur	1
+ENDTX
+REFUSED	measure-scale-not-supplied
+ENDAPPLY
+# ORIGINALもMeasureが必要
+APPLY	unknown-original-measure
+PUT-ENTRY	NEW	-
+TX	bad	2027-01-12
+EFFECT	bank	jpy	-1
+EFFECT	food	jpy	1
+ORIGINAL	eur	1
+ENDTX
+REFUSED	measure-scale-not-supplied
+ENDAPPLY
+# HIDDENへの新規の流れ
+APPLY	unoffered
+PUT-ENTRY	NEW	-
+TX	bad	2027-01-12
+EFFECT	bank	jpy	-1
+EFFECT	old	jpy	1
+ENDTX
+REFUSED	locus-unapproved
+ENDAPPLY
+# 宣言のないLocus
+APPLY	unknown-locus
+PUT-ENTRY	NEW	-
+TX	bad	2027-01-12
+EFFECT	bank	jpy	-1
+EFFECT	missing	jpy	1
+ENDTX
+REFUSED	locus-unapproved
+ENDAPPLY
+# 非閏年の2月29日
+APPLY	bad-day
+PUT-ENTRY	NEW	-
+TX	bad	2027-02-29
+EFFECT	bank	jpy	-1
+EFFECT	food	jpy	1
+ENDTX
+REFUSED	entry-admission:bad-date
+ENDAPPLY
+# 鍵は1件内で重複しない
+APPLY	duplicate-key
+PUT-ENTRY	NEW	-
+TX	bad	2027-01-12
+EFFECT	bank	jpy	-1	k
+EFFECT	food	jpy	1	k
+ENDTX
+REFUSED	entry-admission:duplicate-key
+ENDAPPLY
+# 原額は正
+APPLY	bad-original
+PUT-ENTRY	NEW	-
+TX	bad	2027-01-12
+EFFECT	bank	jpy	-1
+EFFECT	food	jpy	1
+ORIGINAL	usd	0
+ENDTX
+REFUSED	entry-admission:bad-original
+ENDAPPLY
+# 存在しない両替の鍵
+APPLY	exchange-key
+PUT-ENTRY	NEW	-
+TX	bad	2027-01-12
+EFFECT	bank	jpy	-100	s
+EFFECT	bank	usd	50	d
+EXCHANGE	missing	d
+ENDTX
+REFUSED	entry-admission:exchange-key
+ENDAPPLY
+# 先Measureの正の行が2つ
+APPLY	exchange-ambiguous
+PUT-ENTRY	NEW	-
+TX	bad	2027-01-12
+EFFECT	bank	jpy	-100	s
+EFFECT	bank	usd	50	d
+EFFECT	food	usd	5
+EFFECT	fee	usd	-5
+EXCHANGE	s	d
+ENDTX
+REFUSED	entry-admission:exchange-ambiguous
+ENDAPPLY
+# 鍵のない元の行に使う固定鍵が別の行にある
+APPLY	exchange-key-taken
+PUT-ENTRY	NEW	-
+TX	bad	2027-01-12
+EFFECT	bank	jpy	-100
+EFFECT	fee	jpy	5	exchange-source
+EFFECT	bank	usd	50	d
+EXCHANGE	exchange-source	d
+ENDTX
+REFUSED	exchange-key-taken
+ENDAPPLY
+# 指定した元の鍵が負の行を指さない
+APPLY	exchange-unrepresentable
+PUT-ENTRY	NEW	-
+TX	bad	2027-01-12
+EFFECT	bank	jpy	-100	s
+EFFECT	fee	jpy	5	wrong
+EFFECT	bank	usd	50	d
+EXCHANGE	wrong	d
+ENDTX
+REFUSED	entry-not-representable
+ENDAPPLY
+# 両替のMeasureは異なる
+APPLY	bad-exchange
+PUT-ENTRY	NEW	-
+TX	bad	2027-01-12
+EFFECT	bank	jpy	-1	s
+EFFECT	food	jpy	1	d
+EXCHANGE	s	d
+ENDTX
+REFUSED	entry-admission:bad-exchange
+ENDAPPLY
+# 返金は元をちょうど逆にする
+APPLY	refund-not-inverse
+PUT-ENTRY	NEW	-
+TX	bad	2027-01-12
+EFFECT	bank	jpy	99
+EFFECT	food	jpy	-99
+REVERSAL-OF	seed
+ENDTX
+REFUSED	entry-admission:reversal-not-inverse
+ENDAPPLY
+# 元のない返金はしない
+APPLY	refund-unknown
+PUT-ENTRY	NEW	-
+TX	bad	2027-01-12
+EFFECT	bank	jpy	100
+EFFECT	food	jpy	-100
+REVERSAL-OF	missing
+ENDTX
+REFUSED	entry-admission:unknown-tx
+ENDAPPLY
+USE	BOOK	refund-paid.after.txt
+# 同じ元を2回返金しない
+APPLY	refund-reused
+PUT-ENTRY	NEW	-
+TX	second	2027-01-13
+EFFECT	bank	jpy	100
+EFFECT	food	jpy	-100
+REVERSAL-OF	seed
+ENDTX
+REFUSED	entry-admission:reversal-reused
+ENDAPPLY
+# 元の変更で既存の返金との逆関係を壊さない
+APPLY	edit-refunded
+PUT-ENTRY	REPLACE	-
+TX	seed	2027-01-10
+EFFECT	bank	jpy	-110	b
+EFFECT	food	jpy	110	f
+ENDTX
+REFUSED	entry-admission:reversal-not-inverse
+ENDAPPLY
+USE	BOOK	base.txt
+# 日付だけの訂正も実在日
+APPLY	date-invalid
+CORRECT-ENTRY-DATE	seed	2027-02-29
+REFUSED	invalid-date
+ENDAPPLY
+# 日付訂正の空ID
+APPLY	date-empty-id
+CORRECT-ENTRY-DATE		2027-01-12
+REFUSED	invalid-entry-id
+ENDAPPLY
+# 日付訂正の未知ID
+APPLY	date-unknown
+CORRECT-ENTRY-DATE	missing	2027-01-12
+REFUSED	unknown-entry
+ENDAPPLY
+USE	BOOK	classify-shop.after.txt
+# 分類は1回だけ
+APPLY	merchant-twice
+CLASSIFY-MERCHANT	seed	NONMERCHANT
+REFUSED	merchant-classified
+ENDAPPLY
+USE	BOOK	base.txt
+# 分類には実績が必要
+APPLY	merchant-unknown
+CLASSIFY-MERCHANT	missing	NONMERCHANT
+REFUSED	merchant-unknown
+ENDAPPLY
+# 空の店は拒否
+APPLY	merchant-empty
+CLASSIFY-MERCHANT	seed	MERCHANT	
+REFUSED	merchant-token
+ENDAPPLY
+USE	BOOK	classify-shop.after.txt
+# 訂正でも分類を変えない
+APPLY	merchant-edit
+PUT-ENTRY	REPLACE	-
+TX	seed	2027-01-10
+EFFECT	bank	jpy	-100	b
+EFFECT	food	jpy	100	f
+NONMERCHANT
+ENDTX
+REFUSED	merchant-classified
+ENDAPPLY
+USE	BOOK	base.txt
+# 既存実績へ予定を後付けしない
+APPLY	attach-edit
+PUT-ENTRY	REPLACE	open
+TX	seed	2027-01-10	DESC	meal
+EFFECT	bank	jpy	-100	b
+EFFECT	food	jpy	100	f
+ENDTX
+REFUSED	cannot-attach-plan-on-edit
+ENDAPPLY
+# 未知の予定
+APPLY	pay-unknown
+PUT-ENTRY	NEW	missing
+TX	new	2027-01-12
+EFFECT	bank	jpy	-1
+EFFECT	food	jpy	1
+ENDTX
+REFUSED	unknown-plan
+ENDAPPLY
+# 払い済みの予定
+APPLY	pay-paid
+PUT-ENTRY	NEW	paid
+TX	new	2027-01-12
+EFFECT	bank	jpy	-1
+EFFECT	food	jpy	1
+ENDTX
+REFUSED	plan-already-paid
+ENDAPPLY
+# 取消済みの予定
+APPLY	pay-cancelled
+PUT-ENTRY	NEW	cancelled
+TX	new	2027-01-12
+EFFECT	bank	jpy	-1
+EFFECT	food	jpy	1
+ENDTX
+REFUSED	plan-cancelled
+ENDAPPLY
+# 空白入りの店名はbook.txtの1語にならない
+APPLY	merchant-space
+CLASSIFY-MERCHANT	seed	MERCHANT	sample cafe
+REFUSED	merchant-token
+ENDAPPLY
+USE	BOOK	opening.txt
+# 開始残高の記帳からその座標を消さない
+APPLY	replace-opening
+PUT-ENTRY	REPLACE	-
+TX	seed	2027-01-10
+EFFECT	fee	jpy	-100	b
+EFFECT	food	jpy	100	f
+ENDTX
+REFUSED	support-admission
+ENDAPPLY
+USE	BOOK	classify-shop.after.txt
+# 元の店は保持し返金には継承しない
+APPLY	refund-classified
+PUT-ENTRY	NEW	-
+TX	refund	2027-01-12
+EFFECT	food	jpy	-100	f
+EFFECT	bank	jpy	100	b
+REVERSAL-OF	seed
+ENDTX
+AFTER	refund-classified.after.txt
+ENDAPPLY
+USE	BOOK	base.txt
+# Measureごとに釣り合えばBookは受け入れる（単一MeasureのRecordとは別）
+APPLY	multi-measure
+PUT-ENTRY	NEW	-
+TX	multi	2027-01-12
+EFFECT	bank	jpy	-10
+EFFECT	food	jpy	10
+EFFECT	bank	usd	-20
+EFFECT	food	usd	20
+ENDTX
+AFTER	multi-measure.after.txt
+ENDAPPLY
+# 異なるMeasureの-100と100を足して0とはしない
+APPLY	mixed-without-exchange
+PUT-ENTRY	NEW	-
+TX	bad	2027-01-12
+EFFECT	bank	jpy	-100
+EFFECT	food	usd	100
+ENDTX
+REFUSED	entry-admission:unbalanced
+ENDAPPLY
+USE	BOOK	new-split.after.txt
+# 同じLocusの2行を返金で1行にまとめない
+APPLY	refund-merged
+PUT-ENTRY	NEW	-
+TX	bad	2027-01-13
+EFFECT	bank	jpy	75
+EFFECT	food	jpy	-75
+REVERSAL-OF	split
+ENDTX
+REFUSED	entry-admission:reversal-not-inverse
+ENDAPPLY
+USE	BOOK	base.txt
+# 店名内のtabは分類前に拒否
+APPLY	merchant-tab
+CLASSIFY-MERCHANT	seed	MERCHANT	bad\tparty
+REFUSED	merchant-token
+ENDAPPLY
+# 店名内のCRは分類前に拒否
+APPLY	merchant-cr
+CLASSIFY-MERCHANT	seed	MERCHANT	bad\rparty
+REFUSED	merchant-token
+ENDAPPLY
+# 店名内のLFは分類前に拒否
+APPLY	merchant-lf
+CLASSIFY-MERCHANT	seed	MERCHANT	bad\nparty
+REFUSED	merchant-token
+ENDAPPLY

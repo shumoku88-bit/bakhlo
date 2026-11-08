@@ -1,3 +1,6 @@
+USE	BOOK	base.txt
+USE	PRESETS	-
+# Actualの日見出しと期間の合計：EXPENSEの科目だけをMeasureごとに足し、0は出さない。役割のない科目があればPARTIAL（画面の+?）
 EXPENSE-TOTAL	2027-01-03	2027-01-04
 ENDEXPENSE-TOTAL
 EXPENSE-TOTAL	2027-01-05	2027-01-06

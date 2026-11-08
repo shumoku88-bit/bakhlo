@@ -1,3 +1,6 @@
+USE	BOOK	trend-history.txt
+USE	PRESETS	trend-history.tsv
+# 推移：履歴より前を除き、負の割り切れない平均を床に丸め、空の科目と別Measure、月途中の開始、周期と月の範囲指定無視
 TREND	2026-10-16	CYCLE	LAST-30-DAYS
 LOCUS	a	jpy
 SCOPE	2026-10-15	2026-10-17	ALL-HISTORY

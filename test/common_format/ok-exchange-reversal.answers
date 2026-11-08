@@ -1,2 +1,3 @@
+USE	BOOK	ok-exchange-reversal.txt
 BALANCE	bank	jpy	0
 BALANCE	cash-usd	usd	0

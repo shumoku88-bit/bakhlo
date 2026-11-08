@@ -1,3 +1,6 @@
+USE	BOOK	income-expense-comparison.txt
+USE	PRESETS	-
+# 収支比較：同じ経過日数の窓から遅い支出を除き、全窓では含める。0日なら空の収支
 INCOME-EXPENSE	2026-09-01	2026-09-16
 MEASURE	jpy
 INCOME	salary	1000

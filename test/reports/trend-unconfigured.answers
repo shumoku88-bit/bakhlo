@@ -1,3 +1,6 @@
+USE	BOOK	base.txt
+USE	PRESETS	-
+# 推移の周期がない：boundary-presets.tsvがなければ周期の履歴を決めず not-configured で拒否する
 TREND	2027-02-10	CYCLE	ALL-HISTORY
 LOCUS	food	jpy
 REFUSED	not-configured

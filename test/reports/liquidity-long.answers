@@ -1,3 +1,6 @@
+USE	BOOK	liquidity-long.txt
+USE	PRESETS	-
+# 流動性：14点すべての経路から最後と最低点を求め、画面の12行制限で計算を切らない
 LIQUIDITY	2026-10-20	2026-11-05
 POOL	wallet	jpy
 CURRENT	0

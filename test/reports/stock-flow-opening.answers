@@ -1,3 +1,6 @@
+USE	BOOK	stock-flow-opening.txt
+USE	PRESETS	-
+# 残高と流れ：窓の中と後の開始記帳、相手側の行も流れから除外して差を不明にする。別Measureの開始記帳は除外しない
 STOCK-FLOW	jpy	2026-08-01	2026-09-15
 TRACK	debt	jpy
 TRACK	equity	jpy

@@ -3,54 +3,53 @@
 module B = Bakhlo_book_txt.Book_txt
 open B
 
-let read path = In_channel.with_open_bin path In_channel.input_all
-let rows text = List.filter (fun l -> l <> "") (String.split_on_char '\n' text)
-
 let%expect_test "every conformance fixture is admitted or refused exactly as listed" =
-  let cases = List.tl (rows (read "common_format/cases.tsv")) in
-  let failures = ref 0 and accepted = ref 0 and refused = ref 0 in
-  let fail name why =
-    incr failures;
-    Printf.printf "FAIL %s: %s\n" name why
+  let counts = Samples.create () in
+  let answer use (q : Samples.question) =
+    let result =
+      match q.header with
+      | "READ" :: name :: _ -> (
+          let data = Samples.read "common_format" name in
+          match B.of_string data with
+          | Ok book ->
+              Samples.count counts "admitted";
+              Samples.equal counts ~path:("common_format/" ^ name) ~want:data
+                ~got:(B.to_string book);
+              [ "READ"; name; "OK" ]
+          | Error e ->
+              Samples.count counts "refused";
+              [ "READ"; name; "REFUSED"; B.code_name e.code; string_of_int e.line ])
+      | [ "BALANCE"; locus; measure; _want ] ->
+          let name =
+            match Samples.context use "BOOK" with
+            | Some name -> name
+            | None -> Samples.bad "USE BOOK required"
+          in
+          let book =
+            match B.of_string (Samples.read "common_format" name) with
+            | Ok book -> book
+            | Error e -> Samples.bad (B.code_name e.code)
+          in
+          let amount =
+            match B.balance book ~locus ~measure with
+            | B.Known q -> Z.to_string q
+            | B.Unknown -> "UNKNOWN"
+          in
+          [ "BALANCE"; locus; measure; amount ]
+      | _ -> Samples.bad "common-format question"
+    in
+    [ Samples.row result ]
   in
-  List.iter
-    (fun row ->
-      match String.split_on_char '\t' row with
-      | [ name; expect; line; _note ] -> (
-          let data = read (Filename.concat "common_format" name) in
-          match (B.of_string data, expect) with
-          | Ok book, "ok" ->
-              incr accepted;
-              if B.to_string book <> data then fail name "reprinted text differs";
-              let answers =
-                Filename.concat "common_format" (Filename.chop_suffix name ".txt" ^ ".answers")
-              in
-              List.iter
-                (fun a ->
-                  match String.split_on_char '\t' a with
-                  | [ "BALANCE"; locus; measure; want ] ->
-                      let got =
-                        match B.balance book ~locus ~measure with
-                        | B.Known q -> Z.to_string q
-                        | B.Unknown -> "UNKNOWN"
-                      in
-                      if got <> want then
-                        fail name (Printf.sprintf "%s %s: want %s, got %s" locus measure want got)
-                  | _ -> fail name ("bad answers row: " ^ a))
-                (rows (read answers))
-          | Ok _, code -> fail name ("admitted, expected " ^ code)
-          | Error e, "ok" ->
-              fail name (Printf.sprintf "refused %s at %d" (B.code_name e.code) e.line)
-          | Error e, code ->
-              incr refused;
-              if B.code_name e.code <> code || string_of_int e.line <> line then
-                fail name
-                  (Printf.sprintf "want %s at %s, got %s at %d" code line (B.code_name e.code)
-                     e.line))
-      | _ -> fail row "bad cases row")
-    cases;
-  Printf.printf "%d admitted, %d refused, %d failures\n" !accepted !refused !failures;
-  [%expect {| 5 admitted, 59 refused, 0 failures |}]
+  Samples.run counts ~dir:"common_format" ~blocks:[] ~answer;
+  Printf.printf "%d admitted, %d refused, %d failures\n"
+    (Samples.counted counts "admitted")
+    (Samples.counted counts "refused")
+    counts.failures;
+  Printf.printf "%d balance answers\n" (Samples.counted counts "BALANCE");
+  [%expect {|
+    5 admitted, 59 refused, 0 failures
+    13 balance answers
+    |}]
 
 (* Generated admissible books: balanced jpy TXs with awkward memos, optional
    Merchant and ORIGINAL, plans, and one anchor with ALSO lines after its pointer. *)

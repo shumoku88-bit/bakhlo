@@ -1,3 +1,4 @@
+USE	BOOK	ok-full.txt
 BALANCE	wallet	jpy	1120
 BALANCE	bank	jpy	29100
 BALANCE	loan-a	jpy	-20000

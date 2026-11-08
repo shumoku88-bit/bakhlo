@@ -1,3 +1,6 @@
+USE	BOOK	trend-huge.txt
+USE	PRESETS	trend-history.tsv
+# 推移：601桁の合計と平均を正確に保つ
 TREND	2026-10-16	CYCLE	ALL-HISTORY
 LOCUS	a	jpy
 SCOPE	2026-10-15	2026-10-17	ALL-HISTORY

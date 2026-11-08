@@ -1,3 +1,6 @@
+USE	BOOK	multicurrency-many.txt
+USE	PRESETS	-
+# 多通貨：複数の元金額を合算し、正の支出が2つあっても1回だけ数える。異なるMeasureの組の両替を両方残す
 MULTICURRENCY	2026-10-01	2026-11-01
 ORDINARY	eur	5000
 ORDINARY	jpy	1000

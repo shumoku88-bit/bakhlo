@@ -1,3 +1,5 @@
+# 空白を含む名前は拒否する
+USE	PRESETS	ng-name-with-space.tsv
 CYCLE	2027-02-10	REFUSED	malformed
 WINDOW	2027-02-10	CYCLE	0	REFUSED	malformed
 WINDOW	2027-02-10	MONTH	0	2027-02-01	2027-03-01

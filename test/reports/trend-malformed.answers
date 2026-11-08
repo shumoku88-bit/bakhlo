@@ -1,3 +1,6 @@
+USE	BOOK	trend-history.txt
+USE	PRESETS	trend-malformed.tsv
+# 推移：壊れた周期ファイルをmalformedで拒否し、周期を推測しない
 TREND	2026-10-16	DAY	ALL-HISTORY
 LOCUS	a	jpy
 REFUSED	malformed

@@ -1,7 +1,0 @@
-PUT-ENTRY	NEW	-
-TX	bad	2027-01-12
-EFFECT	bank	jpy	-100	s
-EFFECT	fee	jpy	5	wrong
-EFFECT	bank	usd	50	d
-EXCHANGE	wrong	d
-ENDTX

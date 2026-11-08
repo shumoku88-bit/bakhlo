@@ -1,3 +1,5 @@
+# ファイルがなければ周期は答えないが、月や直近の日数は答える
+USE	PRESETS	-
 CYCLE	2027-02-10	REFUSED	not-configured
 WINDOW	2027-02-10	PREVIOUS-CYCLE	0	REFUSED	not-configured
 WINDOW	2027-02-10	MONTH	0	2027-02-01	2027-03-01

@@ -1,3 +1,6 @@
+USE	BOOK	base.txt
+USE	PRESETS	-
+# 多通貨：通貨を換算せず、普通の支出・元の金額・両替に伴う支出を通貨ごとに分けて出す
 MULTICURRENCY	2027-01-01	2027-02-01
 ORDINARY	jpy	83300
 ORDINARY	usd	450

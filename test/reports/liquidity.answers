@@ -1,3 +1,6 @@
+USE	BOOK	base.txt
+USE	PRESETS	-
+# 流動性：今の残高から、指定日までのまだの予定を日付順に足す。期限切れの予定があれば拒否
 LIQUIDITY	2027-02-03	2027-02-28
 POOL	bank	jpy
 CURRENT	363700

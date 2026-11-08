@@ -1,5 +1,0 @@
-PUT-ENTRY	NEW	-
-TX	seed	2027-01-12
-EFFECT	bank	jpy	-1
-EFFECT	food	jpy	1
-ENDTX
