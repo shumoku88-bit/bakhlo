@@ -41,24 +41,24 @@ let add_entry book ~day ~memo ~locus1 ~amt1 ~locus2 ~amt2 =
          (fun error -> error.A.message)
          (A.build_transaction
             ~new_id:(fun () -> day ^ ":" ^ String.map (fun c -> if c = ' ' then '-' else c) memo)
-            ~book ~mode:A.New
-            (A.Multiple
+            ~book ~mode:Bakhlo_household.Record.New
+            (Bakhlo_household.Record.Multiple
                {
                  day;
                  memo;
                  draft =
                    {
-                     Posting_draft.measure = "jpy";
+                     Bakhlo_household.Record.measure = "jpy";
                      rows =
                        [
                          {
-                           Posting_draft.key = None;
+                           Bakhlo_household.Record.key = None;
                            locus = locus1;
                            negative = amt1 < 0;
                            amount = string_of_int (abs amt1);
                          };
                          {
-                           Posting_draft.key = None;
+                           Bakhlo_household.Record.key = None;
                            locus = locus2;
                            negative = amt2 < 0;
                            amount = string_of_int (abs amt2);

@@ -1,0 +1,7 @@
+PUT-ENTRY	NEW	-
+TX	multi	2027-01-12
+EFFECT	bank	jpy	-10
+EFFECT	food	jpy	10
+EFFECT	bank	usd	-20
+EFFECT	food	usd	20
+ENDTX

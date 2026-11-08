@@ -3,12 +3,17 @@
    The reviewed entry is published against the bytes it was reviewed from. *)
 module B = Bakhlo_household.Book
 module Day = Bakhlo_household.Day
-module A = Draft
 module Form = Ui_form
 
 let tr = Ui_text.tr
 
-type review = { form : Form.t; editing : Form.t; transaction : A.transaction; base : string }
+type review = {
+  form : Form.t;
+  editing : Form.t;
+  transaction : Bakhlo_household.Record.transaction;
+  base : string;
+}
+
 type editor = Editing of Form.t | Review of review
 type t = { editor : editor option }
 
@@ -157,7 +162,8 @@ let submit_editing (env : Screen.env) submitted =
                                form;
                                editing = submitted;
                                base = env.revision;
-                               transaction = { A.entry; replace = false; plan = None };
+                               transaction =
+                                 { Bakhlo_household.Record.entry; replace = false; plan = None };
                              });
                     },
                     Screen.Stay )))

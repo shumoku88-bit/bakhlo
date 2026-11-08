@@ -28,7 +28,7 @@ val plan_lines : B.t -> B.plan -> string list
 (** Every expected Effect, the due day, IDs and whether it is open, cancelled or
     completed. *)
 
-val preview_rows : B.t -> Draft.transaction -> (Ui_render.style * string) list
+val preview_rows : B.t -> Bakhlo_household.Record.transaction -> (Ui_render.style * string) list
 (** What saving the transaction publishes: new, correction or Scheduled completion,
     then [entry_lines] and the balanced total. Styles come from the book fields;
     exact quantities/dates lead, identities and headings recede. *)

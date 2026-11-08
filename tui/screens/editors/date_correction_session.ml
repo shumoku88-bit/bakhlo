@@ -1,13 +1,12 @@
 (* Date-only editing keeps the captured Actual intact until the existing publisher accepts it. *)
 module B = Bakhlo_household.Book
 module Day = Bakhlo_household.Day
-module A = Draft
 module O = Ui_render
 module Form = Ui_form
 module Panel = Ui_panel
 
 type t = { target : B.entry; base_revision : string; form : Form.t; preview : bool; scroll : int }
-type outcome = Updated of t | Closed | Publish of A.transaction * string
+type outcome = Updated of t | Closed | Publish of Bakhlo_household.Record.transaction * string
 
 let create ~base_revision (target : B.entry) =
   let form =
@@ -82,7 +81,12 @@ let handle ~blocked ~dimensions:((width, height) as dimensions) ~width_of t inpu
         Updated (with_notice t "Review to the end before Publish.")
       else
         Publish
-          ({ A.entry = { t.target with day = day t }; replace = true; plan = None }, t.base_revision)
+          ( {
+              Bakhlo_household.Record.entry = { t.target with day = day t };
+              replace = true;
+              plan = None;
+            },
+            t.base_revision )
   | _ -> Updated t
 
 let footer t =

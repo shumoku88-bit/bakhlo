@@ -25,25 +25,6 @@ let fixture =
    END\n"
 
 let self_check ~width_of () =
-  (* A draft names the first row that keeps its postings from being one balanced
-     single-Measure Movement, before Preview; book.txt admission decides the save. *)
-  let posting locus measure n : B.posting = { locus; measure; amount = Z.of_int n; key = None } in
-  let fault = Posting_draft.movement_fault in
-  require (fault [] = Some Posting_draft.Empty) "draft-fault-empty";
-  require
-    (fault [ posting "wallet" "jpy" (-5); posting "food" "jpy" 0 ] = Some (Posting_draft.Zero 2))
-    "draft-fault-zero-names-its-row";
-  require
-    (fault [ posting "wallet" "jpy" (-5); posting "food" "eur" 0 ] = Some (Posting_draft.Zero 2))
-    "draft-fault-zero-before-measure-on-one-row";
-  require
-    (fault [ posting "wallet" "jpy" (-5); posting "food" "eur" 5 ]
-    = Some (Posting_draft.Measure_differs { position = 2; expected = "jpy"; actual = "eur" }))
-    "draft-fault-measure-names-both";
-  require
-    (fault [ posting "wallet" "jpy" (-5); posting "food" "jpy" 4 ] = Some Posting_draft.Unbalanced)
-    "draft-fault-unbalanced";
-  require (fault [ posting "wallet" "jpy" (-5); posting "food" "jpy" 5 ] = None) "draft-fault-none";
   let book = get (B.read fixture) in
   let before = B.print book in
   let dimensions = (100, 30) and base_revision = "synthetic-generation" in
@@ -109,10 +90,6 @@ let self_check ~width_of () =
         tx
     | _ -> failwith "selected-publish-enter"
   in
-  require (tx.entry.memo = Some "q 食事") "publication-preserves-description";
-  require
-    (List.map (fun (p : B.posting) -> p.amount) tx.entry.effects = [ Z.of_int (-100); Z.of_int 100 ])
-    "signed-conservation";
   (* Preview's field-owned hierarchy keeps the old text and row order. A memo
      that looks like a label is still prose, not a typography command. *)
   let displayed = Book_display.preview_rows book tx in
@@ -261,14 +238,6 @@ let self_check ~width_of () =
   require
     (contains unbalanced "unbalanced" && not (contains unbalanced "Record / Preview"))
     "exact-unbalanced-refusal";
-  let calculated = prepare ~amount:"(500+300)/2" () |> fun t -> key t `Enter in
-  (match handle calculated (`Key (`Enter, [])) with
-  | S.Publish (Draft.Entry_tx tx, _, _) ->
-      require
-        (List.map (fun (p : B.posting) -> p.amount) tx.entry.effects
-        = [ Z.of_int (-400); Z.of_int 400 ])
-        "calculator-record-publishes-exact-quanta"
-  | _ -> failwith "calculator-record-review-refused");
   let invalid = prepare ~amount:"500/0" () |> fun t -> key t `Enter in
   require
     (contains invalid "divides by zero"
@@ -280,14 +249,6 @@ let self_check ~width_of () =
     prepare ~amount:huge () |> fun t ->
     key t `Enter |> fun t -> key t `End
   in
-  (match handle huge_review (`Key (`Enter, [])) with
-  | S.Publish (Draft.Entry_tx tx, _, _) ->
-      require
-        (Z.equal
-           (List.nth (List.map (fun (p : B.posting) -> p.amount) tx.entry.effects) 1)
-           (Z.of_string huge))
-        "huge-exact-quantity"
-  | _ -> failwith "huge-review-is-not-partial-number");
   let tiny_dimensions = (32, 9) in
   let huge_start = update ~dimensions:tiny_dimensions huge_review (`Key (`Home, [])) in
   let rec review_pages remaining state collected =
@@ -319,15 +280,6 @@ let self_check ~width_of () =
     update edit (`Key (`Tab, [ `Shift ])) |> fun t -> update t (`Key (`Tab, [ `Shift ]))
   in
   require (not (contains (text shifted "2") "keeps the date")) "edit-focus-skips-kept-date";
-  let edit_review =
-    S.preview ~new_id:Book_file.new_id ~book:edit_book ~base_revision ~blocked:false edit
-  in
-  (match handle ~book:edit_book edit_review (`Key (`Enter, [])) with
-  | S.Publish (Draft.Entry_tx next, _, _) ->
-      require
-        (next.entry.id = tx.entry.id && next.entry.effects = tx.entry.effects && next.replace)
-        "edit-preserves-identity-structure"
-  | _ -> failwith "edit-preview-publish");
   let plan = List.hd (B.plans book) in
   require
     (Book_display.plan_preview_rows book ~replace:false plan
@@ -369,12 +321,6 @@ let self_check ~width_of () =
         && List.mem (O.Heading, "Original due date (kept): 2026-10-10") rows)
         "completion-preview-retains-link-and-both-dates"
   | _ -> failwith "scheduled-completion-preview");
-  require
-    (Result.is_error (S.of_plan ~book { plan with paid_by = Some "already" }))
-    "completed-plan-refused";
-  require
-    (Result.is_error (S.of_plan ~book { plan with cancelled_on = Some "2026-10-10" }))
-    "cancelled-plan-refused";
   require (S.surface_dimensions (80, 23) = (72, 20)) "record-bounded-floating-surface";
   require (S.surface_dimensions (140, 39) = (76, 24)) "record-large-surface-bounded";
   require
@@ -565,11 +511,7 @@ let self_check ~width_of () =
         (List.mem (O.Heading, "  -100 jpy / Key: key-0") displayed
         && List.mem (O.Plain, "Completed Scheduled: scheduled-1 / 2026-10-10") displayed
         && List.mem "  -100 jpy / Key: key-0" (Book_display.entry_lines keyed_book next.entry))
-        "record-preview-keeps-displayed-keys-and-completion-backlink";
-      let edited_book = get (B.put_entry keyed_book ~replace:true next.entry ~plan:next.plan) in
-      require
-        ((List.hd (B.plans edited_book)).paid_by = Some keyed.id)
-        "edit-preserves-payment-link"
+        "record-preview-keeps-displayed-keys-and-completion-backlink"
   | _ -> failwith "keyed-edit-preview");
   (* Changing a keyed posting's Locus drops only that key; others and the link stay. *)
   let relocated =
@@ -588,11 +530,7 @@ let self_check ~width_of () =
         && List.nth keys 0 = None
         && List.nth keys 1 = (List.nth keyed.effects 1).key
         && (List.hd next.entry.effects).B.locus = "bank")
-        "edit-locus-change-drops-only-its-key";
-      let edited_book = get (B.put_entry keyed_book ~replace:true next.entry ~plan:next.plan) in
-      require
-        ((List.hd (B.plans edited_book)).paid_by = Some keyed.id)
-        "edit-locus-change-keeps-payment-link"
+        "edit-locus-change-drops-only-its-key"
   | _ -> failwith "relocated-edit-preview");
   List.iter
     (fun dimensions ->
@@ -757,7 +695,7 @@ let self_check ~width_of () =
   require (not (S.has_draft plan_draft)) "fresh-plan-draft-is-empty";
   require (S.has_draft (key plan_draft `Backspace)) "date-only-plan-edit-is-retained";
   require (S.has_draft (key (key plan_draft `Tab) `Backspace)) "measure-only-plan-edit-is-retained";
-  require (S.mode plan_draft = Draft.Plan_new) "is-plan-identified";
+  require (S.mode plan_draft = Bakhlo_household.Record.Plan_new) "is-plan-identified";
   require (contains plan_draft "Scheduled / Create") "plan-create-title";
   require (S.border_intent plan_draft = `Create) "plan-create-border-intent";
   let plan_draft = key (key plan_draft `Tab) `Tab in
@@ -769,7 +707,7 @@ let self_check ~width_of () =
   let plan_review = key plan_draft `Enter in
   require (contains plan_review "Scheduled / Preview") "plan-preview-title";
   (match handle plan_review (`Key (`Enter, [])) with
-  | S.Publish (Draft.Plan_tx { plan = new_p; replace }, base, retained) ->
+  | S.Publish (Draft.Plan_tx { plan = new_p; replace }, base, retained) -> (
       require (base = base_revision && S.has_draft retained) "plan-publish-carries-generation";
       require (not replace) "new-plan-replace-is-false";
       require (new_p.day = "2026-10-15") "new-plan-due-day";
@@ -785,19 +723,12 @@ let self_check ~width_of () =
       let plan_edit_review =
         S.preview ~new_id:Book_file.new_id ~book:plan_book ~base_revision ~blocked:false plan_editor
       in
-      (match handle ~book:plan_book plan_edit_review (`Key (`Enter, [])) with
+      match handle ~book:plan_book plan_edit_review (`Key (`Enter, [])) with
       | S.Publish (Draft.Plan_tx { plan = edited_p; replace = edit_replace }, _, _) ->
           require edit_replace "edited-plan-replace-is-true";
           require (edited_p.id = new_p.id) "edited-plan-preserves-id";
           require (edited_p.day = new_p.day) "edited-plan-preserves-day"
-      | _ -> failwith "plan-edit-publish-failed");
-      require
-        (Result.is_error (S.of_edit_plan ~book:plan_book { new_p with paid_by = Some "already" }))
-        "paid-plan-edit-refused";
-      require
-        (Result.is_error
-           (S.of_edit_plan ~book:plan_book { new_p with cancelled_on = Some "2026-10-16" }))
-        "cancelled-plan-edit-refused"
+      | _ -> failwith "plan-edit-publish-failed")
   | _ -> failwith "plan-publish-failed");
   (* Prefix matching check for locus_candidates (LOAM specification parity: no substring matches) *)
   let candidates_prefix_su = Book_display.locus_candidates s_book "su" in
@@ -893,9 +824,6 @@ let self_check ~width_of () =
   (* Publish carries exact original amount *)
   (match handle orig_preview (`Key (`Enter, [])) with
   | S.Publish (Draft.Entry_tx tx, _, _) ->
-      require
-        (tx.entry.original_amount = Some ("eur", Z.of_int 3000))
-        "orig-amount-published-quanta";
       (* Correction editor retains original amount and forbids modifying it via Ctrl-O *)
       let book_with_orig = get (B.put_entry book ~replace:false tx.entry ~plan:None) in
       let edit_with_orig = get (S.of_edit ~book:book_with_orig tx.entry) in

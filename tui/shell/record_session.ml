@@ -2,14 +2,14 @@
    only an explicit selected Publish action requests the existing publisher. *)
 module B = Bakhlo_household.Book
 module A = Draft
-module R = Posting_draft
+module R = Bakhlo_household.Record
 module O = Ui_render
 
 let tr = Ui_text.tr
 
 type original_field = Original_measure | Original_amount
 type original_editor = { measure : string; amount : string; field : original_field }
-type row = { key : string option; locus : string; amount : string }
+type row = R.form_row = { key : string option; locus : string; amount : string }
 type review_action = Publish_action | Edit_action | Cancel_action
 
 let next_review_action = function
@@ -37,7 +37,7 @@ type phase =
   | Review of review
 
 type t = {
-  mode : A.mode;
+  mode : R.mode;
   day : string;
   description : string;
   measure : string;
@@ -82,7 +82,7 @@ let of_quick (p : Quick_capture.prefill) t =
   }
 
 let is_plan t =
-  match t.mode with A.Plan_new | A.Plan_edit _ -> true | A.New | A.Edit _ | A.Pay _ -> false
+  match t.mode with R.Plan_new | R.Plan_edit _ -> true | R.New | R.Edit _ | R.Pay _ -> false
 
 let in_quick_capture t = match t.phase with Quick _ -> true | _ -> false
 
@@ -90,8 +90,8 @@ let has_draft t =
   (match t.phase with Quick q -> Quick_capture.text q <> "" | _ -> false)
   ||
   match t.mode with
-  | A.Edit _ | A.Pay _ | A.Plan_edit _ -> true
-  | A.New | A.Plan_new ->
+  | R.Edit _ | R.Pay _ | R.Plan_edit _ -> true
+  | R.New | R.Plan_new ->
       t.day <> t.initial_day || t.measure <> t.initial_measure || t.description <> ""
       || t.original_amount <> None
       || List.exists (fun (r : row) -> r.amount <> "" || r.locus <> "") t.rows
@@ -117,10 +117,10 @@ let blank ~mode ~focus ~phase ~day ~measure =
   }
 
 let create ~book ~day ~measure () =
-  blank ~mode:A.New ~focus:1 ~day ~measure
+  blank ~mode:R.New ~focus:1 ~day ~measure
     ~phase:(Quick (Quick_capture.initial ~book ~day ~measure ~roles:[]))
 
-let create_plan ~book:_ ~day ~measure () = blank ~mode:A.Plan_new ~focus:0 ~phase:Form ~day ~measure
+let create_plan ~book:_ ~day ~measure () = blank ~mode:R.Plan_new ~focus:0 ~phase:Form ~day ~measure
 
 let rows_of_draft (draft : R.t) =
   List.map
@@ -136,7 +136,7 @@ let of_edit ~book entry =
       | Error why -> Error why
       | Ok draft ->
           let t =
-            blank ~mode:(A.Edit entry) ~focus:1 ~phase:Form ~day:entry.day ~measure:draft.measure
+            blank ~mode:(R.Edit entry) ~focus:1 ~phase:Form ~day:entry.day ~measure:draft.measure
           in
           Ok
             {
@@ -147,26 +147,19 @@ let of_edit ~book entry =
             })
 
 (* The postings of a still-open Scheduled occurrence. *)
-let open_plan_draft ~book (plan : B.plan) =
-  if plan.paid_by <> None then Error (tr "This Scheduled occurrence is already completed.")
-  else if plan.cancelled_on <> None then Error (tr "This Scheduled occurrence is cancelled.")
-  else
-    let effects =
-      List.map
-        (fun (locus, amount) ->
-          if locus = "" || plan.measure = "" then None
-          else Some { B.key = None; locus; measure = plan.measure; amount })
-        plan.changes
-    in
-    if List.exists Option.is_none effects then Error (tr "Invalid Scheduled coordinates.")
-    else R.of_effects book (List.filter_map Fun.id effects)
+let open_plan_draft ~book plan =
+  match R.open_plan_draft ~book plan with
+  | Error "plan-already-paid" -> Error (tr "This Scheduled occurrence is already completed.")
+  | Error "plan-cancelled" -> Error (tr "This Scheduled occurrence is cancelled.")
+  | Error "invalid-plan-posting" -> Error (tr "Invalid Scheduled coordinates.")
+  | result -> result
 
 let of_edit_plan ~book (plan : B.plan) =
   match open_plan_draft ~book plan with
   | Error why -> Error why
   | Ok draft ->
       let t =
-        blank ~mode:(A.Plan_edit plan) ~focus:0 ~phase:Form ~day:plan.day ~measure:plan.measure
+        blank ~mode:(R.Plan_edit plan) ~focus:0 ~phase:Form ~day:plan.day ~measure:plan.measure
       in
       Ok { t with rows = rows_of_draft draft }
 
@@ -175,7 +168,7 @@ let of_plan ?day ~book (plan : B.plan) =
   | Error why -> Error why
   | Ok draft ->
       let day = Option.value ~default:plan.day day in
-      let t = blank ~mode:(A.Pay plan.id) ~focus:1 ~phase:Form ~day ~measure:plan.measure in
+      let t = blank ~mode:(R.Pay plan.id) ~focus:1 ~phase:Form ~day ~measure:plan.measure in
       Ok { t with rows = rows_of_draft draft }
 
 (* Focus order: 0 date, 1 description, 2 Measure, then Locus and amount for each
@@ -190,8 +183,8 @@ let border_intent t =
   then `Cancel
   else
     match t.mode with
-    | A.New | A.Plan_new -> `Create
-    | A.Edit _ | A.Pay _ | A.Plan_edit _ -> `Change
+    | R.New | R.Plan_new -> `Create
+    | R.Edit _ | R.Pay _ | R.Plan_edit _ -> `Change
 
 let surface_dimensions (width, height) =
   let width = max 0 width and height = max 0 height in
@@ -204,7 +197,7 @@ let is_locus t = t.focus >= 3 && t.focus < action_start t && (t.focus - 3) mod 2
 (* LOAM Correction: Loci, amounts, signs and rows are editable; the date is kept
    (date-only changes use the dedicated [d] operation). *)
 let date_kept t =
-  match t.mode with A.Edit _ -> true | A.New | A.Pay _ | A.Plan_new | A.Plan_edit _ -> false
+  match t.mode with R.Edit _ -> true | R.New | R.Pay _ | R.Plan_new | R.Plan_edit _ -> false
 
 let value t =
   if t.focus = 0 then t.day
@@ -269,18 +262,11 @@ let drop_row t =
     let rows = List.filteri (fun i _ -> i <> index) t.rows in
     settle { t with rows; focus = 3 + (2 * min index (List.length rows - 1)) }
 
-(* A leading - or + is the posting's direction, not part of the amount. *)
-let split_sign text =
-  let negative = String.starts_with ~prefix:"-" text in
-  if negative || String.starts_with ~prefix:"+" text then
-    (negative, String.sub text 1 (String.length text - 1))
-  else (false, text)
-
 let parse_row_amount ~book ~measure amount_str =
   let trimmed = String.trim amount_str in
   if trimmed = "" then Error "empty"
   else
-    let negative, core = split_sign trimmed in
+    let negative, core = R.split_sign trimmed in
     match B.parse_amount book ~measure (String.trim core) with
     | Error why -> Error why
     | Ok quanta ->
@@ -377,28 +363,7 @@ let after_unresolved_enabled ~book t =
 let unresolved_not_enabled t why =
   { t with phase = Form; notice = tr "Unresolved recording was not enabled: " ^ why }
 
-let draft t =
-  {
-    R.measure = t.measure;
-    rows =
-      List.map
-        (fun row ->
-          let negative, amount = split_sign row.amount in
-          (* An Effect key stays only on a posting whose Locus is unchanged. *)
-          let key =
-            match (t.mode, row.key) with
-            | A.Edit entry, Some key ->
-                if
-                  List.exists
-                    (fun (p : B.posting) -> p.B.key = Some key && p.B.locus = row.locus)
-                    entry.B.effects
-                then Some key
-                else None
-            | _, key -> key
-          in
-          { R.key; locus = row.locus; negative; amount })
-        t.rows;
-  }
+let draft t = R.form ~mode:t.mode ~measure:t.measure t.rows
 
 let preview ~new_id ~book ~base_revision ~blocked t =
   if blocked then with_notice t (tr "Writes are stopped; the draft is retained.")
@@ -427,7 +392,7 @@ let preview ~new_id ~book ~base_revision ~blocked t =
     | _ -> (
         match
           A.build_transaction ~new_id ~book ~mode:t.mode
-            (A.Multiple
+            (R.Multiple
                {
                  day = t.day;
                  memo = t.description;
@@ -526,49 +491,6 @@ let safe_text text =
   !valid
 
 let is_date_char = function '0' .. '9' | '-' | '/' | '.' -> true | _ -> false
-
-let format_amount_str ~scale quanta =
-  if scale = 0 then Z.to_string quanta
-  else
-    let is_neg = Z.sign quanta < 0 in
-    let s = Z.to_string (Z.abs quanta) in
-    let len = String.length s in
-    let whole, frac =
-      if len <= scale then ("0", String.make (scale - len) '0' ^ s)
-      else (String.sub s 0 (len - scale), String.sub s (len - scale) scale)
-    in
-    (if is_neg then "-" else "") ^ whole ^ "." ^ frac
-
-let parse_original_quanta ~scale amount_str =
-  let trimmed = String.trim amount_str in
-  if trimmed = "" then Error `Invalid
-  else
-    match split_sign trimmed with
-    | true, _ -> Error `Non_positive
-    | false, core -> (
-        let core = String.concat "" (String.split_on_char ',' core) in
-        let is_digit c = c >= '0' && c <= '9' in
-        match String.split_on_char '.' core with
-        | [ whole ] ->
-            let whole = String.trim whole in
-            if whole = "" || not (String.for_all is_digit whole) then Error `Invalid
-            else
-              let q = Z.mul (Z.of_string whole) (Z.pow (Z.of_int 10) scale) in
-              if Z.sign q <= 0 then Error `Non_positive else Ok q
-        | [ whole; fraction ] ->
-            let whole = String.trim whole in
-            let fraction = String.trim fraction in
-            let whole_ok = whole = "" || String.for_all is_digit whole in
-            let frac_ok = fraction <> "" && String.for_all is_digit fraction in
-            if not (whole_ok && frac_ok) then Error `Invalid
-            else if String.length fraction > scale then Error `Precision
-            else
-              let whole_val = if whole = "" then Z.zero else Z.of_string whole in
-              let frac_padded = fraction ^ String.make (scale - String.length fraction) '0' in
-              let frac_val = if frac_padded = "" then Z.zero else Z.of_string frac_padded in
-              let q = Z.add (Z.mul whole_val (Z.pow (Z.of_int 10) scale)) frac_val in
-              if Z.sign q <= 0 then Error `Non_positive else Ok q
-        | _ -> Error `Invalid)
 
 let rec handle ~new_id ~book ~base_revision ~blocked ~dimensions ~width_of t
     (input : Ui_input.input) =
@@ -727,7 +649,7 @@ let rec handle ~new_id ~book ~base_revision ~blocked ~dimensions ~width_of t
                           notice = "";
                         }
                     else
-                      match parse_original_quanta ~scale ed.amount with
+                      match R.parse_original_quanta ~scale ed.amount with
                       | Error `Precision | Error `Invalid ->
                           update
                             (with_notice t
@@ -774,17 +696,17 @@ let rec handle ~new_id ~book ~base_revision ~blocked ~dimensions ~width_of t
               if is_plan t then update t
               else
                 match t.mode with
-                | A.Edit _ ->
+                | R.Edit _ ->
                     update
                       (with_notice t
                          (tr "Original amount is not changed by the current Correction editor."))
-                | A.Pay _ ->
+                | R.Pay _ ->
                     update
                       (with_notice t
                          (tr
                             "Original amount is available from new Actual Record, not Scheduled \
                              completion."))
-                | A.New -> (
+                | R.New -> (
                     match t.original_amount with
                     | None ->
                         let ed = { measure = ""; amount = ""; field = Original_measure } in
@@ -795,7 +717,7 @@ let rec handle ~new_id ~book ~base_revision ~blocked ~dimensions ~width_of t
                             let ed =
                               {
                                 measure = m;
-                                amount = format_amount_str ~scale q;
+                                amount = Bakhlo_household.Amount.format ~decimals:scale q;
                                 field = Original_measure;
                               }
                             in
@@ -805,7 +727,7 @@ let rec handle ~new_id ~book ~base_revision ~blocked ~dimensions ~width_of t
                               (with_notice t
                                  (Ui_text.format_message
                                     "Measure '%s' scale is not configured in this book." m))))
-                | A.Plan_new | A.Plan_edit _ -> update t)
+                | R.Plan_new | R.Plan_edit _ -> update t)
           | `Tab, [] -> update (move_focus t 1)
           | `Tab, [ `Shift ] -> update (move_focus t (-1))
           | `ASCII 'n', [ `Ctrl ] -> update (add_row t)
@@ -1054,13 +976,13 @@ let screen ?surface ~book ~dimensions:(width, height) ~width_of t =
       let navigation = List.map (raw O.Chrome) navigation in
       let title =
         match (review, t.mode) with
-        | Some _, A.Plan_new | Some _, A.Plan_edit _ -> tr "Scheduled / Preview"
+        | Some _, R.Plan_new | Some _, R.Plan_edit _ -> tr "Scheduled / Preview"
         | Some _, _ -> tr "Record / Preview"
-        | None, A.Plan_new -> tr "Scheduled / Create"
-        | None, A.Plan_edit _ -> tr "Scheduled / Edit"
-        | None, A.New -> tr "Record / Edit"
-        | None, A.Edit _ -> tr "Correction / Edit"
-        | None, A.Pay _ -> tr "Scheduled / Complete"
+        | None, R.Plan_new -> tr "Scheduled / Create"
+        | None, R.Plan_edit _ -> tr "Scheduled / Edit"
+        | None, R.New -> tr "Record / Edit"
+        | None, R.Edit _ -> tr "Correction / Edit"
+        | None, R.Pay _ -> tr "Scheduled / Complete"
       in
       if width < 4 || height < 4 then
         let rows = raw O.Heading title :: navigation in
@@ -1138,7 +1060,7 @@ let screen ?surface ~book ~dimensions:(width, height) ~width_of t =
                     in
                     let target =
                       match t.mode with
-                      | A.Edit e -> "Target: " ^ O.visible e.B.id ^ "   "
+                      | R.Edit e -> "Target: " ^ O.visible e.B.id ^ "   "
                       | _ -> ""
                     in
                     [ raw O.Chrome (target ^ summary) ]

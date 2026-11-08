@@ -43,7 +43,7 @@ type admission = Unconditional | Household_readable | Vocabulary_unchanged
 type publication =
   | Add_locus of { token : string; role : Locus_roles.role }
   | Set_locus_label of { locus : string; label : string; help : string }
-  | Commit_transaction of { transaction : Draft.transaction; base : string }
+  | Commit_transaction of { transaction : Bakhlo_household.Record.transaction; base : string }
   | Observe_quantities of { rows : (string * string * Z.t) list; base : string }
   | Reverse_entry of { id : string; day : string; base : string }
   | Correct_entry_date of { id : string; day : string; base : string }

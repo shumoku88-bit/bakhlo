@@ -6,6 +6,27 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Actual recording answer samples (2026-11-08)
+
+- Hand-written, synthetic contracts: `test/records/` has 54 Book changes
+  (13 exact after-books, 41 refusals) and 56 Record questions; `test/amounts/`
+  has 78 parse/format answers. Scheduled and Actual share one change runner.
+  Reasoning was written before execution in ignored `scratch/omp-briefs/records-notes.md`.
+- `household/record.ml` owns form construction, movement faults, edit eligibility,
+  plan prefill and the Original field's distinct decimal grammar. Screens keep
+  their messages; Book_txt admission and saved bytes remain unchanged.
+  Put_entry now carries `entry-admission:<code>`; publication keeps its old wording.
+- First command: compilation stopped on two docstrings; the next on two missing
+  wrapper exports. First executing run: zero new-sample mismatches, one obsolete
+  coarse-code assertion. Three deliberately wrong answers each failed, then were
+  restored. Covered old assertions/dead bindings were removed; no test module or
+  dune stanza was deleted. UI/key/draft/no-write/cold-reload checks remain.
+- Format/apply, full check and TUI self-check exited 0. The real synthetic PTY
+  smoke passed four sizes, startup keys and narrow Record Preview refusal with
+  unchanged book bytes. The gates and `privacy-scan --all` were rerun independently
+  before commit and exited 0. Latest-data paired comparison not executed (no displayed
+  answer changed; Record screen text is pinned by the TUI checks); no IME or P7 claim.
+
 ## Remaining report calculation samples (2026-11-08)
 
 - User request: move the report calculation rules still asserted by old tui checks

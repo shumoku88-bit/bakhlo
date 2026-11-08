@@ -1,0 +1,5 @@
+PUT-ENTRY	REPLACE	-
+TX	seed	2027-01-08	DESC	corrected
+EFFECT	bank	jpy	-120	b
+EFFECT	food	jpy	120	f
+ENDTX

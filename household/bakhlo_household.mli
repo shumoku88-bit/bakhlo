@@ -2,6 +2,12 @@ module Book = Book
 (** The household book in memory and its book.txt form; no filesystem or publication
     authority. *)
 
+module Amount = Amount
+(** Exact quanta from typed decimal or arithmetic input, and decimal display. *)
+
+module Record = Record
+(** Pure Actual form construction and editing rules, without screen wording. *)
+
 module Day = Day
 (** The household's days and the arithmetic over them. *)
 

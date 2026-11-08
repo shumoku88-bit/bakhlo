@@ -6,6 +6,7 @@
 
 `book.txt` の書き方は `docs/COMMON_FORMAT.ja.md` が決める。ここに書くのは、その上に乗る
 変更と答えの書き方だけ。Bakhloでの確認は `test/scheduled_tests.ml`。
+`test/records/` も同じrunnerで確認する。店の分類と両替の入力はそちらのREADMEを参照。
 
 ## 1つの見本
 

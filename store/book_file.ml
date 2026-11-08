@@ -253,7 +253,13 @@ let replace ~checkpoint path bytes =
    Applying changes is pure: an invalid batch never begins replacement. This
    also lets [revision_after] predict the candidate's revision without writing. *)
 let saved session changes =
-  match B.apply session.book changes with Ok book -> book | Error why -> raise (Refused why)
+  match B.apply session.book changes with
+  | Ok book -> book
+  | Error why ->
+      (* Keep the publication wording; detailed admission codes belong to Book. *)
+      raise
+        (Refused
+           (if String.starts_with ~prefix:"entry-admission:" why then "entry-admission" else why))
 
 (* The revision the file has once [publish] writes [changes]. *)
 let revision_after session changes = revision_of_bytes (T.print (B.txt (saved session changes)))

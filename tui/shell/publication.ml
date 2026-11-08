@@ -50,7 +50,7 @@ let changes ~session requested : outcome =
 let onto ~session ~base_revision requested =
   if base_revision <> session.F.revision then Conflict_base_changed else changes ~session requested
 
-let transaction ~session ~base_revision (tx : Draft.transaction) : outcome =
+let transaction ~session ~base_revision (tx : Bakhlo_household.Record.transaction) : outcome =
   onto ~session ~base_revision
     [ B.Put_entry { replace = tx.replace; entry = tx.entry; plan = tx.plan } ]
 
@@ -171,9 +171,9 @@ let reload ~session ~pending ~mode : reload_outcome =
     | Some _ -> Pending_unconfirmed loaded
     | None -> (
         match mode with
-        | (Draft.Edit _ | Plan_edit _) when loaded.revision <> session.revision ->
+        | (Bakhlo_household.Record.Edit _ | Plan_edit _) when loaded.revision <> session.revision ->
             Edit_base_changed loaded
-        | Draft.New | Pay _ | Edit _ | Plan_new | Plan_edit _ -> Reloaded loaded)
+        | Bakhlo_household.Record.New | Pay _ | Edit _ | Plan_new | Plan_edit _ -> Reloaded loaded)
   with
   | F.Refused why -> Reload_failed why
   | Unix.Unix_error _ | Sys_error _ -> Reload_failed "IO-error"

@@ -1,8 +1,7 @@
 module B = Bakhlo_household.Book
-module A = Draft
 
 type t
-type outcome = Updated of t | Closed | Publish of A.transaction * string
+type outcome = Updated of t | Closed | Publish of Bakhlo_household.Record.transaction * string
 
 val create : base_revision:string -> B.entry -> t
 val base_revision : t -> string

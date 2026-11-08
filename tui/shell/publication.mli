@@ -21,7 +21,10 @@ type outcome =
   | Refused of string
 
 val of_file_outcome : Book_file.outcome -> outcome
-val transaction : session:Book_file.t -> base_revision:string -> Draft.transaction -> outcome
+
+val transaction :
+  session:Book_file.t -> base_revision:string -> Bakhlo_household.Record.transaction -> outcome
+
 val payload : session:Book_file.t -> base_revision:string -> Draft.payload -> outcome
 
 val plan_batch :
@@ -86,7 +89,10 @@ type reload_outcome =
   | Reload_failed of string
 
 val reload :
-  session:Book_file.t -> pending:uncertain_evidence option -> mode:Draft.mode -> reload_outcome
+  session:Book_file.t ->
+  pending:uncertain_evidence option ->
+  mode:Bakhlo_household.Record.mode ->
+  reload_outcome
 (** Read and classify; never write or retry. Pending evidence takes precedence
     over edit-base checks. Without it, Edit and Plan_edit detect a changed
     revision; other modes return [Reloaded] and leave editor checks to callers.

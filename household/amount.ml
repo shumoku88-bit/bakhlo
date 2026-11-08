@@ -8,7 +8,7 @@
 
    This module knows the scale, not the currency or the household. Book looks
    up the admitted Measure scale; here we only read, calculate and print text.
-   The examples in test/amount_boundary_tests.ml exercise that public path. *)
+   The examples in test/amounts exercise these public parsers and decimal display. *)
 module R = Q
 
 exception Refused of string

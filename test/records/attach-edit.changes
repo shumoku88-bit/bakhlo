@@ -1,0 +1,5 @@
+PUT-ENTRY	REPLACE	open
+TX	seed	2027-01-10	DESC	meal
+EFFECT	bank	jpy	-100	b
+EFFECT	food	jpy	100	f
+ENDTX

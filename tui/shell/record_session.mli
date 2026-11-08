@@ -14,7 +14,7 @@ val create_plan : book:B.t -> day:string -> measure:string -> unit -> t
 val of_edit : book:B.t -> B.entry -> (t, string) result
 val of_edit_plan : book:B.t -> B.plan -> (t, string) result
 val of_plan : ?day:string -> book:B.t -> B.plan -> (t, string) result
-val mode : t -> A.mode
+val mode : t -> Bakhlo_household.Record.mode
 val border_intent : t -> [ `Create | `Change | `Cancel ]
 
 val in_quick_capture : t -> bool

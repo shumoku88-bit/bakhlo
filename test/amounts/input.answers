@@ -1,0 +1,78 @@
+POSITIVE	0	(500+300)/2	400
+POSITIVE	0	(100/3)*3	100
+POSITIVE	0	100/3	REFUSED	indivisible-amount
+POSITIVE	2	1/4	25
+POSITIVE	2	1/8	REFUSED	indivisible-amount
+POSITIVE	0	2+3*4	14
+POSITIVE	0	(2+3)*4	20
+POSITIVE	0	20/2/2	5
+POSITIVE	0	20-3-2	15
+POSITIVE	0	1.000+0	1
+POSITIVE	2	1.000+0	100
+POSITIVE	2	1.000	REFUSED	amount-precision
+POSITIVE	0	1.0	REFUSED	amount-precision
+POSITIVE	2	1.2	120
+POSITIVE	2	0.01	1
+POSITIVE	9	0.000000001	1
+POSITIVE	2	1,234,567.89	123456789
+POSITIVE	0	12,34	REFUSED	invalid-amount
+POSITIVE	0	1234,567	REFUSED	invalid-amount
+POSITIVE	0	,123	REFUSED	invalid-amount
+POSITIVE	0	1,,234	REFUSED	invalid-amount
+POSITIVE	2	1.2,3	REFUSED	invalid-amount
+POSITIVE	0	（５００＋３００）÷２	400
+POSITIVE	2	１，２３４．５０	123450
+POSITIVE	0	２×３＋４＊５	26
+POSITIVE	0	８／２－１	3
+POSITIVE	0	　( 2 + 3 ) * 4　	20
+POSITIVE	0	 12 	REFUSED	invalid-amount
+POSITIVE	0	1\t+2	REFUSED	invalid-amount
+POSITIVE	0	+12	REFUSED	invalid-amount
+POSITIVE	0	-12	REFUSED	invalid-amount
+POSITIVE	0	1+-2	REFUSED	invalid-amount
+POSITIVE	0	2*(+3)	REFUSED	invalid-amount
+POSITIVE	0	0	REFUSED	non-positive-amount
+POSITIVE	0	1-1	REFUSED	non-positive-amount
+POSITIVE	0	1-2	REFUSED	non-positive-amount
+POSITIVE	0	1/(2-2)	REFUSED	division-by-zero
+POSITIVE	0	0/0	REFUSED	division-by-zero
+POSITIVE	0		REFUSED	invalid-amount
+POSITIVE	2	.5	REFUSED	invalid-amount
+POSITIVE	2	1.	REFUSED	invalid-amount
+POSITIVE	0	2(3)	REFUSED	invalid-amount
+POSITIVE	0	(2+3	REFUSED	invalid-amount
+POSITIVE	0	2+3)	REFUSED	invalid-amount
+POSITIVE	0	2e3	REFUSED	invalid-amount
+POSITIVE	0	1_000	REFUSED	invalid-amount
+POSITIVE	0	00012	12
+POSITIVE	0	999999999999999999999999999999999999999999999999999999999999+1	1000000000000000000000000000000000000000000000000000000000000
+SIGNED	2	-1.23	-123
+SIGNED	2	+1.23	123
+SIGNED	0	 \t-12\r\n	-12
+SIGNED	2	-０．０１	-1
+SIGNED	0	＋１２	REFUSED	invalid-amount
+SIGNED	0	－１２	REFUSED	invalid-amount
+SIGNED	0	+ 12	REFUSED	invalid-amount
+SIGNED	0	　12　	REFUSED	invalid-amount
+SIGNED	0	0	0
+SIGNED	2	-0.00	0
+SIGNED	0	+0	0
+SIGNED	0		REFUSED	empty-amount
+SIGNED	0	 \t\n	REFUSED	empty-amount
+SIGNED	2	1.000	REFUSED	amount-precision
+SIGNED	0	1+2	REFUSED	invalid-amount
+SIGNED	0	(12)	REFUSED	invalid-amount
+SIGNED	2	-1,234.50	-123450
+SIGNED	0	1,23	REFUSED	invalid-amount
+SIGNED	0	--1	REFUSED	invalid-amount
+SIGNED	0	-999999999999999999999999999999999999999999999999999999999999	-999999999999999999999999999999999999999999999999999999999999
+FORMAT	0	0	0
+FORMAT	0	-1234567	-1234567
+FORMAT	2	0	0.00
+FORMAT	2	1	0.01
+FORMAT	2	-1	-0.01
+FORMAT	2	123450	1234.50
+FORMAT	9	1	0.000000001
+FORMAT	2	999999999999999999999999999999999999999999999999999999999999	9999999999999999999999999999999999999999999999999999999999.99
+POSITIVE	0	1                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             +0	1
+POSITIVE	0	1                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              +0	REFUSED	invalid-amount

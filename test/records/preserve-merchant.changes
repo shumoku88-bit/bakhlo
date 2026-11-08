@@ -1,0 +1,6 @@
+PUT-ENTRY	REPLACE	-
+TX	seed	2027-01-10	DESC	new memo
+EFFECT	bank	jpy	-100	b
+EFFECT	food	jpy	100	f
+MERCHANT	sample-cafe
+ENDTX

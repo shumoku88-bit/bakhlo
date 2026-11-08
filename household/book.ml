@@ -578,7 +578,7 @@ let check_entry t (e : entry) =
   nonempty "invalid-entry-id" e.id;
   List.iter (fun (p : posting) -> known_measure t p.measure) e.effects;
   Option.iter (fun (m, _) -> known_measure t m) e.original_amount;
-  require (T.valid_date e.day) "entry-admission"
+  require (T.valid_date e.day) "entry-admission:bad-date"
 
 (* HIDDEN only keeps a Locus out of new money flows. A correction may keep the Loci
    its entry already had, and a refund may return money to the Loci of the entry it
@@ -617,13 +617,17 @@ let put_entry t ~replace (e : entry) ~plan =
             [ T.Put_plan (plan_of { p with paid_by = Some e.id }) ]
       in
       check_entry t e;
-      (* A malformed exchange is a TX the rules refuse. *)
       let tx =
         try tx_of e
-        with Refused ("exchange-key" | "exchange-ambiguous") -> raise (Refused "entry-admission")
+        with Refused (("exchange-key" | "exchange-ambiguous") as code) ->
+          raise (Refused ("entry-admission:" ^ code))
+      in
+      let entry_refusal code =
+        match refusal code with "entry-admission" -> "entry-admission:" ^ code | why -> why
       in
       with_entry t
-        (commit t ((if replace then T.Replace_tx tx else T.Add_tx tx) :: paid))
+        (commit ~refusal:entry_refusal t
+           ((if replace then T.Replace_tx tx else T.Add_tx tx) :: paid))
         e ~replace)
 
 (* Only the date changes; the Effects are not admitted again, so Loci no longer

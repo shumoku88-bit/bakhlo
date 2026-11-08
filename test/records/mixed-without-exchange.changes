@@ -1,0 +1,5 @@
+PUT-ENTRY	NEW	-
+TX	bad	2027-01-12
+EFFECT	bank	jpy	-100
+EFFECT	food	usd	100
+ENDTX

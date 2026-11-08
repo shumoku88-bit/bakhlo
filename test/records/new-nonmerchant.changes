@@ -1,0 +1,6 @@
+PUT-ENTRY	NEW	-
+TX	nobody	2027-01-12
+EFFECT	bank	jpy	-5
+EFFECT	food	jpy	5
+NONMERCHANT
+ENDTX

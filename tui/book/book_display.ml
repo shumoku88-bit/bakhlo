@@ -2,7 +2,6 @@
    candidates, and the detail lines of Actual entries, Scheduled plans and Previews.
    Read-only; nothing here publishes. *)
 module B = Bakhlo_household.Book
-module A = Draft
 module O = Ui_render
 
 let tr = Ui_text.tr
@@ -121,7 +120,7 @@ let plan_rows book (plan : B.plan) =
 
 let plan_lines book plan = List.map snd (plan_rows book plan)
 
-let preview_rows book (transaction : A.transaction) =
+let preview_rows book (transaction : Bakhlo_household.Record.transaction) =
   (match transaction.plan with
     | Some id -> (
         [

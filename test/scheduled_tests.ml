@@ -1,18 +1,9 @@
-(* Scheduled plans and their payment, as language-neutral answers.
-
-   Each sample in test/scheduled is a book before, the changes the Shell would
-   publish, and the answer: the exact book.txt after, or the reason the whole
-   change list is refused. A [.pace] file adds today's spending guide over the
-   result. The files, not this runner, are the specification a rewrite must
-   pass (test/scheduled/README.md); this runner only proves Bakhlo agrees.
-
-   The change and pace files reuse book.txt's TX and PLAN blocks, so a reader of
-   one already reads the other. *)
+(* Language-neutral changes for Scheduled and Actual. The hand-written books
+   and answers, not this runner, are the contract a rewrite must pass. *)
 module B = Bakhlo_household.Book
 
-let dir = "scheduled"
-let read name = In_channel.with_open_bin (Filename.concat dir name) In_channel.input_all
-let exists name = Sys.file_exists (Filename.concat dir name)
+let read dir name = In_channel.with_open_bin (Filename.concat dir name) In_channel.input_all
+let exists dir name = Sys.file_exists (Filename.concat dir name)
 let lines text = List.filter (fun l -> l <> "") (String.split_on_char '\n' text)
 let fields = String.split_on_char '\t'
 
@@ -23,8 +14,8 @@ let amount s = try Z.of_string s with Invalid_argument _ -> bad ("amount " ^ s)
 let option = function "-" -> None | s -> Some s
 let mode = function "NEW" -> false | "REPLACE" -> true | other -> bad ("mode " ^ other)
 
-(* 1. A TX block, as book.txt writes it. Memos with escapes stay out of these
-   samples; the conformance fixtures already pin escaping. *)
+(* 1. A TX block, with exchange legs named by Effect keys (records/README.md).
+   Memos with escapes stay in the common-format conformance fixtures. *)
 let entry_block = function
   | header :: rest ->
       let id, day, memo =
@@ -53,6 +44,8 @@ let entry_block = function
               | [ "ORIGINAL"; measure; q ] -> { e with original_amount = Some (measure, amount q) }
               | [ "MERCHANT"; party ] -> { e with merchant = Some (B.Merchant party) }
               | [ "NONMERCHANT" ] -> { e with merchant = Some B.Nonmerchant }
+              | [ "EXCHANGE"; source; destination ] ->
+                  { e with exchange = Some (source, destination) }
               | _ -> bad ("TX body " ^ line)
             in
             body e rest
@@ -110,6 +103,11 @@ let rec changes = function
           B.Put_plan { replace = mode m; plan } :: changes rest
       | [ "CANCEL-PLAN"; id; day ] -> B.Cancel_plan { id; day } :: changes rest
       | [ "CORRECT-ENTRY-DATE"; id; day ] -> B.Correct_entry_date { id; day } :: changes rest
+      | [ "CLASSIFY-MERCHANT"; id; "MERCHANT"; name ] ->
+          B.Classify_merchant { id; disposition = B.Merchant (Amounts_tests.text name) }
+          :: changes rest
+      | [ "CLASSIFY-MERCHANT"; id; "NONMERCHANT" ] ->
+          B.Classify_merchant { id; disposition = B.Nonmerchant } :: changes rest
       | _ -> bad ("change " ^ line))
 
 (* 4. The Daily Pace questions over the book after the changes. A block names its
@@ -196,11 +194,18 @@ let pace_blocks book text =
       | [] -> bad "empty question block")
     (split [] (lines text))
 
-let%expect_test "every Scheduled sample gives its listed answer" =
+let refusal_code = function
+  | "loam: Event Merchant is already classified; replacement is not qualified" ->
+      "merchant-classified"
+  | "loam: Merchant classification requires an existing Event" -> "merchant-unknown"
+  | "loam: Merchant party token must be a non-empty single text field" -> "merchant-token"
+  | code -> code
+
+let run dir =
   let failures = ref 0 and accepted = ref 0 and refused = ref 0 and paces = ref 0 in
   let fail name why =
     incr failures;
-    Printf.printf "FAIL %s: %s\n" name why
+    Printf.printf "FAIL %s/%s: %s\n" dir name why
   in
   List.iter
     (fun row ->
@@ -208,30 +213,38 @@ let%expect_test "every Scheduled sample gives its listed answer" =
       | [ name; before; expect; _note ] -> (
           try
             let book =
-              match B.read (read before) with Ok b -> b | Error why -> bad ("before " ^ why)
+              match B.read (read dir before) with Ok b -> b | Error why -> bad ("before " ^ why)
             in
             let after_file = name ^ ".after.txt" and pace_file = name ^ ".pace" in
-            match (B.apply book (changes (lines (read (name ^ ".changes")))), expect) with
+            match (B.apply book (changes (lines (read dir (name ^ ".changes")))), expect) with
             | Ok after, "ok" ->
                 incr accepted;
-                if B.print after <> read after_file then fail name "book.txt after differs";
-                if exists pace_file then
+                if B.print after <> read dir after_file then fail name "book.txt after differs";
+                if exists dir pace_file then
                   List.iter
                     (fun (want, got) ->
                       incr paces;
                       if want <> got then
                         fail name ("pace answer differs:\n" ^ String.concat "\n" got))
-                    (pace_blocks after (read pace_file))
+                    (pace_blocks after (read dir pace_file))
             | Ok _, code -> fail name ("admitted, expected " ^ code)
             | Error why, "ok" -> fail name ("refused " ^ why)
             | Error why, code ->
                 incr refused;
-                if why <> code then fail name (Printf.sprintf "want %s, got %s" code why);
-                if exists after_file || exists pace_file then
+                if refusal_code why <> code then
+                  fail name (Printf.sprintf "want %s, got %s" code why);
+                if exists dir after_file || exists dir pace_file then
                   fail name "a refused sample has no book after it"
           with Bad_sample why -> fail name ("bad sample: " ^ why))
       | _ -> fail row "bad cases row")
-    (List.tl (lines (read "cases.tsv")));
+    (List.tl (lines (read dir "cases.tsv")));
   Printf.printf "%d applied, %d refused, %d pace answers, %d failures\n" !accepted !refused !paces
-    !failures;
+    !failures
+
+let%expect_test "every Scheduled sample gives its listed answer" =
+  run "scheduled";
   [%expect {| 14 applied, 14 refused, 27 pace answers, 0 failures |}]
+
+let%expect_test "every Actual change gives its listed answer" =
+  run "records";
+  [%expect {| 13 applied, 41 refused, 0 pace answers, 0 failures |}]

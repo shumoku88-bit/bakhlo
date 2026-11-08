@@ -22,6 +22,8 @@
   (deps
    (glob_files common_format/*)
    (glob_files scheduled/*)
+   (glob_files records/*)
+   (glob_files amounts/*)
    (glob_files periods/*)
    (glob_files reports/*)))
  (preprocess

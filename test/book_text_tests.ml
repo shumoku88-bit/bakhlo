@@ -64,33 +64,3 @@ let%expect_test "a role for the holding Locus is refused, never written" =
     | Ok _ -> "kept"
     | Error why -> why);
   [%expect {| suspense role: book-txt-suspense-role |}]
-
-(* book.txt names an exchange by its Measures; an exchange with a second positive
-   Effect in its destination Measure cannot be read back as the same entry, so a save
-   refuses it instead of writing it. *)
-let%expect_test "an exchange book.txt cannot read back is refused, never written" =
-  let book = get (B.read (read "common_format/ok-full.txt")) in
-  let leg ?key l m q = { B.key; locus = l; measure = m; amount = Z.of_int q } in
-  let entry : B.entry =
-    {
-      id = "fx-extra";
-      day = "2027-02-01";
-      memo = None;
-      effects =
-        [
-          leg ~key:"s" "wallet" "jpy" (-1500);
-          leg ~key:"d" "wallet" "usd" 1000;
-          leg "food" "usd" 50;
-          leg "fee" "usd" (-50);
-        ];
-      reversal_of = None;
-      exchange = Some ("s", "d");
-      original_amount = None;
-      merchant = None;
-    }
-  in
-  Printf.printf "save: %s\n"
-    (match B.put_entry book ~replace:false entry ~plan:None with
-    | Ok _ -> "written"
-    | Error why -> why);
-  [%expect {| save: entry-admission |}]

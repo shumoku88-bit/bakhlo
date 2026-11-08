@@ -190,7 +190,8 @@ val put_entry : t -> replace:bool -> entry -> plan:string option -> (t, string) 
     offered for new entries, except the Loci a replaced entry already had or, for a
     reversal, the Loci of its target (HIDDEN does not block corrections or refunds);
     [plan] pays an open plan (new entries only); a classified Merchant cannot be
-    replaced. An empty memo is no memo. *)
+    replaced. An empty memo is no memo. TX admission refusals carry the book.txt
+    code as [entry-admission:<code>], including malformed exchange keys. *)
 
 val correct_entry_date : t -> id:string -> day:string -> (t, string) result
 (** Only the date; a Locus no longer offered may stay. *)

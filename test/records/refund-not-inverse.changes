@@ -1,0 +1,6 @@
+PUT-ENTRY	NEW	-
+TX	bad	2027-01-12
+EFFECT	bank	jpy	99
+EFFECT	food	jpy	-99
+REVERSAL-OF	seed
+ENDTX

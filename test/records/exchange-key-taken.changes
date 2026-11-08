@@ -1,0 +1,7 @@
+PUT-ENTRY	NEW	-
+TX	bad	2027-01-12
+EFFECT	bank	jpy	-100
+EFFECT	fee	jpy	5	exchange-source
+EFFECT	bank	usd	50	d
+EXCHANGE	exchange-source	d
+ENDTX

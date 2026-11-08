@@ -1,0 +1,7 @@
+PUT-ENTRY	NEW	-
+TX	fx-refund	2027-01-13
+EFFECT	bank	jpy	160	s
+EFFECT	fee	jpy	-10
+EFFECT	bank	usd	-100	d
+REVERSAL-OF	fx
+ENDTX

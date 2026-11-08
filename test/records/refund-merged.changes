@@ -1,0 +1,6 @@
+PUT-ENTRY	NEW	-
+TX	bad	2027-01-13
+EFFECT	bank	jpy	75
+EFFECT	food	jpy	-75
+REVERSAL-OF	split
+ENDTX

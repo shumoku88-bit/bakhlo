@@ -234,7 +234,7 @@ let run ~width_of ~directory ~path (home : C.state) =
     (plan_editing.record_visible && Option.is_some plan_editing.record)
     "scheduled-key-r-opens-edit";
   (match S.mode (Option.get plan_editing.record) with
-  | Draft.Plan_edit _ -> ()
+  | Bakhlo_household.Record.Plan_edit _ -> ()
   | _ -> failwith "scheduled-e-mode-plan-edit");
   let closed_edit = C.discard (key ~width_of plan_editing `Escape) in
   let plan_cancelling = key ~width_of closed_edit (`ASCII 'x') in
@@ -347,7 +347,7 @@ let run ~width_of ~directory ~path (home : C.state) =
     (actual_editing.record_visible && Option.is_some actual_editing.record)
     "actual-key-c-opens-edit";
   (match S.mode (Option.get actual_editing.record) with
-  | Draft.Edit _ -> ()
+  | Bakhlo_household.Record.Edit _ -> ()
   | _ -> failwith "actual-c-mode-edit");
   let closed_actual_edit = C.discard (key ~width_of actual_editing `Escape) in
   let actual_reversing = key ~width_of closed_actual_edit (`ASCII 'x') in

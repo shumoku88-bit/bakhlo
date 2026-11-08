@@ -1,0 +1,400 @@
+MOVEMENT	empty
+ENDINPUT
+FAULT	empty
+ENDMOVEMENT
+MOVEMENT	zero-row
+EFFECT	bank	jpy	-5
+EFFECT	food	jpy	0
+ENDINPUT
+FAULT	zero:2
+ENDMOVEMENT
+MOVEMENT	zero-before-measure
+EFFECT	bank	jpy	-5
+EFFECT	food	usd	0
+ENDINPUT
+FAULT	zero:2
+ENDMOVEMENT
+MOVEMENT	measure-row
+EFFECT	bank	jpy	-5
+EFFECT	food	usd	5
+ENDINPUT
+FAULT	measure-differs:2:jpy:usd
+ENDMOVEMENT
+MOVEMENT	unbalanced
+EFFECT	bank	jpy	-5
+EFFECT	food	jpy	4
+ENDINPUT
+FAULT	unbalanced
+ENDMOVEMENT
+MOVEMENT	balanced-split
+EFFECT	bank	jpy	-5
+EFFECT	food	jpy	2
+EFFECT	food	jpy	3
+ENDINPUT
+OK
+ENDMOVEMENT
+EDITABLE	pair	base.txt
+TX	seed	2027-01-10	DESC	meal
+EFFECT	bank	jpy	-100	b
+EFFECT	food	jpy	100	f
+ENDTX
+ENDINPUT
+OK
+ENDEDITABLE
+EDITABLE	multiple	base.txt
+TX	split	2027-01-12	DESC	shared meal
+EFFECT	bank	jpy	-75
+EFFECT	food	jpy	30
+EFFECT	food	jpy	45
+ORIGINAL	usd	50
+MERCHANT	sample-cafe
+ENDTX
+ENDINPUT
+OK
+ENDEDITABLE
+EDITABLE	exchange	new-exchange.after.txt
+TX	fx	2027-01-12
+EFFECT	bank	jpy	-160	s
+EFFECT	fee	jpy	10
+EFFECT	bank	usd	100	d
+EXCHANGE	s	d
+ENDTX
+ENDINPUT
+REFUSED	linked-entry
+ENDEDITABLE
+EDITABLE	refunded-target	refund-paid.after.txt
+TX	seed	2027-01-10	DESC	meal
+EFFECT	bank	jpy	-100	b
+EFFECT	food	jpy	100	f
+ENDTX
+ENDINPUT
+REFUSED	linked-entry
+ENDEDITABLE
+EDITABLE	refund	refund-paid.after.txt
+TX	refund	2027-01-12
+EFFECT	bank	jpy	100
+EFFECT	food	jpy	-100
+REVERSAL-OF	seed
+ENDTX
+ENDINPUT
+REFUSED	linked-entry
+ENDEDITABLE
+EDITABLE	mixed	base.txt
+TX	probe	2027-01-12
+EFFECT	bank	jpy	-1
+EFFECT	food	usd	1
+ENDTX
+ENDINPUT
+REFUSED	single-measure-movement-required
+ENDEDITABLE
+EDITABLE	unknown-scale	base.txt
+TX	probe	2027-01-12
+EFFECT	bank	eur	-5
+EFFECT	food	eur	2
+EFFECT	food	eur	3
+ENDTX
+ENDINPUT
+REFUSED	measure-scale-not-supplied
+ENDEDITABLE
+POSTINGS	exact-rows	base.txt
+TX	probe	2027-01-12
+EFFECT	bank	usd	-123	b
+EFFECT	food	usd	23	f1
+EFFECT	food	usd	100	f2
+ENDTX
+ENDINPUT
+MEASURE	usd
+ROW	b	bank	-1.23
+ROW	f1	food	0.23
+ROW	f2	food	1.00
+ENDPOSTINGS
+POSTINGS	invalid	base.txt
+TX	probe	2027-01-12
+ENDTX
+ENDINPUT
+REFUSED	single-measure-movement-required
+ENDPOSTINGS
+POSTINGS	unknown-scale	base.txt
+TX	probe	2027-01-12
+EFFECT	bank	eur	-1
+EFFECT	food	eur	1
+ENDTX
+ENDINPUT
+REFUSED	measure-scale-not-supplied
+ENDPOSTINGS
+PAY-DRAFT	open	base.txt	open
+ENDINPUT
+MEASURE	jpy
+ROW	-	bank	-300
+ROW	-	food	300
+ENDPAY-DRAFT
+PAY-DRAFT	paid	base.txt	paid
+ENDINPUT
+REFUSED	plan-already-paid
+ENDPAY-DRAFT
+PAY-DRAFT	cancelled	base.txt	cancelled
+ENDINPUT
+REFUSED	plan-cancelled
+ENDPAY-DRAFT
+FORM	new-expression	base.txt	NEW	-	fresh
+DAY	２０２７／１／１２
+MEMO	calculated meal
+MEASURE	jpy
+ROW	-	bank	-(500+300)/2
+ROW	-	food	(100/3)*3
+ROW	-	food	300
+ORIGINAL	usd	50
+ENDINPUT
+RESULT	NEW	-
+TX	fresh	2027-01-12	DESC	calculated meal
+EFFECT	bank	jpy	-400
+EFFECT	food	jpy	100
+EFFECT	food	jpy	300
+ORIGINAL	usd	50
+ENDTX
+ENDFORM
+FORM	edit-key	base.txt	EDIT	seed	unused
+DAY	2027.1.8
+MEMO	changed locus
+MEASURE	jpy
+ROW	b	fee	-120
+ROW	f	food	+120
+ENDINPUT
+RESULT	REPLACE	-
+TX	seed	2027-01-08	DESC	changed locus
+EFFECT	fee	jpy	-120
+EFFECT	food	jpy	120	f
+ENDTX
+ENDFORM
+FORM	edit-original	new-split.after.txt	EDIT	split	unused
+DAY	2027-01-13
+MEMO	
+MEASURE	jpy
+ROW	-	bank	-80
+ROW	-	food	30
+ROW	-	food	50
+ORIGINAL	usd	999
+ENDINPUT
+RESULT	REPLACE	-
+TX	split	2027-01-13
+EFFECT	bank	jpy	-80
+EFFECT	food	jpy	30
+EFFECT	food	jpy	50
+ORIGINAL	usd	50
+MERCHANT	sample-cafe
+ENDTX
+ENDFORM
+FORM	edit-kept-keys	base.txt	EDIT	seed	unused
+DAY	2027-01-10
+MEMO	meal
+MEASURE	jpy
+ROW	b	bank	-100
+ROW	f	food	100
+ENDINPUT
+RESULT	REPLACE	-
+TX	seed	2027-01-10	DESC	meal
+EFFECT	bank	jpy	-100	b
+EFFECT	food	jpy	100	f
+ENDTX
+ENDFORM
+FORM	pay-other-amount	base.txt	PAY	open	paid-now
+DAY	2027-01-12
+MEMO	early payment
+MEASURE	jpy
+ROW	-	bank	-250
+ROW	-	food	250
+ENDINPUT
+RESULT	NEW	open
+TX	paid-now	2027-01-12	DESC	early payment
+EFFECT	bank	jpy	-250
+EFFECT	food	jpy	250
+ENDTX
+ENDFORM
+FORM	bad-day-first	base.txt	NEW	-	fresh
+DAY	not-a-day
+MEMO	
+MEASURE	jpy
+ENDINPUT
+REFUSED	day-format
+ENDFORM
+FORM	impossible-day	base.txt	NEW	-	fresh
+DAY	2027-02-29
+MEMO	
+MEASURE	jpy
+ENDINPUT
+REFUSED	day-format
+ENDFORM
+FORM	empty	base.txt	NEW	-	fresh
+DAY	2027-01-12
+MEMO	
+MEASURE	jpy
+ENDINPUT
+REFUSED	postings:posting-required
+ENDFORM
+FORM	zero	base.txt	NEW	-	fresh
+DAY	2027-01-12
+MEMO	
+MEASURE	jpy
+ROW	-	bank	-5
+ROW	-	food	0
+ENDINPUT
+REFUSED	postings:row-2: non-positive-amount
+ENDFORM
+FORM	precision	base.txt	NEW	-	fresh
+DAY	2027-01-12
+MEMO	
+MEASURE	usd
+ROW	-	bank	-1.000
+ROW	-	food	1
+ENDINPUT
+REFUSED	postings:row-1: amount-precision
+ENDFORM
+FORM	parse-before-locus	base.txt	NEW	-	fresh
+DAY	2027-01-12
+MEMO	
+MEASURE	jpy
+ROW	-		5
+ROW	-	food	1/0
+ENDINPUT
+REFUSED	postings:row-2: division-by-zero
+ENDFORM
+FORM	empty-locus	base.txt	NEW	-	fresh
+DAY	2027-01-12
+MEMO	
+MEASURE	jpy
+ROW	-	bank	-5
+ROW	-		5
+ENDINPUT
+REFUSED	postings:row-2: empty-locus
+ENDFORM
+FORM	empty-measure	base.txt	NEW	-	fresh
+DAY	2027-01-12
+MEMO	
+MEASURE	
+ROW	-	bank	-5
+ROW	-	food	5
+ENDINPUT
+REFUSED	postings:row-1: unknown-measure
+ENDFORM
+FORM	original-before-balance	base.txt	NEW	-	fresh
+DAY	2027-01-12
+MEMO	
+MEASURE	jpy
+ROW	-	bank	-5
+ROW	-	food	4
+ORIGINAL	eur	10
+ENDINPUT
+REFUSED	original-measure
+ENDFORM
+FORM	unbalanced	base.txt	NEW	-	fresh
+DAY	2027-01-12
+MEMO	
+MEASURE	jpy
+ROW	-	bank	-5
+ROW	-	food	4
+ENDINPUT
+REFUSED	movement:unbalanced
+ENDFORM
+FORM	duplicate	base.txt	NEW	-	seed
+DAY	2027-01-12
+MEMO	
+MEASURE	jpy
+ROW	-	bank	-5
+ROW	-	food	5
+ENDINPUT
+REFUSED	admission:duplicate-entry
+ENDFORM
+FORM	paid	base.txt	PAY	paid	fresh
+DAY	2027-01-12
+MEMO	
+MEASURE	jpy
+ROW	-	bank	-5
+ROW	-	food	5
+ENDINPUT
+REFUSED	admission:plan-already-paid
+ENDFORM
+FORM	unoffered	base.txt	NEW	-	fresh
+DAY	2027-01-12
+MEMO	
+MEASURE	jpy
+ROW	-	bank	-5
+ROW	-	old	5
+ENDINPUT
+REFUSED	admission:locus-unapproved
+ENDFORM
+ORIGINAL-INPUT	decimal	2	30.00
+ENDINPUT
+QUANTA	3000
+ENDORIGINAL-INPUT
+ORIGINAL-INPUT	plus	2	+30.00
+ENDINPUT
+QUANTA	3000
+ENDORIGINAL-INPUT
+ORIGINAL-INPUT	grouped	2	1,234.50
+ENDINPUT
+QUANTA	123450
+ENDORIGINAL-INPUT
+ORIGINAL-INPUT	loose-grouping	2	12,34.5
+ENDINPUT
+QUANTA	123450
+ENDORIGINAL-INPUT
+ORIGINAL-INPUT	fraction-only	2	.50
+ENDINPUT
+QUANTA	50
+ENDORIGINAL-INPUT
+ORIGINAL-INPUT	spaced	2	 + 1 . 2 
+ENDINPUT
+QUANTA	120
+ENDORIGINAL-INPUT
+ORIGINAL-INPUT	fullwidth	2	３０
+ENDINPUT
+REFUSED	invalid-amount
+ENDORIGINAL-INPUT
+ORIGINAL-INPUT	expression	2	1+2
+ENDINPUT
+REFUSED	invalid-amount
+ENDORIGINAL-INPUT
+ORIGINAL-INPUT	empty	2	
+ENDINPUT
+REFUSED	invalid-amount
+ENDORIGINAL-INPUT
+ORIGINAL-INPUT	precision	2	30.001
+ENDINPUT
+REFUSED	amount-precision
+ENDORIGINAL-INPUT
+ORIGINAL-INPUT	zero	2	0
+ENDINPUT
+REFUSED	non-positive-amount
+ENDORIGINAL-INPUT
+ORIGINAL-INPUT	precision-before-zero	2	0.000
+ENDINPUT
+REFUSED	amount-precision
+ENDORIGINAL-INPUT
+ORIGINAL-INPUT	negative	2	-30
+ENDINPUT
+REFUSED	non-positive-amount
+ENDORIGINAL-INPUT
+ORIGINAL-INPUT	negative-before-syntax	2	-anything
+ENDINPUT
+REFUSED	non-positive-amount
+ENDORIGINAL-INPUT
+ORIGINAL-INPUT	scale-zero	0	1.0
+ENDINPUT
+REFUSED	amount-precision
+ENDORIGINAL-INPUT
+ORIGINAL-INPUT	leading-zeroes	2	0002.5
+ENDINPUT
+QUANTA	250
+ENDORIGINAL-INPUT
+ORIGINAL-INPUT	huge	0	999999999999999999999999999999999999999999999999999999999999
+ENDINPUT
+QUANTA	999999999999999999999999999999999999999999999999999999999999
+ENDORIGINAL-INPUT
+ORIGINAL-INPUT	comma-only	2	,
+ENDINPUT
+REFUSED	invalid-amount
+ENDORIGINAL-INPUT
+ORIGINAL-INPUT	no-fraction	2	1.
+ENDINPUT
+REFUSED	invalid-amount
+ENDORIGINAL-INPUT

@@ -391,9 +391,7 @@ let%expect_test "every mutation agrees with its book.txt cold-loaded twin" =
     attention admitted at least 20 times: true
     |}]
 
-let result_text = function Ok _ -> "ok" | Error why -> why
-
-let%expect_test "HIDDEN Loci stay in corrections, refunds, dates and Merchant, never in new flows" =
+let%expect_test "HIDDEN Loci stay in date and Merchant changes" =
   let base = get (B.read hidden_fixture) in
   let initial = Option.value_exn (B.find_entry base "init") in
   let dated = B.correct_entry_date base ~id:"init" ~day:"2026-10-02" in
@@ -408,54 +406,8 @@ let%expect_test "HIDDEN Loci stay in corrections, refunds, dates and Merchant, n
   Stdio.printf "Merchant succeeds and changes only Merchant: %b\n"
     (Poly.equal after_merchant.merchant (Some B.Nonmerchant)
     && Poly.equal { after_merchant with merchant = initial.merchant } initial);
-  let correction =
-    B.put_entry base ~replace:true { initial with memo = Some "edited" } ~plan:None
-  in
-  let fresh = { initial with id = "fresh"; day = "2026-10-03" } in
-  let reversal =
-    { fresh with id = "refund"; effects = inverse initial; reversal_of = Some initial.id }
-  in
-  Stdio.printf "generic correction: %s\n" (result_text correction);
-  Stdio.printf "new entry: %s\n" (result_text (B.put_entry base ~replace:false fresh ~plan:None));
-  Stdio.printf "new reversal: %s\n"
-    (result_text (B.put_entry base ~replace:false reversal ~plan:None));
-  let lunch =
-    {
-      fresh with
-      id = "lunch";
-      effects = [ posting "food" "jpy" (-800); posting "expense" "jpy" 800 ];
-    }
-  in
-  let with_lunch = get (B.put_entry base ~replace:false lunch ~plan:None) in
-  Stdio.printf "correction into a HIDDEN Locus it did not have: %s\n"
-    (result_text
-       (B.put_entry with_lunch ~replace:true
-          { lunch with effects = [ posting "wallet" "jpy" (-800); posting "expense" "jpy" 800 ] }
-          ~plan:None));
-  Stdio.printf "invalid date: %s\n"
-    (result_text (B.correct_entry_date base ~id:"init" ~day:"2026-02-30"));
-  Stdio.printf "invalid id: %s\n" (result_text (B.correct_entry_date base ~id:"" ~day:"2026-10-02"));
-  Stdio.printf "unknown date target: %s\n"
-    (result_text (B.correct_entry_date base ~id:"nobody" ~day:"2026-10-02"));
-  Stdio.printf "unknown Merchant target: %s\n"
-    (result_text (B.classify_merchant base ~id:"nobody" ~disposition:B.Nonmerchant));
-  Stdio.printf "duplicate Merchant: %s\n"
-    (result_text (B.classify_merchant classified_book ~id:"init" ~disposition:B.Nonmerchant));
-  let bad_party = "bad\tparty" in
-  Stdio.printf "invalid Merchant token: %s\n"
-    (result_text (B.classify_merchant base ~id:"init" ~disposition:(B.Merchant bad_party)));
   [%expect
     {|
     date succeeds and changes only date: true
     Merchant succeeds and changes only Merchant: true
-    generic correction: ok
-    new entry: locus-unapproved
-    new reversal: ok
-    correction into a HIDDEN Locus it did not have: locus-unapproved
-    invalid date: invalid-date
-    invalid id: invalid-entry-id
-    unknown date target: unknown-entry
-    unknown Merchant target: loam: Merchant classification requires an existing Event
-    duplicate Merchant: loam: Event Merchant is already classified; replacement is not qualified
-    invalid Merchant token: loam: Merchant party token must be a non-empty single text field
     |}]

@@ -1,0 +1,5 @@
+PUT-ENTRY	NEW	-
+TX	bad	2027-01-12
+EFFECT	bank	jpy	-1
+EFFECT	old	jpy	1
+ENDTX

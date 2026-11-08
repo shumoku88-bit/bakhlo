@@ -120,7 +120,9 @@ let has_record_draft state =
   match state.record with None -> false | Some record -> S.has_draft record
 
 let editor_visible state = state.record_visible
-let mode state = match state.record with None -> Draft.New | Some record -> S.mode record
+
+let mode state =
+  match state.record with None -> Bakhlo_household.Record.New | Some record -> S.mode record
 
 let sync state =
   match state.workspace.route with
@@ -159,7 +161,7 @@ let finish_publication ~record_publication state session message =
     { next with screens; message = (next.message ^ if notice = "" then "" else "\n" ^ tr notice) }
   in
   match (record_publication, mode state) with
-  | true, Draft.Pay id -> (
+  | true, Bakhlo_household.Record.Pay id -> (
       match
         List.find_opt (fun (p : B.plan) -> p.id = id && p.paid_by <> None) (B.plans session.book)
       with

@@ -8,6 +8,12 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
 
 ## Where things stand (2026-11-08)
 
+- 2026-11-08: Actual's language-neutral samples now cover 54 Book changes,
+  78 typed amount answers and 56 Record questions. Pure form rules moved to
+  `household/record.ml`; screen wording and save bytes stay unchanged. One runner
+  serves Scheduled and Actual; covered old assertions were removed, not re-pinned.
+  [Evidence](VERIFICATION.md#actual-recording-answer-samples-2026-11-08).
+
 - 2026-11-08: the remaining report calculation checks now live in language-neutral
   samples: `test/reports/` has 102 questions, `test/periods/` has 73 lines, including
   `TREND-CATALOG`, `ELAPSED` and `SAME-AGE`. I&E comparison windows are owned by

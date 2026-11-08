@@ -1,0 +1,31 @@
+BOOK	1
+MEASURE	jpy	0
+MEASURE	usd	2
+LOCUS	bank	Bank	
+LOCUS	food	Food	
+LOCUS	fee	Fee	
+LOCUS	old	Old		HIDDEN
+TX	seed	2027-01-08	DESC	corrected
+EFFECT	bank	jpy	-120	b
+EFFECT	food	jpy	120	f
+ENDTX
+TX	tail	2027-01-09
+EFFECT	bank	jpy	-20
+EFFECT	food	jpy	20
+NONMERCHANT
+ENDTX
+PLAN	paid	2027-01-10	jpy
+CHANGE	bank	-100
+CHANGE	food	100
+PAID-BY	seed
+ENDPLAN
+PLAN	open	2027-02-10	jpy
+CHANGE	bank	-300
+CHANGE	food	300
+ENDPLAN
+PLAN	cancelled	2027-02-11	jpy
+CHANGE	bank	-30
+CHANGE	food	30
+CANCELLED	2027-01-11
+ENDPLAN
+END

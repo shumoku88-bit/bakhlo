@@ -1,7 +1,6 @@
-(* Pure draft construction and validation. IDs and dates are supplied by the caller. *)
+(* Screen messages for the core Record rules. *)
 module B = Bakhlo_household.Book
-module Day = Bakhlo_household.Day
-module R = Posting_draft
+module R = Bakhlo_household.Record
 
 let tr = Ui_text.tr
 let format_message = Ui_text.format_message
@@ -10,164 +9,69 @@ let coordinate ~locus ~measure : (B.coordinate, string) result =
   if locus = "" || measure = "" then Error "A balance coordinate needs a Locus and a Measure."
   else Ok { locus; measure }
 
-type mode = New | Edit of B.entry | Pay of string | Plan_new | Plan_edit of B.plan
-type transaction = { entry : B.entry; replace : bool; plan : string option }
-type payload = Entry_tx of transaction | Plan_tx of { plan : B.plan; replace : bool }
-
-type draft_content =
-  | Multiple of {
-      day : string;
-      memo : string;
-      draft : R.t;
-      original_amount : (string * Z.t) option;
-    }
-
-let pair (effects : B.posting list) =
-  match effects with
-  | [ a; b ]
-    when a.measure = b.measure
-         && Z.sign a.amount * Z.sign b.amount = -1
-         && Z.equal (Z.add a.amount b.amount) Z.zero ->
-      Some (if Z.sign a.amount < 0 then (a, b) else (b, a))
-  | [] | _ :: _ -> None
-
-(* Why the Record editor cannot correct this entry, if it cannot. *)
-let edit_refusal ~book (e : B.entry) =
-  if
-    e.exchange <> None || e.reversal_of <> None
-    || List.exists (fun (row : B.entry) -> row.reversal_of = Some e.id) (B.entries book)
-  then Some (tr "Entries with Exchange or Reversal links cannot be edited here.")
-  else
-    match pair e.effects with
-    | Some _ -> None
-    | None -> (
-        match R.of_effects book e.effects with
-        | Ok _ -> None
-        | Error "single-measure-movement-required" ->
-            Some (tr "Only ordinary single-Measure Movements can be edited here.")
-        | Error "measure-scale-not-supplied" ->
-            Some (tr "The Measure scale is not supplied; editing is unavailable.")
-        | Error why -> Some (format_message "Multi-posting edit refused (%s)" why))
-
+type payload = Entry_tx of R.transaction | Plan_tx of { plan : B.plan; replace : bool }
 type transaction_error = { message : string }
 
-let refuse message = Error { message }
-let ( let* ) = Result.bind
+let edit_refusal ~book entry =
+  Option.map
+    (function
+      | "linked-entry" -> tr "Entries with Exchange or Reversal links cannot be edited here."
+      | "single-measure-movement-required" ->
+          tr "Only ordinary single-Measure Movements can be edited here."
+      | "measure-scale-not-supplied" ->
+          tr "The Measure scale is not supplied; editing is unavailable."
+      | why -> format_message "Multi-posting edit refused (%s)" why)
+    (R.edit_refusal ~book entry)
 
-let canonical_day day =
-  match Day.normalize day with
-  | Error _ -> refuse (tr "Enter a valid Gregorian date (YYYY-MM-DD, YYYY/MM/DD or YYYY.MM.DD).")
-  | Ok day when not (Day.is_valid day) -> refuse (tr "Enter a real Gregorian date.")
-  | Ok day -> Ok day
+let posting_message why =
+  let has fragment = Base.String.is_substring why ~substring:fragment in
+  match why with
+  | "posting-required" -> tr "At least one posting is required."
+  | "empty-measure" -> tr "A Measure is required."
+  | _ when has "invalid-amount" -> format_message "%s. Enter a valid exact decimal amount." why
+  | _ when has "non-positive-amount" -> format_message "%s. Enter a positive amount magnitude." why
+  | _ when has "amount-precision" -> format_message "%s. Check the Measure decimal scale." why
+  | _ when has "division-by-zero" || has "indivisible-amount" ->
+      Posting_draft.format_residual_error why
+  | _ when has "empty-locus" -> format_message "%s. Select an admitted Locus." why
+  | _ -> format_message "Invalid postings (%s)." why
 
-let draft_effects ~book draft =
-  let has why fragment = Base.String.is_substring why ~substring:fragment in
-  match R.effects book draft with
-  | Ok effects -> Ok effects
-  | Error "posting-required" -> refuse (tr "At least one posting is required.")
-  | Error "empty-measure" -> refuse (tr "A Measure is required.")
-  | Error why when has why "invalid-amount" ->
-      refuse (format_message "%s. Enter a valid exact decimal amount." why)
-  | Error why when has why "non-positive-amount" ->
-      refuse (format_message "%s. Enter a positive amount magnitude." why)
-  | Error why when has why "amount-precision" ->
-      refuse (format_message "%s. Check the Measure decimal scale." why)
-  | Error why when has why "division-by-zero" || has why "indivisible-amount" ->
-      refuse (R.format_residual_error why)
-  | Error why when has why "empty-locus" ->
-      refuse (format_message "%s. Select an admitted Locus." why)
-  | Error why -> refuse (format_message "Invalid postings (%s)." why)
+let message ~plan = function
+  | R.Day_format -> tr "Enter a valid Gregorian date (YYYY-MM-DD, YYYY/MM/DD or YYYY.MM.DD)."
+  | R.Day_invalid -> tr "Enter a real Gregorian date."
+  | R.Postings why -> posting_message why
+  | R.Movement R.Empty -> tr "At least one posting is required."
+  | R.Movement (R.Zero position) ->
+      format_message "Posting %d is zero. Enter a nonzero amount." position
+  | R.Movement (R.Measure_differs { position; expected; actual }) ->
+      format_message "Posting %d Measure (%s) differs from the other postings (%s)." position actual
+        expected
+  | R.Movement R.Unbalanced ->
+      tr "The signed postings are unbalanced; their exact sum must be zero."
+  | R.Original_measure -> tr "The Measure scale is not supplied in this book."
+  | R.Admission { reason; id } -> (
+      match reason with
+      | "duplicate-entry" when not plan ->
+          format_message "The Actual ID already exists (ID: %s)." id
+      | "duplicate-plan" when plan -> format_message "The Scheduled ID already exists (ID: %s)." id
+      | "measure-scale-not-supplied" when not plan ->
+          tr "The Measure scale is not supplied in this book."
+      | "locus-unapproved" -> tr "A Locus is not admitted by the current book."
+      | "plan-already-paid" -> tr "This Scheduled occurrence is already completed."
+      | "plan-cancelled" -> tr "This Scheduled occurrence is cancelled."
+      | "unknown-plan" -> tr "The Scheduled occurrence is unavailable."
+      | why when (not plan) && String.starts_with ~prefix:"entry-admission" why ->
+          tr "Movement admission refused (entry-admission); check conservation and relationships."
+      | why ->
+          if plan then format_message "Scheduled refused (%s). Review the draft." why
+          else format_message "Record refused (%s). Review the draft." why)
 
-let balanced effects =
-  match R.movement_fault effects with
-  | None -> Ok ()
-  | Some R.Empty -> refuse (tr "At least one posting is required.")
-  | Some (R.Zero position) ->
-      refuse (format_message "Posting %d is zero. Enter a nonzero amount." position)
-  | Some (R.Measure_differs { position; expected; actual }) ->
-      refuse
-        (format_message "Posting %d Measure (%s) differs from the other postings (%s)." position
-           actual expected)
-  | Some R.Unbalanced ->
-      refuse (tr "The signed postings are unbalanced; their exact sum must be zero.")
+let build_transaction ~new_id ~book ~mode content =
+  Result.map_error
+    (fun why -> { message = message ~plan:false why })
+    (R.build_transaction ~new_id ~book ~mode content)
 
-let build_transaction ~new_id ~book ~mode
-    (Multiple { day; memo = memo_str; draft; original_amount }) :
-    (transaction, transaction_error) result =
-  let* day = canonical_day day in
-  let* effects = draft_effects ~book draft in
-  let* () =
-    match original_amount with
-    | Some (m, _) when not (List.mem_assoc m (B.measures book)) ->
-        refuse (tr "The Measure scale is not supplied in this book.")
-    | _ -> Ok ()
-  in
-  let* () = balanced effects in
-  let memo =
-    match mode with
-    | Edit e when Option.value ~default:"" e.memo = memo_str -> e.memo
-    | New | Pay _ | Edit _ | Plan_new | Plan_edit _ -> if memo_str = "" then None else Some memo_str
-  in
-  let entry, replace, plan =
-    match mode with
-    | Edit e -> ({ e with day; memo; effects }, true, None)
-    | New | Pay _ | Plan_new | Plan_edit _ ->
-        ( {
-            B.id = new_id ();
-            day;
-            memo;
-            effects;
-            reversal_of = None;
-            exchange = None;
-            original_amount;
-            merchant = None;
-          },
-          false,
-          match mode with Pay id -> Some id | New | Edit _ | Plan_new | Plan_edit _ -> None )
-  in
-  match B.put_entry book ~replace entry ~plan with
-  | Ok _ -> Ok { entry; replace; plan }
-  | Error "duplicate-entry" ->
-      refuse (format_message "The Actual ID already exists (ID: %s)." entry.id)
-  | Error "measure-scale-not-supplied" ->
-      refuse (tr "The Measure scale is not supplied in this book.")
-  | Error "locus-unapproved" -> refuse (tr "A Locus is not admitted by the current book.")
-  | Error "plan-already-paid" -> refuse (tr "This Scheduled occurrence is already completed.")
-  | Error "plan-cancelled" -> refuse (tr "This Scheduled occurrence is cancelled.")
-  | Error "unknown-plan" -> refuse (tr "The Scheduled occurrence is unavailable.")
-  | Error "entry-admission" ->
-      (* The date is already valid, so this is a ledger admission refusal (conservation,
-         relation or reversal), not a date error. *)
-      refuse
-        (tr "Movement admission refused (entry-admission); check conservation and relationships.")
-  | Error why -> refuse (format_message "Record refused (%s). Review the draft." why)
-
-let build_plan ~new_id ~book ~mode ~day ~draft : (B.plan * bool, transaction_error) result =
-  let* day = canonical_day day in
-  let* effects = draft_effects ~book draft in
-  let* () = balanced effects in
-  let changes = List.map (fun (e : B.posting) -> (e.locus, e.amount)) effects in
-  let plan, replace =
-    match mode with
-    | Plan_edit p -> ({ p with day; measure = draft.R.measure; changes }, true)
-    | Plan_new ->
-        ( {
-            B.id = new_id ();
-            day;
-            measure = draft.R.measure;
-            changes;
-            paid_by = None;
-            cancelled_on = None;
-          },
-          false )
-    | New | Edit _ | Pay _ -> failwith "unexpected mode for build_plan"
-  in
-  match B.put_plan book ~replace plan with
-  | Ok _ -> Ok (plan, replace)
-  | Error "duplicate-plan" ->
-      refuse (format_message "The Scheduled ID already exists (ID: %s)." plan.id)
-  | Error "unknown-plan" -> refuse (tr "The Scheduled occurrence is unavailable.")
-  | Error "plan-already-paid" -> refuse (tr "This Scheduled occurrence is already completed.")
-  | Error "plan-cancelled" -> refuse (tr "This Scheduled occurrence is cancelled.")
-  | Error "locus-unapproved" -> refuse (tr "A Locus is not admitted by the current book.")
-  | Error why -> refuse (format_message "Scheduled refused (%s). Review the draft." why)
+let build_plan ~new_id ~book ~mode ~day ~draft =
+  Result.map_error
+    (fun why -> { message = message ~plan:true why })
+    (R.build_plan ~new_id ~book ~mode ~day ~draft)

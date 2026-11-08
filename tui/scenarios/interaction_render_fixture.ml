@@ -23,24 +23,25 @@ let render_cases state =
     get
       (Result.map_error
          (fun error -> error.Draft.message)
-         (Draft.build_transaction ~new_id:Book_file.new_id ~book:home.session.book ~mode:Draft.New
-            (Draft.Multiple
+         (Draft.build_transaction ~new_id:Book_file.new_id ~book:home.session.book
+            ~mode:Bakhlo_household.Record.New
+            (Bakhlo_household.Record.Multiple
                {
                  day = home.workspace.focus_day;
                  memo = "Synthetic / 日本語";
                  draft =
                    {
-                     Posting_draft.measure = "jpy";
+                     Bakhlo_household.Record.measure = "jpy";
                      rows =
                        [
                          {
-                           Posting_draft.key = None;
+                           Bakhlo_household.Record.key = None;
                            locus = "wallet";
                            negative = true;
                            amount = String.make 70 '9';
                          };
                          {
-                           Posting_draft.key = None;
+                           Bakhlo_household.Record.key = None;
                            locus = "food";
                            negative = false;
                            amount = String.make 70 '9';
