@@ -1,0 +1,6 @@
+; tools/startup-probe's measurements, built with everything else so a change to the
+; core cannot leave the probe behind.
+
+(executable
+ (name startup_probe)
+ (libraries bakhlo_store bakhlo_household bakhlo_book_txt zarith unix))

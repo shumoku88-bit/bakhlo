@@ -1,5 +1,5 @@
 ; The single household writer: session load and atomic whole-file publication of book.txt.
-; Only the TUI Shell's publication executor may depend on it.
+; The bk commands and tools/startup-probe depend on it.
 
 (library
  (name bakhlo_store)

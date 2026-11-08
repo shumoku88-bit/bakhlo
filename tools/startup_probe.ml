@@ -5,7 +5,6 @@ module T = Bakhlo_book_txt.Book_txt
 module F = Book_file
 
 let get = function Ok x -> x | Error why -> failwith why
-let id = function Ok x -> x | Error _ -> failwith "invalid-id"
 let coordinate locus measure : B.coordinate = { locus; measure }
 let currencies = [| "jpy"; "eur"; "usd" |]
 let amount i = if i mod 997 = 0 then Z.shift_left Z.one 180 else Z.of_int (100 + (i mod 500))
