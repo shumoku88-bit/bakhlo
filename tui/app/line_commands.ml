@@ -1292,6 +1292,79 @@ let fx io (session : F.t) ~today =
             [ B.Put_entry { replace = false; entry = e; plan = None } ]
             [ entry_cells book e ])
 
+(* 15. `bk todo`: household matters with a due date (Attention). `add` adds one,
+   `done` resolves and `drop` drops a chosen open one, on today's date. *)
+module Att = Attention_data
+
+let attention book =
+  let items, closes = B.attention book in
+  { Att.items; closes }
+
+let todo_rows ~today items =
+  List.mapi
+    (fun i (item : Att.item) ->
+      [ Right (string_of_int (i + 1)); Left (Att.due_display ~today item.due); Left item.context ])
+    items
+
+let todo io (session : F.t) ~today action =
+  let book = session.book in
+  let att = attention book in
+  let save title next rows =
+    publish_changes io session ~title
+      [ B.Set_attention { items = next.Att.items; closes = next.closes } ]
+      rows
+  in
+  match action with
+  | `List ->
+      (match Att.open_items att with
+      | [] -> say io "Nothing open."
+      | items -> print_table io (todo_rows ~today items));
+      `Stopped
+  | `Add -> (
+      let context = ask io "What" in
+      let rec due () =
+        match ask io ~default:"-" "Due (YYYY-MM-DD, - for none, ? for not known yet)" with
+        | "-" -> Att.No_due_date
+        | "?" -> Att.Due_undetermined
+        | text -> (
+            match Bakhlo_household.Day.normalize text with
+            | Ok day -> Att.Due_on day
+            | Error _ ->
+                say io "Enter a real date, - or ?.";
+                due ())
+      in
+      let due = due () in
+      match Att.add_item att ~id:(Att.next_id att) ~context ~due with
+      | Error why ->
+          say io ("Not saved: " ^ why);
+          `Stopped
+      | Ok next -> save "New" next [ [ Left (Att.due_display ~today due); Left context ] ])
+  | (`Done | `Drop) as action -> (
+      match Att.open_items att with
+      | [] ->
+          say io "Nothing open.";
+          `Stopped
+      | items -> (
+          print_table io (todo_rows ~today items);
+          let rec pick () =
+            match int_of_string_opt (ask io ~default:"1" "Which") with
+            | Some n when n >= 1 && n <= List.length items -> List.nth items (n - 1)
+            | _ ->
+                say io "Type a number from the list.";
+                pick ()
+          in
+          let item = pick () in
+          let kind = match action with `Done -> Att.Resolved | `Drop -> Att.Dropped in
+          match Att.close_item att ~id:item.id ~known_on:today ~kind with
+          | Error why ->
+              say io ("Not saved: " ^ why);
+              `Stopped
+          | Ok next ->
+              save
+                (match kind with Att.Resolved -> "Done" | Att.Dropped -> "Dropped")
+                next
+                [ [ Left (Att.due_display ~today item.due); Left item.context ] ]))
+
 (* 8. After a saved record or payment, another one may follow on the saved book. *)
 let rec again io (session : F.t) ~today ~saved ~question step =
   match
@@ -1328,6 +1401,7 @@ let run io command (session : F.t) ~today =
     | `Pace_if words -> pace_if io session ~today words
     | `Pace_target -> pace_target io session ~today
     | `Fx -> fx io session ~today
+    | `Todo action -> todo io session ~today action
   with Quit ->
     say io "Nothing was saved.";
     `Stopped

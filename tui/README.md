@@ -24,7 +24,8 @@ Mac実IME／フォント、LOAMの実行対照、P7・運用認定は別。
 `bk loci add`・`name`・`role`は追加・表示名・役割（役割は1回だけ）。`bk pace pool`は今日の目安に入れる口座
 （残高が正確な口座から番号で選ぶ）、`bk pace cycle`は今の周期の境目の日付、`bk pace if <金額>`は買ったら
 （`+金額`は入金）今日の目安がどうなるか、`bk pace target`は目標のペースを守る1日の使える額。`bk fx`は両替（出た口座・Measure・金額と、
-入った口座・Measure・金額）。`bk r`・`bk pay`のSaveで`o`を押すと元の通貨の金額（Original）を付けられる。`bk r`は実績を、`bk pay`は
+入った口座・Measure・金額）。`bk r`・`bk pay`のSaveで`o`を押すと元の通貨の金額（Original）を付けられる。`bk todo`は期限のある
+家計の用事（Attention）の一覧、`add`・`done`・`drop`で追加・済み・取りやめ。`bk r`は実績を、`bk pay`は
 予定の支払いを、画面を開かずに1行ずつ答えて記帳する（Locusは先頭の文字で選び、Enterで釣り合う金額、
 PreviewのあとEnterで保存。保存のあと「Record another?」/「Pay another?」で`y`なら続けて記帳。終わればいつもどおり
 commit・push）。`bk bal`はBalances（Current）の行を、

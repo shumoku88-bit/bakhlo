@@ -7,6 +7,16 @@ toolchain. This file keeps the last week's entries (from 2026-11-02); entries fr
 2026-10-31 are in Git at `5b48008:docs/VERIFICATION.md`, earlier ones (including the bounded
 Solo5-SPT engine boot) at `90a5867:docs/VERIFICATION.md`.
 
+## bk todo (2026-11-08)
+
+- `bk todo` lists open Attention matters with their due state; `add`, `done` and `drop`
+  add, resolve and drop one, saved as the book's Attention section through the single
+  writer (`Attention_data`'s rules). A CLI check pins the list (a past due marked `!`)
+  before and after a matter is done; a wrong line failed. `./tools/check` exited 0.
+- Settlements (the commitment trial sidecar) were not moved: the household has no
+  `settlements.tsv` (only the file's presence was checked, not read), so whether to keep
+  or drop the feature is left to the user.
+
 ## bk fx and original amounts (2026-11-08)
 
 - `bk fx` records an exchange; its construction moved from the Exchange screen into

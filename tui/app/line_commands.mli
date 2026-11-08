@@ -25,7 +25,8 @@ val run :
   | `Pace_cycle
   | `Pace_if of string list
   | `Pace_target
-  | `Fx ] ->
+  | `Fx
+  | `Todo of [ `List | `Add | `Done | `Drop ] ] ->
   Book_file.t ->
   today:string ->
   [ `Saved | `Stopped ]

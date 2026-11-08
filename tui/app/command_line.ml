@@ -31,6 +31,10 @@ let commands =
     ([ "refund" ], terms (fun t -> `Refund t), "record the refund of a record [find terms]");
     ([ "shop" ], terms (fun t -> `Shop t), "set where a record was bought, once [find terms]");
     ([ "fx" ], fixed `Fx, "record an exchange between two Measures");
+    ([ "todo" ], fixed (`Todo `List), "household matters with due dates (Attention)");
+    ([ "todo"; "add" ], fixed (`Todo `Add), "add a matter with its due date");
+    ([ "todo"; "done" ], fixed (`Todo `Done), "mark a matter done");
+    ([ "todo"; "drop" ], fixed (`Todo `Drop), "drop a matter");
     ([ "check" ], fixed `Check, "save the balances you see (a bank app, the wallet)");
     ([ "loci" ], fixed (`Loci `List), "accounts with their roles and balances");
     ([ "loci"; "add" ], fixed (`Loci `Add), "add an account");

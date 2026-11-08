@@ -476,6 +476,19 @@ let run_all () =
         ORIGINAL\tusd\t1250\n\
         ENDTX")
     "bk-r-adds-an-original-amount";
+  (* `bk todo`: add two matters, list them (the past one marked !), mark one done. *)
+  let todo action answers =
+    let io, out = script answers in
+    ignore (L.run io (`Todo action) (F.load "scratch/bk-fx/book.txt") ~today:"2026-11-08");
+    Buffer.contents out
+  in
+  ignore (todo `Add [ "Renewal"; "2026-11-30"; "" ]);
+  ignore (todo `Add [ "Old"; "2026-11-01"; "" ]);
+  require
+    (todo `List [] = "  1  due 2026-11-30  Renewal\n  2  ! 2026-11-01    Old\n")
+    "bk-todo-lists-open-matters";
+  ignore (todo `Done [ "2"; "" ]);
+  require (todo `List [] = "  1  due 2026-11-30  Renewal\n") "bk-todo-done-closes-a-matter";
   (* bk help lists every command, and every listed command runs: with no answers
      it stops and writes nothing. *)
   List.iter
