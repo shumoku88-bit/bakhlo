@@ -81,8 +81,10 @@ Comment/docstring rewriting is disabled to keep evidence prose intact. Use
 missing/wrong local formatter, never installs or falls back to a global tool. Apply finishes
 with a clean @fmt check: Dune 3.24.2 can return 1 for diffs it has already promoted.
 Formatting is optional developer tooling, NOT a main runtime/test dependency or CI gate;
-`bootstrap`, `check` and normal builds use the main 51 locked packages without it.
-Additions to the original 50: Parsexp v0.17.0 (outer S-expression adapter). Notty, uutf
+`bootstrap`, `check` and normal builds use the main 50 locked packages without it; Bakhlo itself
+needs only OCaml, Dune and Zarith (with GMP), the Jane Street packages are for the tests
+only (34 with-test). Parsexp and the product use of Base and Sexplib0 went on 2026-11-09
+(unused). Notty, uutf
 and their build tools cppo, ocamlbuild and topkg (the TUI terminal adapter, 2026-10-21) left
 with the TUI on 2026-11-09; the bk commands use
 only standard input and output and their own display-width table.

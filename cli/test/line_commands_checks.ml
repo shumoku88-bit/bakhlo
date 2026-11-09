@@ -58,7 +58,10 @@ let run name command answers =
   let result = L.run io command (F.load path) ~today:"2026-11-08" in
   (result, Buffer.contents out, F.read path)
 
-let contains text fragment = Base.String.is_substring text ~substring:fragment
+let contains text fragment =
+  let n = String.length fragment in
+  let rec at i = i + n <= String.length text && (String.sub text i n = fragment || at (i + 1)) in
+  at 0
 
 let run_all () =
   (* A prefix with one Locus is taken; several are numbered; Enter balances. *)
@@ -144,7 +147,13 @@ let run_all () =
   in
   let ramen = "DESC\tramen\nEFFECT\twallet\tjpy\t-500\nEFFECT\tfood\tjpy\t500\nENDTX" in
   let count text part =
-    List.length (Base.String.substr_index_all text ~may_overlap:false ~pattern:part)
+    let n = String.length part in
+    let rec from i k =
+      if i + n > String.length text then k
+      else if String.sub text i n = part then from (i + n) (k + 1)
+      else from (i + 1) k
+    in
+    from 0 0
   in
   require
     (result = `Saved

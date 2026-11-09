@@ -5,6 +5,12 @@ module R = Bakhlo_household.Record
 let tr message = message
 let format_message = Printf.sprintf
 
+(* Whether a refusal code mentions a reason, as in "row-2:invalid-amount". *)
+let mentions why reason =
+  let n = String.length reason in
+  let rec at i = i + n <= String.length why && (String.sub why i n = reason || at (i + 1)) in
+  at 0
+
 let coordinate ~locus ~measure : (B.coordinate, string) result =
   if locus = "" || measure = "" then Error "A balance coordinate needs a Locus and a Measure."
   else Ok { locus; measure }
@@ -39,20 +45,19 @@ let format_residual_error why =
         match String.index_opt why ':' with Some idx -> String.sub why 0 idx ^ ": " | None -> ""
       else ""
     in
-    if Base.String.is_substring why ~substring:"invalid-amount" then
-      line_prefix ^ tr "Invalid amount (for example 1000)."
-    else if Base.String.is_substring why ~substring:"non-positive-amount" then
+    if mentions why "invalid-amount" then line_prefix ^ tr "Invalid amount (for example 1000)."
+    else if mentions why "non-positive-amount" then
       line_prefix ^ tr "Enter a positive amount magnitude."
-    else if Base.String.is_substring why ~substring:"amount-precision" then
+    else if mentions why "amount-precision" then
       line_prefix ^ tr "The amount exceeds the Measure decimal scale."
-    else if Base.String.is_substring why ~substring:"division-by-zero" then
+    else if mentions why "division-by-zero" then
       line_prefix ^ tr "The amount expression divides by zero."
-    else if Base.String.is_substring why ~substring:"indivisible-amount" then
+    else if mentions why "indivisible-amount" then
       line_prefix ^ tr "The result cannot be represented at this Measure's decimal scale."
     else why
 
 let posting_message why =
-  let has fragment = Base.String.is_substring why ~substring:fragment in
+  let has = mentions why in
   match why with
   | "posting-required" -> tr "At least one posting is required."
   | "empty-measure" -> tr "A Measure is required."

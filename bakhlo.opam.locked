@@ -8,7 +8,7 @@ published, has no selected redistribution license, and carries no stable public
 API promise. Use bakhlo.opam.locked for the qualified dependency baseline."""
 maintainer: "Bakhlo maintainers"
 depends: [
-  "base" {= "v0.17.3"}
+  "base" {= "v0.17.3" & with-test}
   "base-bigarray" {= "base"}
   "base-domains" {= "base"}
   "base-effects" {= "base"}
@@ -18,9 +18,9 @@ depends: [
   "base_quickcheck" {= "v0.17.1" & with-test}
   "conf-gmp" {= "5"}
   "conf-pkg-config" {= "5"}
-  "csexp" {= "1.5.2"}
+  "csexp" {= "1.5.2" & with-test}
   "dune" {= "3.24.2"}
-  "dune-configurator" {= "3.24.2"}
+  "dune-configurator" {= "3.24.2" & with-test}
   "fieldslib" {= "v0.17.0" & with-test}
   "jane-street-headers" {= "v0.17.0" & with-test}
   "jst-config" {= "v0.17.0" & with-test}
@@ -30,9 +30,8 @@ depends: [
   "ocaml-compiler-libs" {= "v0.17.0" & with-test}
   "ocaml-config" {= "3"}
   "ocaml-options-vanilla" {= "1"}
-  "ocaml_intrinsics_kernel" {= "v0.17.2"}
+  "ocaml_intrinsics_kernel" {= "v0.17.2" & with-test}
   "ocamlfind" {= "1.9.8"}
-  "parsexp" {= "v0.17.0"}
   "ppx_assert" {= "v0.17.0" & with-test}
   "ppx_base" {= "v0.17.0" & with-test}
   "ppx_bench" {= "v0.17.1" & with-test}
@@ -53,7 +52,7 @@ depends: [
   "ppx_sexp_value" {= "v0.17.0" & with-test}
   "ppxlib" {= "0.38.0" & with-test}
   "ppxlib_jane" {= "v0.17.4" & with-test}
-  "sexplib0" {= "v0.17.0"}
+  "sexplib0" {= "v0.17.0" & with-test}
   "splittable_random" {= "v0.17.0" & with-test}
   "stdio" {= "v0.17.0" & with-test}
   "stdlib-shims" {= "0.3.0" & with-test}

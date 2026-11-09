@@ -11,6 +11,14 @@ From 2026-11-09 (user decision) an entry names its commit (or comes in it) and s
 result, keeping synthetic checks, CI, latest-data checks, physical terminal/IME,
 human acceptance and P7/power loss apart. What changed and why is that commit's message.
 
+## Unused dependencies removed (2026-11-09)
+
+- Product libraries (household, store, cli, the probe) no longer list base or sexplib0;
+  parsexp is out of bakhlo.opam. `./tools/opam lock .` regenerated the lock: parsexp
+  gone, base, sexplib0, csexp, dune-configurator and ocaml_intrinsics_kernel now
+  with-test (50 locked, 34 with-test). `./tools/check` and `./tools/format --check`
+  passed. Not executed: a fresh switch installed without test packages.
+
 ## Tab completion instead of fzf (2026-11-09)
 
 - The fzf picker on plain `bk` (`092594a`) is removed: plain `bk` again prints today's

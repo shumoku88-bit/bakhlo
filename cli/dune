@@ -5,7 +5,7 @@
  (name bakhlo_cli)
  (wrapped false)
  (modules :standard \ bakhlo)
- (libraries bakhlo.household bakhlo.book_txt bakhlo.store base unix zarith))
+ (libraries bakhlo.household bakhlo.book_txt bakhlo.store unix zarith))
 
 (executable
  (name bakhlo)

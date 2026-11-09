@@ -5,7 +5,7 @@
 (executable
  (name cli_checks)
  (modules cli_checks line_commands_checks)
- (libraries bakhlo_cli bakhlo.household bakhlo.store base unix zarith))
+ (libraries bakhlo_cli bakhlo.household bakhlo.store unix zarith))
 
 (rule
  (alias runtest)
