@@ -11,6 +11,12 @@ From 2026-11-09 (user decision) an entry names its commit (or comes in it) and s
 result, keeping synthetic checks, CI, latest-data checks, physical terminal/IME,
 human acceptance and P7/power loss apart. What changed and why is that commit's message.
 
+## The save Preview as every list (2026-11-09)
+
+- The hand-built `bk pay` Preview (plan line, heading, one passbook line), worked out
+  from the widths first, matched; `./tools/check` and `./tools/format --check` passed;
+  `views.expected` unchanged. `bk r` on a scratch book showed a split as two lines.
+
 ## Ctrl-C still backs up (2026-11-09)
 
 - Synthetic household with a local bare remote, in a `script` pseudo-terminal: one record

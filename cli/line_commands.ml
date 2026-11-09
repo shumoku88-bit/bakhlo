@@ -227,8 +227,64 @@ let edit_rows io book measure (given : R.form_row list) =
   in
   row 1 given []
 
-(* 3. Preview and save. The Preview names what is saved by display names only (the
-   IDs are internal): the plan it pays, the day and memo, and each row. Enter saves. *)
+(* A record as a passbook writes it: in each Measure the money leaves [from] and
+   arrives [to], and its amount is written once, without a sign.
+
+     date        memo        from    to        amount
+     2026-11-02  lunch       Wallet  Food         700  jpy
+                                     Fees         300  jpy
+     2026-08-03  exchange    Bank              16,000  jpy
+                                     USD cash  100.00  usd
+
+   One account paying several (or several paying one) continues on the next
+   lines, the date and memo not repeated. Anything else, such as the two sides of
+   an exchange, puts each account on its own line under [from] or [to]. *)
+let record_heading = [ Left "date"; Left "memo"; Left "from"; Left "to"; Right "amount"; Left "" ]
+
+let record_lines book (e : B.entry) =
+  let measures =
+    List.fold_left
+      (fun seen (p : B.posting) -> if List.mem p.measure seen then seen else seen @ [ p.measure ])
+      [] e.effects
+  in
+  let lines measure =
+    let rows = List.filter (fun (p : B.posting) -> p.measure = measure) e.effects in
+    let leaving, arriving = List.partition (fun (p : B.posting) -> Z.sign p.amount < 0) rows in
+    let line from into (p : B.posting) =
+      (from, into, money book measure (Z.abs p.amount), measure)
+    in
+    let first i text = if i = 0 then text else "" in
+    match (leaving, arriving) with
+    | [ (from : B.posting) ], _ :: _ ->
+        List.mapi
+          (fun i (p : B.posting) -> line (first i (name book from.locus)) (name book p.locus) p)
+          arriving
+    | _ :: _, [ (into : B.posting) ] ->
+        List.mapi
+          (fun i (p : B.posting) -> line (name book p.locus) (first i (name book into.locus)) p)
+          leaving
+    | _ ->
+        List.map
+          (fun (p : B.posting) ->
+            if Z.sign p.amount < 0 then line (name book p.locus) "" p
+            else line "" (name book p.locus) p)
+          rows
+  in
+  List.mapi
+    (fun i (from, into, amount, measure) ->
+      (if i = 0 then [ Left e.day; Left (Option.value ~default:"" e.memo) ]
+       else [ Left ""; Left "" ])
+      @ [ Left from; Left into; Right amount; Left measure ])
+    (List.concat_map lines measures)
+
+(* Records under one heading; no heading over no records. *)
+let record_table book = function
+  | [] -> []
+  | entries -> record_heading :: List.concat_map (record_lines book) entries
+
+(* 3. Preview and save. The Preview shows the record as every list does (display
+   names only; the IDs are internal), with the plan it pays above it and the
+   original amount below. Enter saves. *)
 let preview io book (tx : R.transaction) =
   let e = tx.entry in
   (match tx.plan with
@@ -237,12 +293,7 @@ let preview io book (tx : R.transaction) =
       match List.find_opt (fun (p : B.plan) -> p.id = id) (B.plans book) with
       | Some p -> say io ("  Pays the plan due " ^ p.day)
       | None -> say io "  Pays a plan"));
-  say io (Printf.sprintf "  %s  %s" e.day (Option.value ~default:"(no memo)" e.memo));
-  print_table io
-    (List.map
-       (fun (p : B.posting) ->
-         [ Left (name book p.locus); Right (signed book p.measure p.amount); Left p.measure ])
-       e.effects);
+  print_table io (record_table book [ e ]);
   match e.original_amount with
   | Some (m, q) -> say io (Printf.sprintf "  original amount %s %s" (money book m q) m)
   | None -> ()
@@ -817,61 +868,6 @@ let query_refusal why =
   | _ when String.starts_with ~prefix:"empty-term:" why ->
       Printf.sprintf "%S needs something after the colon." (after "empty-term:")
   | _ -> why
-
-(* A record as a passbook writes it: in each Measure the money leaves [from] and
-   arrives [to], and its amount is written once, without a sign.
-
-     date        memo        from    to        amount
-     2026-11-02  lunch       Wallet  Food         700  jpy
-                                     Fees         300  jpy
-     2026-08-03  exchange    Bank              16,000  jpy
-                                     USD cash  100.00  usd
-
-   One account paying several (or several paying one) continues on the next
-   lines, the date and memo not repeated. Anything else, such as the two sides of
-   an exchange, puts each account on its own line under [from] or [to]. *)
-let record_heading = [ Left "date"; Left "memo"; Left "from"; Left "to"; Right "amount"; Left "" ]
-
-let record_lines book (e : B.entry) =
-  let measures =
-    List.fold_left
-      (fun seen (p : B.posting) -> if List.mem p.measure seen then seen else seen @ [ p.measure ])
-      [] e.effects
-  in
-  let lines measure =
-    let rows = List.filter (fun (p : B.posting) -> p.measure = measure) e.effects in
-    let leaving, arriving = List.partition (fun (p : B.posting) -> Z.sign p.amount < 0) rows in
-    let line from into (p : B.posting) =
-      (from, into, money book measure (Z.abs p.amount), measure)
-    in
-    let first i text = if i = 0 then text else "" in
-    match (leaving, arriving) with
-    | [ (from : B.posting) ], _ :: _ ->
-        List.mapi
-          (fun i (p : B.posting) -> line (first i (name book from.locus)) (name book p.locus) p)
-          arriving
-    | _ :: _, [ (into : B.posting) ] ->
-        List.mapi
-          (fun i (p : B.posting) -> line (name book p.locus) (first i (name book into.locus)) p)
-          leaving
-    | _ ->
-        List.map
-          (fun (p : B.posting) ->
-            if Z.sign p.amount < 0 then line (name book p.locus) "" p
-            else line "" (name book p.locus) p)
-          rows
-  in
-  List.mapi
-    (fun i (from, into, amount, measure) ->
-      (if i = 0 then [ Left e.day; Left (Option.value ~default:"" e.memo) ]
-       else [ Left ""; Left "" ])
-      @ [ Left from; Left into; Right amount; Left measure ])
-    (List.concat_map lines measures)
-
-(* Records under one heading; no heading over no records. *)
-let record_table book = function
-  | [] -> []
-  | entries -> record_heading :: List.concat_map (record_lines book) entries
 
 let find io (session : F.t) words =
   let book = session.book in

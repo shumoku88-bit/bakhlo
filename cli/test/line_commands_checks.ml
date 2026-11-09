@@ -193,9 +193,8 @@ let run_all () =
     (contains out
        "\n\
        \  Pays the plan due 2026-11-05\n\
-       \  2026-11-08  (no memo)\n\
-       \  Bank  -80,000  jpy\n\
-       \  Food  +80,000  jpy\n\n\
+       \  date        memo  from  to    amount\n\
+       \  2026-11-08        Bank  Food  80,000  jpy\n\n\
         Save? (y / n / e to edit / o for the original amount) [y]: Saved.\n"
     && (not (contains out "rent-11"))
     && not (contains out "entry-"))
