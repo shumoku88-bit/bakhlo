@@ -643,6 +643,24 @@ let run_all () =
       ^ "  2026-11-02  snack  Wallet  Food     300  jpy\n" ^ "Plans due\n"
       ^ "  2026-11-02  Bank  -500  Food  +500  jpy  overdue\n")
     "bk-day-shows-records-and-due-plans";
+  (* Picking a command with fzf: a stand-in fzf answers as a person would, by
+     printing the line it chose; Esc is fzf's exit 130. It keeps what it was given. *)
+  let stand_in name script =
+    let path = Filename.concat (Sys.getcwd ()) ("scratch/" ^ name) in
+    write path
+      ("#!/bin/sh\nprintf '%s\\n' \"$@\" > " ^ path ^ ".args\ncat > " ^ path ^ ".menu\n" ^ script);
+    Unix.chmod path 0o700;
+    path
+  in
+  let fzf = stand_in "fzf-todo-done" "printf 'todo done\\tmark a matter done\\n'\n" in
+  require (Command_line.pick fzf = Some [ "todo"; "done" ]) "bk-pick-gives-the-chosen-words";
+  let menu = F.read (fzf ^ ".menu") and args = F.read (fzf ^ ".args") in
+  require
+    (contains menu "shop\tset where a record was bought"
+    && contains menu "todo add\tadd a matter"
+    && contains args "--nth=1\n")
+    "bk-pick-matches-the-words-of-every-command";
+  require (Command_line.pick (stand_in "fzf-esc" "exit 130\n") = None) "bk-pick-esc-picks-nothing";
   (* bk help lists every command, and every listed command runs: with no answers
      it stops and writes nothing. *)
   List.iter

@@ -11,6 +11,17 @@ From 2026-11-09 (user decision) an entry names its commit (or comes in it) and s
 result, keeping synthetic checks, CI, latest-data checks, physical terminal/IME,
 human acceptance and P7/power loss apart. What changed and why is that commit's message.
 
+## Picking a command with fzf (2026-11-09)
+
+- Hand-built checks with a stand-in fzf: the picked line gives its words; the menu
+  holds every command and fzf is told to match the words only (`--nth=1`); Esc (exit
+  130) runs nothing. `./tools/check` and `./tools/format --check` passed.
+- Real fzf 0.70.0, `--filter` with the same options on the command list: `sh` gives shop,
+  `to` the four todo commands, `reg` reg, `cash` nothing (it is only in descriptions).
+- Real fzf in a `script` pseudo-terminal: the menu draws (32/32) and Esc runs nothing;
+  typed letters did not reach the query there (fzf's cursor-position query gets no
+  answer without a terminal emulator). **Not executed:** typing in a real terminal.
+
 ## One house style for bal, plans, month, report ie and footers (2026-11-09)
 
 - `views.expected` changed only where intended: bal gained a heading and lost `+`,
