@@ -36,12 +36,13 @@ $ bk loci
   Wallet     wallet     asset         93,110  jpy
   Bank       bank       asset      2,182,140  jpy
   カード     card       liability    -15,560  jpy
-  USD cash   usd-cash   asset        unknown  jpy
+  USD cash   usd-cash   asset          75.00  usd
   Salary     salary     income       unknown  jpy
   Food       food       expense      unknown  jpy
   Rent       rent       expense      unknown  jpy
   Phone      phone      expense      unknown  jpy
   Travel     travel     expense      unknown  jpy
+                                     unknown  usd
   Insurance  insurance  expense      unknown  jpy
 
 $ bk todo

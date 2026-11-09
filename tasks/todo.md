@@ -7,8 +7,7 @@
 
 ## 不具合
 
-- `bk loci` は全口座を帳簿の最初のMeasureでしか出さない：ドル建ての口座が「unknown jpy」になり、
-  ドルの残高が見えない（`cli/test/views.expected` の `$ bk loci`、`USD cash`の行）。
+- 今は知られていない。
 
 ## 次
 

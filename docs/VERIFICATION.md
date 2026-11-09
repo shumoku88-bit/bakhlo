@@ -11,6 +11,13 @@ From 2026-11-09 (user decision) an entry names its commit (or comes in it) and s
 result, keeping synthetic checks, CI, latest-data checks, physical terminal/IME,
 human acceptance and P7/power loss apart. What changed and why is that commit's message.
 
+## bk loci in each account's Measures (2026-11-09)
+
+- A hand-built `bk loci` (dollars only, both Measures, a new account), worked out from
+  the column widths first, matched. `views.expected` changed only in `bk loci`: USD cash
+  75.00 usd, Travel a second line in usd. `./tools/check` and `./tools/format --check`
+  passed.
+
 ## bk reg in two passbook columns (2026-11-09)
 
 - The hand-built `reg wallet` lines, worked out from the column widths first, matched the

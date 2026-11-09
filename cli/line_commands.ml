@@ -1124,22 +1124,44 @@ let rec ask_role io =
           say io "Type a role (its first letters are enough) or -.";
           ask_role io)
 
+(* The Measures an account is in: those it has records or plans in, or a known
+   balance in, in the book's order; the book's first Measure when none (a new
+   account). A dollar account is shown in dollars, not as an unknown yen balance. *)
+let measures_of book =
+  let used = Hashtbl.create 64 in
+  List.iter
+    (fun (e : B.entry) ->
+      List.iter (fun (p : B.posting) -> Hashtbl.replace used (p.locus, p.measure) ()) e.effects)
+    (B.entries book);
+  List.iter
+    (fun (p : B.plan) ->
+      List.iter (fun (locus, _) -> Hashtbl.replace used (locus, p.measure) ()) p.changes)
+    (B.plans book);
+  fun locus ->
+    match
+      List.filter
+        (fun (measure, _) ->
+          Hashtbl.mem used (locus, measure) || B.quantity book ~locus ~measure <> None)
+        (B.measures book)
+    with
+    | [] -> [ measure_of book ]
+    | found -> List.map fst found
+
 let loci io (session : F.t) action =
   let book = session.book in
-  let measure = measure_of book in
   match action with
   | `List ->
+      let measures = measures_of book in
       print_table io
         ([ Left "name"; Left "ID"; Left "role"; Right "balance"; Left "" ]
-        :: List.map
+        :: List.concat_map
              (fun locus ->
-               [
-                 Left (name book locus);
-                 Left locus;
-                 Left (role_of book locus);
-                 Right (current book measure locus);
-                 Left measure;
-               ])
+               List.mapi
+                 (fun i measure ->
+                   (if i = 0 then [ Left (name book locus); Left locus; Left (role_of book locus) ]
+                    else [ Left ""; Left ""; Left "" ])
+                   @ [ Right (current book measure locus); Left measure ])
+                 (measures locus))
              (Option.value ~default:[] (B.approved_loci book)));
       `Stopped
   | `Add ->

@@ -439,6 +439,39 @@ let run_all () =
   require
     (contains (F.read "scratch/bk-check/book.txt") "ASSERT\tbank\tjpy\t12000")
     "bk-check-saves-a-seen-balance";
+  (* `bk loci` shows each account in the Measures it is in: Cash in dollars only,
+     Trip in both (no known balance), Spare (no records) in the book's first. *)
+  Unix.mkdir "scratch/bk-loci-list" 0o700;
+  write "scratch/bk-loci-list/book.txt"
+    "BOOK\t1\n\
+     MEASURE\tjpy\t0\n\
+     MEASURE\tusd\t2\n\
+     LOCUS\twallet\tWallet\t\n\
+     LOCUS\tcash\tCash\t\n\
+     LOCUS\ttrip\tTrip\t\n\
+     LOCUS\tspare\tSpare\t\n\
+     TX\tt1\t2026-11-01\tDESC\tmuseum\n\
+     EFFECT\tcash\tusd\t-2500\n\
+     EFFECT\ttrip\tusd\t2500\n\
+     ENDTX\n\
+     TX\tt2\t2026-11-02\tDESC\tlunch\n\
+     EFFECT\twallet\tjpy\t-900\n\
+     EFFECT\ttrip\tjpy\t900\n\
+     ENDTX\n\
+     ZERO-ORIGIN\tcash\tusd\n\
+     ZERO-ORIGIN\twallet\tjpy\n\
+     END\n";
+  let io, out = script [] in
+  ignore (L.run io (`Loci `List) (F.load "scratch/bk-loci-list/book.txt") ~today:"2026-11-08");
+  require
+    (Buffer.contents out
+   = "  name    ID      role  balance\n\
+     \  Wallet  wallet  -        -900  jpy\n\
+     \  Cash    cash    -      -25.00  usd\n\
+     \  Trip    trip    -     unknown  jpy\n\
+     \                        unknown  usd\n\
+     \  Spare   spare   -     unknown  jpy\n")
+    "bk-loci-shows-each-account-in-its-measures";
   (* `bk loci`: add with a role, rename, give a role. *)
   let _, after = fix "bk-loci-add" (`Loci `Add) [ "cash"; "Cash"; "as"; "" ] in
   require
