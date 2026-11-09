@@ -127,14 +127,21 @@ let name book locus =
      2  2026-11-20  Bank   -3,000  Water   +3,000  jpy
      Plan [1]: wa       -> only the plan moving Water is left, and is taken
 
-   The first nine are numbered and Enter takes the first. Any other answer narrows
+   An item is one or more lines; its number stands on the first. The first nine
+   are numbered and Enter takes the first. Any other answer narrows
    the list by [narrow] ([by] says how to the household); one match is taken at
    once, none asks again. *)
 let rec choose io ~what ~by ?heading ~cells ~narrow items =
   let shown = List.filteri (fun i _ -> i < 9) items in
   print_table io
     (Option.to_list heading
-    @ List.mapi (fun i item -> Right (string_of_int (i + 1)) :: cells item) shown);
+    @ List.concat
+        (List.mapi
+           (fun i item ->
+             List.mapi
+               (fun j line -> (if j = 0 then Right (string_of_int (i + 1)) else Left "") :: line)
+               (cells item))
+           shown));
   if List.length items > 9 then say io ("  … type " ^ by ^ " to narrow");
   let rec answer () =
     let text = ask io ~default:"1" what in
@@ -173,7 +180,7 @@ let choose_locus io book query =
   | many ->
       Some
         (choose io ~what:"Account" ~by:"more letters"
-           ~cells:(fun id -> [ Left (name book id) ])
+           ~cells:(fun id -> [ [ Left (name book id) ] ])
            ~narrow:(fun text _ -> Ok (locus_matches book text))
            many)
 
@@ -391,7 +398,8 @@ let moves book text (p : B.plan) =
   List.exists (fun (locus, _) -> starts text locus || starts text (B.label book locus)) p.changes
 
 let choose_plan io book plans ~today =
-  choose io ~what:"Plan" ~by:"the start of a name" ~cells:(plan_cells book ~today)
+  choose io ~what:"Plan" ~by:"the start of a name"
+    ~cells:(fun p -> [ plan_cells book p ~today ])
     ~narrow:(fun text plans -> Ok (List.filter (moves book text) plans))
     plans
 
@@ -586,7 +594,7 @@ let series_heading =
 
 let choose_series io book rows ~today all =
   choose io ~what:"Series" ~by:"the start of a name" ~heading:series_heading
-    ~cells:(series_cells book rows ~today)
+    ~cells:(fun s -> [ series_cells book rows ~today s ])
     ~narrow:(fun text all -> Ok (List.filter (fun s -> moves book text (List.hd s)) all))
     all
 
@@ -809,12 +817,60 @@ let query_refusal why =
       Printf.sprintf "%S needs something after the colon." (after "empty-term:")
   | _ -> why
 
-let entry_cells book (e : B.entry) =
-  [ Left e.day; Left (Option.value ~default:"" e.memo) ]
-  @ List.concat_map
-      (fun (p : B.posting) ->
-        [ Left (name book p.locus); Right (signed book p.measure p.amount ^ " " ^ p.measure) ])
-      e.effects
+(* A record as a passbook writes it: in each Measure the money leaves [from] and
+   arrives [to], and its amount is written once, without a sign.
+
+     date        memo        from    to        amount
+     2026-11-02  lunch       Wallet  Food         700  jpy
+                                     Fees         300  jpy
+     2026-08-03  exchange    Bank              16,000  jpy
+                                     USD cash  100.00  usd
+
+   One account paying several (or several paying one) continues on the next
+   lines, the date and memo not repeated. Anything else, such as the two sides of
+   an exchange, puts each account on its own line under [from] or [to]. *)
+let record_heading = [ Left "date"; Left "memo"; Left "from"; Left "to"; Right "amount"; Left "" ]
+
+let record_lines book (e : B.entry) =
+  let measures =
+    List.fold_left
+      (fun seen (p : B.posting) -> if List.mem p.measure seen then seen else seen @ [ p.measure ])
+      [] e.effects
+  in
+  let lines measure =
+    let rows = List.filter (fun (p : B.posting) -> p.measure = measure) e.effects in
+    let leaving, arriving = List.partition (fun (p : B.posting) -> Z.sign p.amount < 0) rows in
+    let line from into (p : B.posting) =
+      (from, into, money book measure (Z.abs p.amount), measure)
+    in
+    let first i text = if i = 0 then text else "" in
+    match (leaving, arriving) with
+    | [ (from : B.posting) ], _ :: _ ->
+        List.mapi
+          (fun i (p : B.posting) -> line (first i (name book from.locus)) (name book p.locus) p)
+          arriving
+    | _ :: _, [ (into : B.posting) ] ->
+        List.mapi
+          (fun i (p : B.posting) -> line (name book p.locus) (first i (name book into.locus)) p)
+          leaving
+    | _ ->
+        List.map
+          (fun (p : B.posting) ->
+            if Z.sign p.amount < 0 then line (name book p.locus) "" p
+            else line "" (name book p.locus) p)
+          rows
+  in
+  List.mapi
+    (fun i (from, into, amount, measure) ->
+      (if i = 0 then [ Left e.day; Left (Option.value ~default:"" e.memo) ]
+       else [ Left ""; Left "" ])
+      @ [ Left from; Left into; Right amount; Left measure ])
+    (List.concat_map lines measures)
+
+(* Records under one heading; no heading over no records. *)
+let record_table book = function
+  | [] -> []
+  | entries -> record_heading :: List.concat_map (record_lines book) entries
 
 let find io (session : F.t) words =
   let book = session.book in
@@ -822,7 +878,7 @@ let find io (session : F.t) words =
   | Error why -> say io (query_refusal why)
   | Ok query ->
       let found = Bakhlo_household.Query.find book query in
-      print_table io (List.map (entry_cells book) found);
+      print_table io (record_table book found);
       say io
         (Printf.sprintf "%d record%s" (List.length found)
            (if List.length found = 1 then "" else "s")));
@@ -845,7 +901,7 @@ let last io (session : F.t) words =
   | Some n ->
       let all = B.entries book in
       let shown = List.filteri (fun i _ -> i >= List.length all - n) all in
-      print_table io (List.map (entry_cells book) shown);
+      print_table io (record_table book shown);
       say io
         (Printf.sprintf "the last %d of %d record%s, newest at the bottom" (List.length shown)
            (List.length all)
@@ -874,8 +930,8 @@ let chosen_entry io book terms =
             | Ok query -> Ok (List.filter (Bakhlo_household.Query.matches book query) entries)
           in
           Some
-            (choose io ~what:"Record" ~by:"more terms" ~cells:(entry_cells book) ~narrow
-               newest_first))
+            (choose io ~what:"Record" ~by:"more terms" ~heading:(Left "" :: record_heading)
+               ~cells:(record_lines book) ~narrow newest_first))
 
 let edit io (session : F.t) terms =
   let book = session.book in
@@ -909,7 +965,7 @@ let redate io (session : F.t) terms =
       else
         publish_changes io session ~title:(Printf.sprintf "Move to %s" day)
           [ B.Correct_entry_date { id = e.id; day } ]
-          [ entry_cells book e ]
+          (record_table book [ e ])
 
 let refund io (session : F.t) ~today terms =
   let book = session.book in
@@ -930,7 +986,7 @@ let refund io (session : F.t) ~today terms =
       | Ok r ->
           publish_changes io session ~title:"Refund"
             [ B.Put_entry { replace = false; entry = r; plan = None } ]
-            [ entry_cells book r ])
+            (record_table book [ r ]))
 
 let shop io (session : F.t) terms =
   let book = session.book in
@@ -953,7 +1009,7 @@ let shop io (session : F.t) terms =
               | B.Nonmerchant -> "Not a shop purchase"
               | B.Merchant name -> "Shop: " ^ name)
             [ B.Classify_merchant { id = e.id; disposition } ]
-            [ entry_cells book e ])
+            (record_table book [ e ]))
 
 (* 11. `bk check`: the balances seen outside (a bank app, the wallet) are saved as
    observed quantities (Book.Observe), one or more accounts at a time. The Preview
@@ -1377,7 +1433,7 @@ let fx io (session : F.t) ~today =
       | Ok e ->
           publish_changes io session ~title:"Exchange"
             [ B.Put_entry { replace = false; entry = e; plan = None } ]
-            [ entry_cells book e ])
+            (record_table book [ e ]))
 
 (* 15. `bk todo`: household matters with a due date (Attention). `add` adds one,
    `done` resolves and `drop` drops a chosen open one, on today's date. *)
@@ -1435,7 +1491,7 @@ let todo io (session : F.t) ~today action =
           let item =
             choose io ~what:"Which" ~by:"the start of a matter"
               ~cells:(fun (item : Att.item) ->
-                [ Left (Att.due_display ~today item.due); Left item.context ])
+                [ [ Left (Att.due_display ~today item.due); Left item.context ] ])
               ~narrow:(fun text items ->
                 Ok (List.filter (fun (item : Att.item) -> starts text item.context) items))
               items
@@ -1671,7 +1727,7 @@ let day io (session : F.t) ~today words =
       say io day;
       (match records with
       | [] -> say io "  no records"
-      | _ -> print_table io (List.map (entry_cells book) records));
+      | _ -> print_table io (record_table book records));
       match plans with
       | [] -> ()
       | _ ->

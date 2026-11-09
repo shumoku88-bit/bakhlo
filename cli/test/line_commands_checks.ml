@@ -80,8 +80,9 @@ let run_all () =
   ignore (L.run io (`Last [ "2" ]) (F.load path) ~today:"2026-11-08");
   require
     (Buffer.contents out
-   = "  2026-11-01  lunch  Wallet  -900 jpy  Food  +900 jpy\n\
-     \  2026-10-30  late   Wallet  -200 jpy  Food  +200 jpy\n\
+   = "  date        memo   from    to    amount\n\
+     \  2026-11-01  lunch  Wallet  Food     900  jpy\n\
+     \  2026-10-30  late   Wallet  Food     200  jpy\n\
       the last 2 of 2 records, newest at the bottom\n")
     "bk-last-shows-the-saved-record-last";
   (* Several Loci are chosen like plans: Enter takes the first, the start of a name
@@ -376,7 +377,9 @@ let run_all () =
   in
   require
     (found [ "wallet"; "2026-11" ]
-    = "  2026-11-01  lunch  Wallet  -900 jpy  Food  +900 jpy\n1 record\n")
+    = "  date        memo   from    to    amount\n\
+      \  2026-11-01  lunch  Wallet  Food     900  jpy\n\
+       1 record\n")
     "bk-find-lists-matching-records";
   require (found [ "acct:salary" ] = "0 records\n") "bk-find-counts-none";
   require
@@ -596,8 +599,9 @@ let run_all () =
     "bk-report-ie-shows-a-window";
   require
     (view (`Day [ "2026-11-02" ])
-    = "2026-11-02\n" ^ "  2026-11-02  lunch  Wallet  -900 jpy  Food  +900 jpy\n"
-      ^ "  2026-11-02  snack  Wallet  -300 jpy  Food  +300 jpy\n" ^ "Plans due\n"
+    = "2026-11-02\n" ^ "  date        memo   from    to    amount\n"
+      ^ "  2026-11-02  lunch  Wallet  Food     900  jpy\n"
+      ^ "  2026-11-02  snack  Wallet  Food     300  jpy\n" ^ "Plans due\n"
       ^ "  2026-11-02  Bank  -500  Food  +500  jpy  overdue\n")
     "bk-day-shows-records-and-due-plans";
   (* bk help lists every command, and every listed command runs: with no answers

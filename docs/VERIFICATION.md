@@ -11,6 +11,16 @@ From 2026-11-09 (user decision) an entry names its commit (or comes in it) and s
 result, keeping synthetic checks, CI, latest-data checks, physical terminal/IME,
 human acceptance and P7/power loss apart. What changed and why is that commit's message.
 
+## Records as a passbook writes them (2026-11-09)
+
+- `views.expected` diff read line by line: `find`, `last` and `day` gained a heading and
+  lost the signs and repeated Measures; the exchange is two lines (Bank 16,000 jpy,
+  USD cash 100.00 usd); no other view changed. `./tools/check` (with the updated
+  hand-built `find`, `day` and `last` lines) and `./tools/format --check` passed.
+- `bakhlo --book … edit` on a scratch book with a split, an exchange and a plain
+  record: numbers on each record's first line only, continuation lines aligned.
+- Not executed: physical terminal and IME.
+
 ## Every view against a synthetic year (2026-11-09)
 
 - `cli/test/views.ml` generated its year (305 records, 33 plans, an exchange, an

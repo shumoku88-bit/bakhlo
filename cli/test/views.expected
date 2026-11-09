@@ -51,98 +51,106 @@ $ bk todo
 
 $ bk day
 2026-11-08
-  2026-11-08  coffee  Wallet  -860 jpy  Food  +860 jpy
+  date        memo    from    to    amount
+  2026-11-08  coffee  Wallet  Food     860  jpy
 
 $ bk day 2026-08-06
 2026-08-06
-  2026-08-06  bakery  Wallet  -1,180 jpy  Food    +1,180 jpy
-  2026-08-06  hotel   カード  -6,100 jpy  Travel  +6,100 jpy
+  date        memo    from    to      amount
+  2026-08-06  bakery  Wallet  Food     1,180  jpy
+  2026-08-06  hotel   カード  Travel   6,100  jpy
 
 $ bk last
-  2026-10-27  lunch         Wallet     -420 jpy  Food       +420 jpy
-  2026-10-27  online order  カード   -4,080 jpy  Food     +4,080 jpy
-  2026-10-29  groceries     Wallet     -690 jpy  Food       +690 jpy
-  2026-10-31  coffee        Wallet     -960 jpy  Food       +960 jpy
-  2026-11-01  ATM           Bank    -20,000 jpy  Wallet  +20,000 jpy
-  2026-11-02  bakery        Wallet   -1,240 jpy  Food     +1,240 jpy
-  2026-11-03  online order  カード   -4,450 jpy  Food     +4,450 jpy
-  2026-11-04  lunch         Wallet     -310 jpy  Food       +310 jpy
-  2026-11-06  groceries     Wallet     -590 jpy  Food       +590 jpy
-  2026-11-08  coffee        Wallet     -860 jpy  Food       +860 jpy
+  date        memo          from    to      amount
+  2026-10-27  lunch         Wallet  Food       420  jpy
+  2026-10-27  online order  カード  Food     4,080  jpy
+  2026-10-29  groceries     Wallet  Food       690  jpy
+  2026-10-31  coffee        Wallet  Food       960  jpy
+  2026-11-01  ATM           Bank    Wallet  20,000  jpy
+  2026-11-02  bakery        Wallet  Food     1,240  jpy
+  2026-11-03  online order  カード  Food     4,450  jpy
+  2026-11-04  lunch         Wallet  Food       310  jpy
+  2026-11-06  groceries     Wallet  Food       590  jpy
+  2026-11-08  coffee        Wallet  Food       860  jpy
 the last 10 of 305 records, newest at the bottom
 
 $ bk last 3
-  2026-11-04  lunch      Wallet  -310 jpy  Food  +310 jpy
-  2026-11-06  groceries  Wallet  -590 jpy  Food  +590 jpy
-  2026-11-08  coffee     Wallet  -860 jpy  Food  +860 jpy
+  date        memo       from    to    amount
+  2026-11-04  lunch      Wallet  Food     310  jpy
+  2026-11-06  groceries  Wallet  Food     590  jpy
+  2026-11-08  coffee     Wallet  Food     860  jpy
 the last 3 of 305 records, newest at the bottom
 
 $ bk last x
 Type how many records, like bk last 20.
 
 $ bk find lunch 2026-10
-  2026-10-03  lunch  Wallet  -730 jpy  Food  +730 jpy
-  2026-10-11  lunch  Wallet  -620 jpy  Food  +620 jpy
-  2026-10-19  lunch  Wallet  -520 jpy  Food  +520 jpy
-  2026-10-27  lunch  Wallet  -420 jpy  Food  +420 jpy
+  date        memo   from    to    amount
+  2026-10-03  lunch  Wallet  Food     730  jpy
+  2026-10-11  lunch  Wallet  Food     620  jpy
+  2026-10-19  lunch  Wallet  Food     520  jpy
+  2026-10-27  lunch  Wallet  Food     420  jpy
 4 records
 
 $ bk find amt:5000..
-  2025-11-01  ATM                      Bank     -20,000 jpy  Wallet     +20,000 jpy
-  2025-11-25  salary                   Salary  -300,000 jpy  Bank      +300,000 jpy
-  2025-11-27  rent                     Bank     -80,000 jpy  Rent       +80,000 jpy
-  2025-12-01  ATM                      Bank     -20,000 jpy  Wallet     +20,000 jpy
-  2025-12-10  card bill                Bank     -11,350 jpy  カード     +11,350 jpy
-  2025-12-25  salary                   Salary  -300,000 jpy  Bank      +300,000 jpy
-  2025-12-27  rent                     Bank     -80,000 jpy  Rent       +80,000 jpy
-  2026-01-01  ATM                      Bank     -20,000 jpy  Wallet     +20,000 jpy
-  2026-01-10  card bill                Bank     -15,740 jpy  カード     +15,740 jpy
-  2026-01-25  salary                   Salary  -300,000 jpy  Bank      +300,000 jpy
-  2026-01-27  rent                     Bank     -80,000 jpy  Rent       +80,000 jpy
-  2026-02-01  ATM                      Bank     -20,000 jpy  Wallet     +20,000 jpy
-  2026-02-10  card bill                Bank      -9,690 jpy  カード      +9,690 jpy
-  2026-02-25  salary                   Salary  -300,000 jpy  Bank      +300,000 jpy
-  2026-02-27  rent                     Bank     -80,000 jpy  Rent       +80,000 jpy
-  2026-03-01  ATM                      Bank     -20,000 jpy  Wallet     +20,000 jpy
-  2026-03-10  card bill                Bank     -11,620 jpy  カード     +11,620 jpy
-  2026-03-25  salary                   Salary  -300,000 jpy  Bank      +300,000 jpy
-  2026-03-27  rent                     Bank     -80,000 jpy  Rent       +80,000 jpy
-  2026-04-01  ATM                      Bank     -20,000 jpy  Wallet     +20,000 jpy
-  2026-04-10  card bill                Bank     -18,870 jpy  カード     +18,870 jpy
-  2026-04-25  salary                   Salary  -300,000 jpy  Bank      +300,000 jpy
-  2026-04-27  rent                     Bank     -80,000 jpy  Rent       +80,000 jpy
-  2026-05-01  ATM                      Bank     -20,000 jpy  Wallet     +20,000 jpy
-  2026-05-10  card bill                Bank      -8,980 jpy  カード      +8,980 jpy
-  2026-05-25  salary                   Salary  -300,000 jpy  Bank      +300,000 jpy
-  2026-05-27  rent                     Bank     -80,000 jpy  Rent       +80,000 jpy
-  2026-06-01  ATM                      Bank     -20,000 jpy  Wallet     +20,000 jpy
-  2026-06-10  card bill                Bank     -19,560 jpy  カード     +19,560 jpy
-  2026-06-25  salary                   Salary  -300,000 jpy  Bank      +300,000 jpy
-  2026-06-27  rent                     Bank     -80,000 jpy  Rent       +80,000 jpy
-  2026-07-01  ATM                      Bank     -20,000 jpy  Wallet     +20,000 jpy
-  2026-07-10  card bill                Bank      -6,340 jpy  カード      +6,340 jpy
-  2026-07-25  salary                   Salary  -300,000 jpy  Bank      +300,000 jpy
-  2026-07-27  rent                     Bank     -80,000 jpy  Rent       +80,000 jpy
-  2026-08-01  ATM                      Bank     -20,000 jpy  Wallet     +20,000 jpy
-  2026-08-03  exchange at the airport  Bank     -16,000 jpy  USD cash   +100.00 usd
-  2026-08-06  hotel                    カード    -6,100 jpy  Travel      +6,100 jpy
-  2026-08-10  card bill                Bank     -18,360 jpy  カード     +18,360 jpy
-  2026-08-25  salary                   Salary  -300,000 jpy  Bank      +300,000 jpy
-  2026-08-27  rent                     Bank     -80,000 jpy  Rent       +80,000 jpy
-  2026-09-01  ATM                      Bank     -20,000 jpy  Wallet     +20,000 jpy
-  2026-09-10  card bill                Bank     -15,690 jpy  カード     +15,690 jpy
-  2026-09-25  salary                   Salary  -300,000 jpy  Bank      +300,000 jpy
-  2026-09-27  rent                     Bank     -80,000 jpy  Rent       +80,000 jpy
-  2026-10-01  ATM                      Bank     -20,000 jpy  Wallet     +20,000 jpy
-  2026-10-10  card bill                Bank      -8,510 jpy  カード      +8,510 jpy
-  2026-10-25  salary                   Salary  -300,000 jpy  Bank      +300,000 jpy
-  2026-10-27  rent                     Bank     -80,000 jpy  Rent       +80,000 jpy
-  2026-11-01  ATM                      Bank     -20,000 jpy  Wallet     +20,000 jpy
+  date        memo                     from    to         amount
+  2025-11-01  ATM                      Bank    Wallet     20,000  jpy
+  2025-11-25  salary                   Salary  Bank      300,000  jpy
+  2025-11-27  rent                     Bank    Rent       80,000  jpy
+  2025-12-01  ATM                      Bank    Wallet     20,000  jpy
+  2025-12-10  card bill                Bank    カード     11,350  jpy
+  2025-12-25  salary                   Salary  Bank      300,000  jpy
+  2025-12-27  rent                     Bank    Rent       80,000  jpy
+  2026-01-01  ATM                      Bank    Wallet     20,000  jpy
+  2026-01-10  card bill                Bank    カード     15,740  jpy
+  2026-01-25  salary                   Salary  Bank      300,000  jpy
+  2026-01-27  rent                     Bank    Rent       80,000  jpy
+  2026-02-01  ATM                      Bank    Wallet     20,000  jpy
+  2026-02-10  card bill                Bank    カード      9,690  jpy
+  2026-02-25  salary                   Salary  Bank      300,000  jpy
+  2026-02-27  rent                     Bank    Rent       80,000  jpy
+  2026-03-01  ATM                      Bank    Wallet     20,000  jpy
+  2026-03-10  card bill                Bank    カード     11,620  jpy
+  2026-03-25  salary                   Salary  Bank      300,000  jpy
+  2026-03-27  rent                     Bank    Rent       80,000  jpy
+  2026-04-01  ATM                      Bank    Wallet     20,000  jpy
+  2026-04-10  card bill                Bank    カード     18,870  jpy
+  2026-04-25  salary                   Salary  Bank      300,000  jpy
+  2026-04-27  rent                     Bank    Rent       80,000  jpy
+  2026-05-01  ATM                      Bank    Wallet     20,000  jpy
+  2026-05-10  card bill                Bank    カード      8,980  jpy
+  2026-05-25  salary                   Salary  Bank      300,000  jpy
+  2026-05-27  rent                     Bank    Rent       80,000  jpy
+  2026-06-01  ATM                      Bank    Wallet     20,000  jpy
+  2026-06-10  card bill                Bank    カード     19,560  jpy
+  2026-06-25  salary                   Salary  Bank      300,000  jpy
+  2026-06-27  rent                     Bank    Rent       80,000  jpy
+  2026-07-01  ATM                      Bank    Wallet     20,000  jpy
+  2026-07-10  card bill                Bank    カード      6,340  jpy
+  2026-07-25  salary                   Salary  Bank      300,000  jpy
+  2026-07-27  rent                     Bank    Rent       80,000  jpy
+  2026-08-01  ATM                      Bank    Wallet     20,000  jpy
+  2026-08-03  exchange at the airport  Bank               16,000  jpy
+                                               USD cash   100.00  usd
+  2026-08-06  hotel                    カード  Travel      6,100  jpy
+  2026-08-10  card bill                Bank    カード     18,360  jpy
+  2026-08-25  salary                   Salary  Bank      300,000  jpy
+  2026-08-27  rent                     Bank    Rent       80,000  jpy
+  2026-09-01  ATM                      Bank    Wallet     20,000  jpy
+  2026-09-10  card bill                Bank    カード     15,690  jpy
+  2026-09-25  salary                   Salary  Bank      300,000  jpy
+  2026-09-27  rent                     Bank    Rent       80,000  jpy
+  2026-10-01  ATM                      Bank    Wallet     20,000  jpy
+  2026-10-10  card bill                Bank    カード      8,510  jpy
+  2026-10-25  salary                   Salary  Bank      300,000  jpy
+  2026-10-27  rent                     Bank    Rent       80,000  jpy
+  2026-11-01  ATM                      Bank    Wallet     20,000  jpy
 50 records
 
 $ bk find acct:travel
-  2026-08-05  museum  USD cash  -25.00 usd  Travel  +25.00 usd
-  2026-08-06  hotel   カード    -6,100 jpy  Travel  +6,100 jpy
+  date        memo    from      to      amount
+  2026-08-05  museum  USD cash  Travel   25.00  usd
+  2026-08-06  hotel   カード    Travel   6,100  jpy
 2 records
 
 $ bk reg wallet 2026-10
