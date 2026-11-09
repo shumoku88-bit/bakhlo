@@ -447,14 +447,15 @@ let balances io (session : F.t) =
   | Error why -> say io ("balance-view.tsv cannot be read: " ^ why)
   | Ok rows ->
       print_table io
-        (List.map
-           (fun (locus, measure) ->
-             match Book_display.quantity_value ~book ~measure locus with
-             | Book_display.Exact n ->
-                 [ Left (name book locus); Right (signed book measure n); Left measure ]
-             | Book_display.Unsupported ->
-                 [ Left (name book locus); Right "?"; Left measure; Left "unsupported" ])
-           rows));
+        ([ Left "account"; Right "balance"; Left "" ]
+        :: List.map
+             (fun (locus, measure) ->
+               match Book_display.quantity_value ~book ~measure locus with
+               | Book_display.Exact n ->
+                   [ Left (name book locus); Right (money book measure n); Left measure ]
+               | Book_display.Unsupported ->
+                   [ Left (name book locus); Right "?"; Left measure; Left "unsupported" ])
+             rows));
   `Stopped
 
 (* Why today's pace is what it is: the pool balances and what each rests on, the
@@ -567,8 +568,8 @@ let series_cells book rows ~today (plans : B.plan list) =
   let shape = Sch.shape first in
   let watched = List.find_opt (fun (r : Cov.row) -> Cov.matches r.rule first) rows in
   [
-    Left (names book shape.positive);
     Left (names book shape.negative);
+    Left (names book shape.positive);
     Right
       (match Sch.simple_amount first with Some q -> money book first.measure q | None -> "split");
     Left first.measure;
@@ -589,7 +590,7 @@ let series_cells book rows ~today (plans : B.plan list) =
 (* The heading names each column of a series. *)
 let series_heading =
   [
-    Left ""; Left "to"; Left "from"; Right "amount"; Left ""; Left "next"; Left "last"; Right "open";
+    Left ""; Left "from"; Left "to"; Right "amount"; Left ""; Left "next"; Left "last"; Right "open";
   ]
 
 let choose_series io book rows ~today all =
@@ -903,7 +904,7 @@ let last io (session : F.t) words =
       let shown = List.filteri (fun i _ -> i >= List.length all - n) all in
       print_table io (record_table book shown);
       say io
-        (Printf.sprintf "the last %d of %d record%s, newest at the bottom" (List.length shown)
+        (Printf.sprintf "%d of %d record%s, newest at the bottom" (List.length shown)
            (List.length all)
            (if List.length all = 1 then "" else "s")));
   `Stopped
@@ -1692,7 +1693,7 @@ let month io (session : F.t) ~today words =
       in
       print_table io
         ([
-           Left "";
+           Left "month";
            Right "income";
            Right "expense";
            Right "plans";
@@ -1723,8 +1724,9 @@ let report_ie io (session : F.t) ~today words =
   | Ok (start, stop) -> (
       let t = Ie.compute book ~start ~stop in
       say io (Printf.sprintf "Income and expense %s .. %s (end excluded)" start stop);
-      List.iter
-        (fun (s : Ie.summary) ->
+      List.iteri
+        (fun i (s : Ie.summary) ->
+          if i > 0 then say io "";
           let line (l : Ie.line) =
             [
               Left ("  " ^ name book l.locus); Right (money book s.measure l.amount); Left s.measure;

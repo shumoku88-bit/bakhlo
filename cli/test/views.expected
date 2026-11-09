@@ -20,16 +20,17 @@ $ bk pace if -5000
   free through cycle end  2,255,250  jpy
 
 $ bk bal
-  Wallet       +93,110  jpy
-  Bank      +2,182,140  jpy
-  カード       -15,560  jpy
-  USD cash      +75.00  usd
+  account     balance
+  Wallet       93,110  jpy
+  Bank      2,182,140  jpy
+  カード      -15,560  jpy
+  USD cash      75.00  usd
 
 $ bk plans
-     to         from  amount       next        last        open
-  1  Insurance  Bank  12,000  jpy  2026-11-05  2026-11-05     1  overdue
-  2  Phone      Bank   3,000  jpy  2026-11-20  2027-01-20     3  monthly, missing 2027-02
-  3  Rent       Bank  80,000  jpy  2026-11-27  2027-02-27     4  monthly, missing 2027-03
+     from  to         amount       next        last        open
+  1  Bank  Insurance  12,000  jpy  2026-11-05  2026-11-05     1  overdue
+  2  Bank  Phone       3,000  jpy  2026-11-20  2027-01-20     3  monthly, missing 2027-02
+  3  Bank  Rent       80,000  jpy  2026-11-27  2027-02-27     4  monthly, missing 2027-03
 
 $ bk loci
   name       ID         role         balance
@@ -73,14 +74,14 @@ $ bk last
   2026-11-04  lunch         Wallet  Food       310  jpy
   2026-11-06  groceries     Wallet  Food       590  jpy
   2026-11-08  coffee        Wallet  Food       860  jpy
-the last 10 of 305 records, newest at the bottom
+10 of 305 records, newest at the bottom
 
 $ bk last 3
   date        memo       from    to    amount
   2026-11-04  lunch      Wallet  Food     310  jpy
   2026-11-06  groceries  Wallet  Food     590  jpy
   2026-11-08  coffee     Wallet  Food     860  jpy
-the last 3 of 305 records, newest at the bottom
+3 of 305 records, newest at the bottom
 
 $ bk last x
 Type how many records, like bk last 20.
@@ -250,7 +251,7 @@ $ bk reg usd-cash
   2026-08-05  museum                   Travel   25.00            75.00  usd
 
 $ bk month
-            income  expense   plans   other       net
+  month     income  expense   plans   other       net
   2026-06  300,000  109,010  83,000  26,010  +190,990  jpy
   2026-07  300,000  108,660  83,000  25,660  +191,340  jpy
   2026-08  300,000  118,900  83,000  35,900  +181,100  jpy
@@ -260,7 +261,7 @@ $ bk month
   2026-11        0    7,450       0   7,450    -7,450  jpy
 
 $ bk month 2026
-            income  expense   plans   other       net
+  month     income  expense   plans   other       net
   2026-01  300,000  108,220  83,000  25,220  +191,780  jpy
   2026-02  300,000  105,470  83,000  22,470  +194,530  jpy
   2026-03  300,000  119,070  83,000  36,070  +180,930  jpy
@@ -295,6 +296,7 @@ Income and expense 2026-08-01 .. 2026-09-01 (end excluded)
     Travel                  6,100  jpy
     of which paid plans    83,000  jpy
   Net                    +181,100  jpy
+
   Income                   0.00  usd
   Expense                 25.00  usd
     Travel                25.00  usd

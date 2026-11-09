@@ -83,7 +83,7 @@ let run_all () =
    = "  date        memo   from    to    amount\n\
      \  2026-11-01  lunch  Wallet  Food     900  jpy\n\
      \  2026-10-30  late   Wallet  Food     200  jpy\n\
-      the last 2 of 2 records, newest at the bottom\n")
+      2 of 2 records, newest at the bottom\n")
     "bk-last-shows-the-saved-record-last";
   (* Several Loci are chosen like plans: Enter takes the first, the start of a name
      narrows. *)
@@ -246,9 +246,10 @@ let run_all () =
   let result, out = printed `Balances in
   require
     (result = `Stopped
-    && contains out "  Wallet  -900  jpy\n"
-    && contains out "  Food    +900  jpy\n"
-    && contains out "  カード     0  jpy\n")
+    && contains out "  account  balance\n"
+    && contains out "  Wallet      -900  jpy\n"
+    && contains out "  Food         900  jpy\n"
+    && contains out "  カード         0  jpy\n")
     "bk-bal-prints-current-balances";
   (* The ID is shown only when two Loci share a label (a label equal to its ID is the ID). *)
   Unix.mkdir "scratch/bk-names" 0o700;
@@ -265,7 +266,11 @@ let run_all () =
   let io, out = script [] in
   ignore (L.run io `Balances (F.load "scratch/bk-names/book.txt") ~today:"2026-11-08");
   require
-    (Buffer.contents out = "  Same [a]  0  jpy\n  Same [b]  0  jpy\n  c         0  jpy\n")
+    (Buffer.contents out
+   = "  account   balance\n\
+     \  Same [a]        0  jpy\n\
+     \  Same [b]        0  jpy\n\
+     \  c               0  jpy\n")
     "bk-bal-names-loci-by-label";
   let result, out = printed `Pace in
   require
@@ -319,10 +324,10 @@ let run_all () =
   require
     (result = `Stopped && after = plans_text
     && out
-       = "     to     from     amount       next        last        open\n\
-         \  1  Phone  Bank      3,000  jpy  2026-10-31  2026-10-31     1  overdue\n\
-         \  2  Bank   Salary  300,000  jpy  2026-11-25  2026-11-25     1\n\
-         \  3  Rent   Bank     80,000  jpy  2026-11-27  2026-12-27     2  monthly, missing 2027-01\n"
+       = "     from    to      amount       next        last        open\n\
+         \  1  Bank    Phone    3,000  jpy  2026-10-31  2026-10-31     1  overdue\n\
+         \  2  Salary  Bank   300,000  jpy  2026-11-25  2026-11-25     1\n\
+         \  3  Bank    Rent    80,000  jpy  2026-11-27  2026-12-27     2  monthly, missing 2027-01\n"
     )
     "bk-plans-lists-series";
   (* More: the 31st has no November, so the person dates it. *)
@@ -622,7 +627,7 @@ let run_all () =
   (* November: no income, 1,200 of food, none of it paid a plan. *)
   require
     (view (`Month [ "2026-11" ])
-    = "           income  expense  plans  other     net\n"
+    = "  month    income  expense  plans  other     net\n"
       ^ "  2026-11       0    1,200      0  1,200  -1,200  jpy\n")
     "bk-month-shows-a-month";
   let ie = view (`Report_ie [ "2026-11" ]) in

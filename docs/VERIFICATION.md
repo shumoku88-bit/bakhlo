@@ -11,6 +11,16 @@ From 2026-11-09 (user decision) an entry names its commit (or comes in it) and s
 result, keeping synthetic checks, CI, latest-data checks, physical terminal/IME,
 human acceptance and P7/power loss apart. What changed and why is that commit's message.
 
+## One house style for bal, plans, month, report ie and footers (2026-11-09)
+
+- `views.expected` changed only where intended: bal gained a heading and lost `+`,
+  plans reads from-to, month names its first column, report ie separates Measures by a
+  blank line, and the last footer reads "10 of 305 records". Hand-built bal, plans,
+  month and last lines were worked out from the widths first; two were wrong (the
+  heading `account` is the widest cell; `カード` is 6 cells) and were corrected by
+  recounting, not by copying the output. `./tools/check` and `./tools/format --check`
+  passed.
+
 ## bk loci in each account's Measures (2026-11-09)
 
 - A hand-built `bk loci` (dollars only, both Measures, a new account), worked out from
