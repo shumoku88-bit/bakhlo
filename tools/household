@@ -129,8 +129,17 @@ cd "$root"
 if [ -t 0 ]; then
   stty min 1 time 0
 fi
+# Ctrl-C stops the bk command (what was being typed is not saved) but not this
+# launcher: records saved before it are still committed and pushed below. A
+# handler, not an ignored signal, so bakhlo itself still stops on Ctrl-C.
+interrupted=
+trap 'interrupted=1' INT
 "$binary" --book "$household/book.txt" "$@"
 status=$?
+trap - INT
+if [ -n "$interrupted" ]; then
+  printf '\n%s\n' 'Interrupted: what was being typed is not saved; saved records are backed up.'
+fi
 
 if ! git -C "$household" add -A; then
   fail 'Household staging failed; the book was not committed or pushed.'

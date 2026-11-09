@@ -11,6 +11,13 @@ From 2026-11-09 (user decision) an entry names its commit (or comes in it) and s
 result, keeping synthetic checks, CI, latest-data checks, physical terminal/IME,
 human acceptance and P7/power loss apart. What changed and why is that commit's message.
 
+## Ctrl-C still backs up (2026-11-09)
+
+- Synthetic household with a local bare remote, in a `script` pseudo-terminal: one record
+  saved, `y` to another, Ctrl-C at its Date prompt. New launcher: "Interrupted: …",
+  committed and pushed, exit 130. The previous launcher, run the same way, left the saved
+  record uncommitted; its next ordinary run committed and pushed it.
+
 ## Picking a command with fzf (2026-11-09)
 
 - Hand-built checks with a stand-in fzf: the picked line gives its words; the menu
