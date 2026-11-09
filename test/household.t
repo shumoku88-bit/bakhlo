@@ -81,6 +81,7 @@ at a stable path and names the commit it runs; nothing is recorded or pushed.
   $ runhh "$H0" 0 0
   Building bakhlo SHA …
   Running bakhlo from commit SHA
+  
   bakhlo built from SHA
   $ grep -qF "Running bakhlo from commit $(git -C run rev-parse --short origin/main)" out.log && echo commit-named
   commit-named
@@ -97,6 +98,7 @@ The launcher runs the installed copy, not the worktree's build output.
   $ chmod +x run/.run/src/_build/default/cli/bakhlo.exe
   $ runhh "$H0" 0 0
   Running bakhlo from commit SHA
+  
   bakhlo built from SHA
 
 A stale run worktree (a leftover directory with a stale .git file) is the launcher's
@@ -107,6 +109,7 @@ own ignored directory: it is cleared and the worktree is made again.
   $ printf 'gitdir: ../.git/worktrees/stale\n' > run/.run/src/.git
   $ runhh "$H0" 0 0
   Running bakhlo from commit SHA
+  
   bakhlo built from SHA
   $ test "$(git -C run/.run/src rev-parse HEAD)" = "$(git -C run rev-parse origin/main)" && echo worktree-recovered
   worktree-recovered
@@ -118,6 +121,7 @@ A moved origin/main is rebuilt and the new commit is run.
   $ runhh "$H0" 0 0
   Building bakhlo SHA …
   Running bakhlo from commit SHA
+  
   bakhlo built from SHA
   $ grep -qF "bakhlo built from $(git -C run rev-parse --short origin/main)" out.log && echo rebuilt-at-the-new-commit
   rebuilt-at-the-new-commit
@@ -130,6 +134,7 @@ pushed, and the remote configuration is left unchanged.
   $ printf 'extra config\n' > "$H1/config.txt"
   $ runhh "$H1" 0 1
   Running bakhlo from commit SHA
+  
   bakhlo built from SHA
   Household changes committed.
   Household backup pushed.
@@ -152,6 +157,7 @@ new commit.
   $ chmod +x "$H2/.git/hooks/pre-commit"
   $ runhh "$H2" 0 1
   Running bakhlo from commit SHA
+  
   bakhlo built from SHA
   Household commit failed; the change stays staged locally.
   [1]
@@ -165,6 +171,7 @@ No upstream is an explicit warning and a failed exit, never a silent skip.
   $ H3="$PWD/h3"; mkhousehold "$H3"
   $ runhh "$H3" 0 1
   Running bakhlo from commit SHA
+  
   bakhlo built from SHA
   Household changes committed.
   No upstream branch configured; local commits cannot be pushed.
@@ -193,6 +200,7 @@ hook and running again with no new edit retries the pending commit successfully.
   $ rm "$PWD/r4/hooks/pre-receive"
   $ runhh "$H4" 0 0
   Running bakhlo from commit SHA
+  
   bakhlo built from SHA
   Household backup pushed.
 
@@ -201,6 +209,7 @@ A nonzero bakhlo exit is preserved even when the backup also fails.
   $ H5="$PWD/h5"; mkhousehold "$H5"
   $ runhh "$H5" 7 1
   Running bakhlo from commit SHA
+  
   bakhlo built from SHA
   Household changes committed.
   No upstream branch configured; local commits cannot be pushed.
@@ -210,6 +219,7 @@ A nonzero bakhlo exit also survives a successful, clean backup.
 
   $ runhh "$H0" 7 0
   Running bakhlo from commit SHA
+  
   bakhlo built from SHA
   [7]
 
@@ -245,6 +255,7 @@ A failed pending-log command is not mistaken for an empty list.
   $ chmod +x bin/git
   $ PATH="$PWD/bin:$PATH" runhh "$H7" 0 1
   Running bakhlo from commit SHA
+  
   bakhlo built from SHA
   Household changes committed.
   synthetic pending-log failure
@@ -258,6 +269,7 @@ Offline keeps the last built binary and says so.
   $ runhh "$H0" 0 0
   Offline: origin/main could not be fetched; the last built binary is used.
   Running bakhlo from commit SHA
+  
   bakhlo built from SHA
   $ grep -qF "bakhlo built from $(git -C run rev-parse --short origin/main)" out.log && echo last-binary-used
   last-binary-used
@@ -286,6 +298,7 @@ failing build removes the target it was going to replace; the installed copy sta
   synthetic build failure
   The build of SHA failed; the last built binary is used.
   Running bakhlo from commit SHA
+  
   bakhlo built from SHA
   $ grep -qF "bakhlo built from $(git -C run rev-parse --short HEAD~1)" out.log && echo previous-binary-kept
   previous-binary-kept
@@ -301,6 +314,7 @@ naming the worktree's HEAD.
   synthetic build failure
   The build of SHA failed; the last built binary is used.
   Running bakhlo from an unknown commit.
+  
   bakhlo built from SHA
   $ grep -qF "Running bakhlo from commit" out.log && echo commit-named || echo unknown-commit-named
   unknown-commit-named

@@ -106,11 +106,11 @@ if [ ! -x "$binary" ]; then
   exit 2
 fi
 if [ -n "$built" ]; then
-  printf 'Running bakhlo from commit %s\n' "$(short "$built")"
+  printf 'Running bakhlo from commit %s\n\n' "$(short "$built")"
 else
   # Without the stamp the installed commit is unknown; the worktree's HEAD is
   # not the commit that was installed.
-  printf '%s\n' 'Running bakhlo from an unknown commit.'
+  printf '%s\n\n' 'Running bakhlo from an unknown commit.'
 fi
 
 # Warn and stop: a nonzero bakhlo exit wins; otherwise the backup problem is the failure.

@@ -11,6 +11,12 @@ From 2026-11-09 (user decision) an entry names its commit (or comes in it) and s
 result, keeping synthetic checks, CI, latest-data checks, physical terminal/IME,
 human acceptance and P7/power loss apart. What changed and why is that commit's message.
 
+## Blank line after the launcher's Running line (2026-11-09)
+
+- moko ran `bk` with the edited `tools/household` and saw the blank line. `dune runtest
+  test` showed `test/household.t` one blank line short in 14 runs; `dune promote`
+  accepted them. `./tools/check` and `./tools/format --check` passed.
+
 ## Unused dependencies removed (2026-11-09)
 
 - Product libraries (household, store, cli, the probe) no longer list base or sexplib0;
