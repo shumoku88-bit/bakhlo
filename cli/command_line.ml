@@ -28,6 +28,9 @@ let commands =
     ( [ "find" ],
       terms (fun t -> `Find t),
       "records matching every term: a name or memo, 2026-10, A..B, acct:, memo:, amt:1000.." );
+    ( [ "last" ],
+      terms (fun t -> `Last t),
+      "the records saved last, newest at the bottom [how many; default 10]" );
     ( [ "month" ],
       terms (fun t -> `Month t),
       "income and expense by month [2026 or A..B; default 6 months]" );

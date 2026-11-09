@@ -14,6 +14,7 @@ type command =
   | `Pace
   | `Plans of [ `List | `More | `Amount | `Cancel ]
   | `Find of string list
+  | `Last of string list
   | `Edit of string list
   | `Date of string list
   | `Refund of string list

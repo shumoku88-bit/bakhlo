@@ -72,6 +72,18 @@ let run_all () =
     (contains after
        "2026-11-08\tDESC\tramen\nEFFECT\twallet\tjpy\t-1200\nEFFECT\tfood\tjpy\t1200\nENDTX")
     "bk-r-writes-the-entry";
+  (* bk last shows what was just saved on its last line, though dated earlier. *)
+  let path = fresh "bk-last" in
+  let io, _ = script [ "2026-10-30"; "late"; "wallet"; "-200"; "food"; ""; ""; ""; "" ] in
+  ignore (L.run io `Record (F.load path) ~today:"2026-11-08");
+  let io, out = script [] in
+  ignore (L.run io (`Last [ "2" ]) (F.load path) ~today:"2026-11-08");
+  require
+    (Buffer.contents out
+   = "  2026-11-01  lunch  Wallet  -900 jpy  Food  +900 jpy\n\
+     \  2026-10-30  late   Wallet  -200 jpy  Food  +200 jpy\n\
+      the last 2 of 2 records, newest at the bottom\n")
+    "bk-last-shows-the-saved-record-last";
   (* Several Loci are chosen like plans: Enter takes the first, the start of a name
      narrows. *)
   let result, out, after =

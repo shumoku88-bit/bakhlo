@@ -191,6 +191,9 @@ let views =
     [ "todo" ];
     [ "day" ];
     [ "day"; "2026-08-06" ];
+    [ "last" ];
+    [ "last"; "3" ];
+    [ "last"; "x" ];
     [ "find"; "lunch"; "2026-10" ];
     [ "find"; "amt:5000.." ];
     [ "find"; "acct:travel" ];

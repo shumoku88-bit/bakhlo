@@ -29,6 +29,7 @@ type command =
   | `Pace
   | `Plans of [ `List | `More | `Amount | `Cancel ]
   | `Find of string list
+  | `Last of string list
   | `Edit of string list
   | `Date of string list
   | `Refund of string list
@@ -825,6 +826,30 @@ let find io (session : F.t) words =
       say io
         (Printf.sprintf "%d record%s" (List.length found)
            (if List.length found = 1 then "" else "s")));
+  `Stopped
+
+(* `bk last [N]`: the records saved last, as on a passbook: the newest at the
+   bottom, next to where the next one will be typed. The order is the order of
+   saving, not of dates, so a record dated last week but saved just now is the
+   last line; a correction keeps its place. *)
+let last io (session : F.t) words =
+  let book = session.book in
+  let count =
+    match words with
+    | [] -> Some 10
+    | [ n ] -> Option.bind (int_of_string_opt n) (fun n -> if n > 0 then Some n else None)
+    | _ -> None
+  in
+  (match count with
+  | None -> say io "Type how many records, like bk last 20."
+  | Some n ->
+      let all = B.entries book in
+      let shown = List.filteri (fun i _ -> i >= List.length all - n) all in
+      print_table io (List.map (entry_cells book) shown);
+      say io
+        (Printf.sprintf "the last %d of %d record%s, newest at the bottom" (List.length shown)
+           (List.length all)
+           (if List.length all = 1 then "" else "s")));
   `Stopped
 
 (* 10. Correcting records. A record is chosen with the same terms as `bk find`,
@@ -1677,6 +1702,7 @@ let run io (command : command) (session : F.t) ~today =
     | `Pace -> pace io session ~today
     | `Plans action -> plans io session ~today action
     | `Find words -> find io session words
+    | `Last words -> last io session words
     | `Edit terms ->
         again io session ~today ~saved:false ~question:"Correct another? (y / n)"
           (fun io session ~today:_ -> edit io session terms)

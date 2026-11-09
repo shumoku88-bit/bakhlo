@@ -58,6 +58,28 @@ $ bk day 2026-08-06
   2026-08-06  bakery  Wallet  -1,180 jpy  Food    +1,180 jpy
   2026-08-06  hotel   カード  -6,100 jpy  Travel  +6,100 jpy
 
+$ bk last
+  2026-10-27  lunch         Wallet     -420 jpy  Food       +420 jpy
+  2026-10-27  online order  カード   -4,080 jpy  Food     +4,080 jpy
+  2026-10-29  groceries     Wallet     -690 jpy  Food       +690 jpy
+  2026-10-31  coffee        Wallet     -960 jpy  Food       +960 jpy
+  2026-11-01  ATM           Bank    -20,000 jpy  Wallet  +20,000 jpy
+  2026-11-02  bakery        Wallet   -1,240 jpy  Food     +1,240 jpy
+  2026-11-03  online order  カード   -4,450 jpy  Food     +4,450 jpy
+  2026-11-04  lunch         Wallet     -310 jpy  Food       +310 jpy
+  2026-11-06  groceries     Wallet     -590 jpy  Food       +590 jpy
+  2026-11-08  coffee        Wallet     -860 jpy  Food       +860 jpy
+the last 10 of 305 records, newest at the bottom
+
+$ bk last 3
+  2026-11-04  lunch      Wallet  -310 jpy  Food  +310 jpy
+  2026-11-06  groceries  Wallet  -590 jpy  Food  +590 jpy
+  2026-11-08  coffee     Wallet  -860 jpy  Food  +860 jpy
+the last 3 of 305 records, newest at the bottom
+
+$ bk last x
+Type how many records, like bk last 20.
+
 $ bk find lunch 2026-10
   2026-10-03  lunch  Wallet  -730 jpy  Food  +730 jpy
   2026-10-11  lunch  Wallet  -620 jpy  Food  +620 jpy
