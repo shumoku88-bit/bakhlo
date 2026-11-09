@@ -11,6 +11,12 @@ From 2026-11-09 (user decision) an entry names its commit (or comes in it) and s
 result, keeping synthetic checks, CI, latest-data checks, physical terminal/IME,
 human acceptance and P7/power loss apart. What changed and why is that commit's message.
 
+## bk reg in two passbook columns (2026-11-09)
+
+- The hand-built `reg wallet` lines, worked out from the column widths first, matched the
+  output. `views.expected` changed only in the three `reg` views. `./tools/check` and
+  `./tools/format --check` passed. Not executed: physical terminal and IME.
+
 ## Records as a passbook writes them (2026-11-09)
 
 - `views.expected` diff read line by line: `find`, `last` and `day` gained a heading and

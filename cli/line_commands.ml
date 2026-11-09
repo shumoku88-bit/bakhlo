@@ -1508,8 +1508,9 @@ let todo io (session : F.t) ~today action =
                 [ [ Left (Att.due_display ~today item.due); Left item.context ] ]))
 
 (* 16. `bk reg <account> [terms]`: the account's records in date order, like a
-   hledger register: what moved, against what, and the balance at the end of that
-   day on the day's last row. The balance comes from Book.pools_at_end_of_days, so
+   passbook: what moved against what, the amount once under out (the account
+   decreases) or in (it increases), and the balance at the end of that day on the
+   day's last row. The balance comes from Book.pools_at_end_of_days, so
    it is shown only where the book supports it (else ?), never guessed. *)
 let register io (session : F.t) words =
   let book = session.book in
@@ -1589,14 +1590,27 @@ let register io (session : F.t) words =
                   Left e.day;
                   Left (Option.value ~default:"" e.memo);
                   Left others;
-                  Right (signed book measure amount);
+                  Right (if Z.sign amount < 0 then money book measure (Z.neg amount) else "");
+                  Right (if Z.sign amount >= 0 then money book measure amount else "");
                   Right balance;
                   Left measure;
                 ]
                 :: cells rest
           in
-          print_table io
-            ([ Left ""; Left ""; Left ""; Right "change"; Right "balance"; Left "" ] :: cells rows);
+          (match rows with
+          | [] -> say io "  no records"
+          | _ ->
+              print_table io
+                ([
+                   Left "date";
+                   Left "memo";
+                   Left "against";
+                   Right "out";
+                   Right "in";
+                   Right "balance";
+                   Left "";
+                 ]
+                :: cells rows));
           `Stopped)
 
 (* 17. Income and expense (Income_expense) by month, and for one window by account,

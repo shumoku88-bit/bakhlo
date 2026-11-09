@@ -575,13 +575,14 @@ let run_all () =
     ignore (L.run io command (F.load "scratch/bk-views/book.txt") ~today:"2026-11-08");
     Buffer.contents out
   in
-  (* The wallet: 10,000 after 11-01, 8,800 after 11-02 (on that day's last row). *)
+  (* The wallet: 10,000 in on 11-01, 900 and 300 out on 11-02; the balance after
+     each day on its last row (columns 10, 5, 7, 3, 6 and 7 wide). *)
   require
     (view (`Register [ "wallet" ])
-    = String.make 28 ' ' ^ "change  balance\n"
-      ^ "  2026-11-01  ATM    Bank  +10,000   10,000  jpy\n"
-      ^ "  2026-11-02  lunch  Food     -900           jpy\n"
-      ^ "  2026-11-02  snack  Food     -300    8,800  jpy\n")
+    = "  date        memo   against  out      in  balance\n"
+      ^ "  2026-11-01  ATM    Bank          10,000   10,000  jpy\n"
+      ^ "  2026-11-02  lunch  Food     900                   jpy\n"
+      ^ "  2026-11-02  snack  Food     300            8,800  jpy\n")
     "bk-reg-shows-supported-day-end-balances";
   (* The bank has no supported balance: ? rather than a number. *)
   require (contains (view (`Register [ "bank" ])) "  ?  jpy\n") "bk-reg-marks-an-unknown-balance";
