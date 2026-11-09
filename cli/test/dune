@@ -1,5 +1,6 @@
-; Every bk command on synthetic books (cli_checks.ml), and what every read-only
-; command shows on one synthetic year (views.ml against views.expected).
+; Every bk command on synthetic books (cli_checks.ml), what every read-only command
+; shows on one synthetic year (views.ml against views.expected), and what Tab offers
+; (completion.sh against completion.expected).
 
 (executable
  (name cli_checks)
@@ -25,3 +26,19 @@
  (alias runtest)
  (action
   (diff views.expected views.out)))
+
+; Tab completion of the bk commands in bash (tools/bk-completion.bash).
+
+(rule
+ (with-stdout-to
+  completion.out
+  (run
+   bash
+   %{dep:completion.sh}
+   %{dep:../../tools/bk-completion.bash}
+   %{exe:../bakhlo.exe})))
+
+(rule
+ (alias runtest)
+ (action
+  (diff completion.expected completion.out)))

@@ -1,0 +1,8 @@
+bk sh<Tab> -> [shop]
+bk to<Tab> -> [todo]
+bk todo <Tab> -> [add done drop]
+bk pace <Tab> -> [pool cycle if target]
+bk p<Tab> -> [pay pace plans]
+bk report <Tab> -> [ie]
+bk shop <Tab> -> []
+bk <Tab> -> [r pay bal pace plans find last month report day reg edit date refund shop fx todo check loci]

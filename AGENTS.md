@@ -88,8 +88,8 @@ and what ran with its result in `docs/VERIFICATION.md`, never here.
   safety behavior must. The cutover was done on 2026-10-21.
 - Today's spending guide is Daily Pace (`bk pace`; plain `bk` prints it first). The
   commands are described in `cli/README.md`; English first. User decision (2026-11-09):
-  in a terminal, plain `bk` then lets the household pick a command with fzf when fzf is
-  on PATH (an optional program, not a library; without it the list is printed).
+  commands complete with Tab in bash (`tools/bk-completion.bash`); plain `bk` stays
+  glance-and-exit (an fzf picker on it was tried and removed the same day).
 - Reports (user decision 2026-10-22): improve on LOAM rather than copy it, keeping
   what LOAM did well (Trend look, I&E summary with Scheduled split, period compare).
   Order reports by what the household's data shows matters; default to the configured

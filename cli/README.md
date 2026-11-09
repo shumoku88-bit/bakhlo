@@ -3,9 +3,9 @@
 家計簿は `bk` のコマンドで使う（本人決定 2026-11-08、TUIは2026-11-09に削除。Gitの `a346668` まで）。
 `bk` は `./tools/household` で、押し出し済みの `origin/main` を手元でビルドして動かし、終わると
 家計簿をcommitしてprivateのバックアップへpushする。`bk help` が一覧を出す（打ち間違えても一覧を出す）。
-端末で素の `bk` を打つと、fzfがあれば今日の目安のあとにコマンドを選べる：語の一部を打つと絞られ
-（`sh`ならshop、`to`ならtodoの4つ）、↑↓とEnterで実行、Escで何もせず終わる。語の要るコマンド
-（find・regなど）は続きを1行で聞く。fzfがなければ一覧を出す（本人決定 2026-11-09）。
+bashではコマンドの語をTabで補える（本人決定 2026-11-09）：`bk sh`→Tabで`bk shop`、`bk to`→Tabで`bk todo`、
+`bk todo `でTabを2回押すと add・done・drop が並ぶ。`~/.bashrc` に
+`source ~/Projects/moko/bakhlo/tools/bk-completion.bash` を1行足すと使える。
 
 どのコマンドも1行ずつ聞き、保存の前に必ずPreviewを見せ、Enterで保存する。`n` やCtrl-Dなら何も
 保存しない（Ctrl-Cでも途中の入力は保存されず、それより前に保存した記録はいつもどおりバックアップされる）。読み込んだ後に帳簿が変わっていたら上書きしない。名前は表示名で出し、中のIDは
