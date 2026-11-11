@@ -1,0 +1,13 @@
+#!/bin/sh
+# Daily TUI (Notty), built in the project's own switch.
+#   tools/tui --self-check   build and run every synthetic TUI check
+#   tools/tui ARGS...         build, then run the TUI entry point with ARGS
+set -eu
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
+cd "$root"
+
+if [ "$#" -eq 1 ] && [ "$1" = --self-check ]; then
+  exec ./tools/opam exec -- dune test --root . --force tui
+fi
+./tools/opam exec -- dune build --root . tui/app/bakhlo_tui.exe
+exec _build/default/tui/app/bakhlo_tui.exe "$@"

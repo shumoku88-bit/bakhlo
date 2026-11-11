@@ -12,19 +12,20 @@ LOAMは凍結し、互換の参照としてだけ使う。
 - 残高が不明なことと、明示的にゼロであることを区別する。
 - 入力ミスの訂正と、実際の返金・取消を区別する。
 - 正データは訂正済みの明細でよい。長期の履歴はGitに任せる。
-- 普段は`bk`のコマンドで記帳する。手編集のしやすさより、保存費用・復元の確実さと短く直接的な実装を優先する。
+- 普段は`bk`の画面（TUI）とコマンドで記帳する。手編集のしやすさより、保存費用・復元の確実さと短く直接的な実装を優先する。
 
-**LOAMで記録し見られたことを、`bk`のコマンドで使えるようにする（画面は再現しない、本人決定 2026-11-08）。**
+**画面（TUI）を戻した（本人決定 2026-11-11：コマンドだけで普段使いしてみて、画面があった方がよいと分かった）。
+`bk`のコマンドはそのまま使える。**
 予算配分・予算振替・予算消化・用途routing・Budget Windowだけは、実際に必要になるまで延期する。
 Favaとhledgerへの出力は対象外。内部実装・保存構造までLOAMと同じにする必要はない。
 
 ## 使う
 
 ```sh
-bk                  # 今日の目安とコマンドの一覧（bk は ./tools/household を呼ぶ）
-bk r                # 記帳。bk help で全コマンド
-./ui --demo [COMMAND] # 合成データだけで試す（scratch/ui-preview）
-./ui [COMMAND]      # 確認用：最後に取った家計簿のコピーでコマンド
+bk                  # 画面（TUI）を開く（bk は ./tools/household を呼ぶ）
+bk r                # 画面を開かずに記帳。bk help で全コマンド
+./ui --demo [COMMAND] # 合成データだけで試す（scratch/ui-preview）。COMMANDなしは画面
+./ui [COMMAND]      # 確認用：最後に取った家計簿のコピーで画面かコマンド
 ```
 
 バックアップの失敗は警告して異常終了する。ローカルの記帳は残り、pushできなかった
@@ -39,19 +40,19 @@ commitは次回に再送する。bakhlo自体が異常終了した場合は、�
 `config/`を写す）。取り直すときは`./tools/household-copy refresh`、確認後は
 `./tools/household-copy clean-copies`。手順と制約は[AGENTS.md](AGENTS.md)の Latest-data checks。
 
-コマンドと保存の決まりは[cli/README](cli/README.md)。どのコマンドも保存の前にPreviewを見せ、
+画面は[tui/README](tui/README.md)、コマンドと保存の決まりは[cli/README](cli/README.md)。どのコマンドも保存の前にPreviewを見せ、
 Enterで保存する。金額欄では`500+300`、`(500+300)/2`などの式を正確に計算する。
 
 ## 開発
 
 ```sh
 ./tools/bootstrap          # リポジトリ内に隔離したOCaml環境（初回のみ）
-./tools/check              # ビルド、見本、bkの合成検査、privacy-scan
+./tools/check              # ビルド、見本、bkと画面の合成検査、privacy-scan
 ```
 
 - [現在の状態と次の作業](docs/HANDOFF.md)、[作業規則](AGENTS.md)
 - [構成](docs/ARCHITECTURE.md)、[意味の契約](docs/SEMANTIC_CONTRACT.md)、[開発手順](docs/DEVELOPMENT.md)
-- [bkのコマンド](cli/README.md)、[答えの見本](test/README.md)
+- [bkのコマンド](cli/README.md)、[画面](tui/README.md)、[答えの見本](test/README.md)
 - [検証記録](docs/VERIFICATION.md)（2026-10-20より前は`90a5867`の同じファイル）
 
 実データ・秘密情報はGitに入れない（`./tools/privacy-scan`）。

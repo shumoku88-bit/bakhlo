@@ -1,0 +1,9 @@
+(test
+ (name attention_checks)
+ (libraries
+  bakhlo_screen_attention
+  bakhlo_tui_book
+  bakhlo.cli
+  bakhlo_tui_protocol
+  bakhlo.household
+  zarith))

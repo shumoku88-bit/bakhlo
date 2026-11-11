@@ -5,14 +5,14 @@ The commands: [cli/README](../cli/README.md). What actually ran:
 [VERIFICATION](VERIFICATION.md). The previous long handoff (per-feature evidence up
 to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
 
-## Where things stand (2026-11-08)
+## Where things stand (2026-11-11)
 
 The dated log of earlier passes is in Git at `5b48008:docs/HANDOFF.md`; evidence is in
 [VERIFICATION](VERIFICATION.md) (older entries at the commits it names).
 
 - **Daily use.** The household is `../bakhlo-data` since the 2026-10-21 cutover, recorded
   only by the user through `./tools/household`, which runs the pushed `origin/main` (built
-  in `.run/src`, binary `.run/bakhlo_tui.exe`, the last good binary kept when offline) and
+  in `.run/src`, binary `.run/bakhlo.exe`, the last good binary kept when offline) and
   then commits and pushes the book to the private backup, reporting any backup failure.
   Restoring that backup was drilled on 2026-10-23. `../loam-data` is the frozen LOAM record.
 - **Storage.** One `book.txt` in the common format with LOAM (`docs/COMMON_FORMAT.ja.md`,
@@ -32,12 +32,17 @@ The dated log of earlier passes is in Git at `5b48008:docs/HANDOFF.md`; evidence
   samples in one format (`test/README.md`): `amounts`, `common_format`, `periods`,
   `reports`, `records`, `scheduled`. Any implementation is right when it passes them;
   `test/samples.ml` is the one reader.
-- **Commands, no TUI.** User decision (2026-11-08): the household uses `bk` line commands
-  (`cli/`, [cli/README](../cli/README.md)); the TUI was removed on 2026-11-09 (in Git up to
-  `a346668`), settlements with it (never used). Plain `bk` prints today's pace and the
-  command list; every command previews before it saves through the single writer.
-  Remaining reports (activity, stock and flow, trend, liquidity, multicurrency) are not
-  commands for now; their calculations stay in `household/` with their samples.
+- **Screens and commands.** User decision (2026-11-11): the TUI is back after daily use
+  with `bk` commands alone (decided 2026-11-08, removed 2026-11-09). `tui/` is
+  restored from `a346668` as it was (settlements and every report screen included), built
+  on today's `household/`, `store/` and `cli/`. One program, `tui/app/bakhlo_tui.exe`: plain
+  `bk` opens the screens, `bk COMMAND` runs the `cli/` command (the TUI's own older copy
+  of the commands is not restored). The wording and view data both use have one owner in
+  `cli/` (`Draft`, `Book_display`, `Attention_data`, `Balance_view_data`, `Locus_roles`,
+  `Scheduled_coverage`); the screens' detail and Preview lines are `tui/book/book_detail.ml`.
+  `tools/arch`, `test/arch.t`, `tools/ci-tui-pty`, the CI PTY lane, `docs/TUI_OWNERSHIP.md`
+  and `docs/UI_DIRECTION.ja.md` are back with it; the LOAM ledgers, the cutover checklist
+  and the LOAM side-by-side tools are not. Notty, uutf and parsexp are dependencies again.
 - **Unqualified:** P7 (persistent post-save acknowledgement), power loss, real macOS
   IME, human acceptance.
 
@@ -51,6 +56,9 @@ The dated log of earlier passes is in Git at `5b48008:docs/HANDOFF.md`; evidence
   conflict and uncertain outcomes, copies).
 - `cli/`: the bk commands (`line_commands.ml`, `command_line.ml`), their wording (`draft.ml`),
   display width, settings files and Daily Pace from them; `cli/test/` checks every command.
+- `tui/`: the screens ([tui/README](../tui/README.md), layers in
+  [TUI_OWNERSHIP](TUI_OWNERSHIP.md)): `kit` → `book` → `protocol` → `screens/*` → `shell` →
+  `app` (Notty and the program's entry), with `scenarios` and per-layer checks.
 - `test/`: the answer samples, and Core tests (`book_cold_reload_tests.ml`,
   `book_txt_tests.ml`, `book_file_tests.ml` guard storage).
 - Removed code and docs (old CLI, typed Effect layer, application layer, LOAM import,
@@ -60,11 +68,12 @@ The dated log of earlier passes is in Git at `5b48008:docs/HANDOFF.md`; evidence
 ## Verify and continue
 
 ```sh
-./tools/check                 # build, samples, bk command checks, privacy scan
+./tools/check                 # build, samples, bk command and TUI checks, privacy scan
+./tools/tui --self-check      # the synthetic TUI checks alone
 ./tools/startup-probe         # synthetic load, save and response timings (1k / 36.5k / 109.5k)
 ./tools/privacy-scan [--all]  # no private household text in the repository (in check)
 ./tools/household-copy refresh  # a fresh copy of the household book.txt (see AGENTS.md)
-./ui [COMMAND]                  # a bk command on that copy
+./ui [COMMAND]                  # the screens, or a bk command, on that copy
 ```
 
 Use a fresh ignored trial directory for manual runs; never overwrite a previous one.

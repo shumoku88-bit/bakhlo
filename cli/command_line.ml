@@ -66,9 +66,10 @@ let line_command words =
   in
   List.find_map (fun (w, make, _) -> Option.bind (after w words) make) commands
 
-let help =
+(* The list bk help prints; its first line says what plain bk does. *)
+let help_saying plain =
   let rows =
-    ("bk", "today's pace, then this list")
+    ("bk", plain)
     :: List.map (fun (words, _, what) -> (String.concat " " ("bk" :: words), what)) commands
     @ [ ("bk help", "this list") ]
   in
@@ -79,18 +80,25 @@ let help =
          Printf.sprintf "  %s%s  %s\n" name (String.make (width - String.length name) ' ') what)
        rows)
 
+let help = help_saying "today's pace, then this list"
+
 let today () =
   let tm = Unix.localtime (Unix.time ()) in
   Printf.sprintf "%04d-%02d-%02d" (tm.Unix.tm_year + 1900) (tm.Unix.tm_mon + 1) tm.Unix.tm_mday
 
-(* Plain bk: today's pace, then what else there is. *)
-let main () =
+(* Plain bk opens the screens where the program has them (tui/); without them it
+   prints today's pace, then what else there is. *)
+let main ?screens () =
+  let help = match screens with None -> help | Some _ -> help_saying "open the screens (TUI)" in
   try
     match Array.to_list Sys.argv with
-    | [ _; "--book"; path ] ->
-        ignore (Line_commands.run Line_commands.terminal `Pace (F.load path) ~today:(today ()));
-        print_newline ();
-        print_string help
+    | [ _; "--book"; path ] -> (
+        match screens with
+        | Some screens -> screens path
+        | None ->
+            ignore (Line_commands.run Line_commands.terminal `Pace (F.load path) ~today:(today ()));
+            print_newline ();
+            print_string help)
     | _ :: "--book" :: path :: words when line_command words <> None ->
         let command = Option.get (line_command words) in
         ignore (Line_commands.run Line_commands.terminal command (F.load path) ~today:(today ()))

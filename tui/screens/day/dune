@@ -1,0 +1,9 @@
+(library
+ (name bakhlo_screen_day)
+ (wrapped false)
+ (libraries
+  bakhlo_tui_kit
+  bakhlo_tui_book
+  bakhlo.cli
+  bakhlo_tui_protocol
+  bakhlo.household))

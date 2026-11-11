@@ -1,0 +1,15 @@
+(library
+ (name bakhlo_tui_shell_checks)
+ (wrapped false)
+ (libraries
+  bakhlo_tui_kit
+  bakhlo_tui_book
+  bakhlo.cli
+  bakhlo_tui_shell
+  bakhlo_screen_editors
+  bakhlo.store
+  bakhlo.household
+  zarith
+  unix
+  uutf
+  base))

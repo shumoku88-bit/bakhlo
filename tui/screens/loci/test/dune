@@ -1,0 +1,10 @@
+(test
+ (name loci_checks)
+ (libraries
+  bakhlo_screen_loci
+  bakhlo_tui_book
+  bakhlo.cli
+  bakhlo_tui_kit
+  bakhlo_tui_protocol
+  bakhlo.household
+  zarith))

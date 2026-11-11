@@ -11,7 +11,9 @@ val line_command : string list -> command option
 val help : string
 (** Every command with its line, for [bk help] and an unknown command. *)
 
-val main : unit -> unit
-(** Parse [Sys.argv]: [--book FILE] prints today's pace and the commands, [--book FILE
-    COMMAND] runs one; [--commands] lists each command's words (for Tab completion);
-    [--check], [--copy-from] and [--restore-copy-from] check, copy or recover a book. Exits on refusal. *)
+val main : ?screens:(string -> unit) -> unit -> unit
+(** Parse [Sys.argv]: [--book FILE] opens [screens] on the book where the program has
+    them (tui/), else prints today's pace and the commands; [--book FILE COMMAND] runs
+    one; [--commands] lists each command's words (for Tab completion); [--check],
+    [--copy-from] and [--restore-copy-from] check, copy or recover a book. Exits on
+    refusal. *)

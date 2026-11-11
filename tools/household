@@ -1,6 +1,6 @@
 #!/bin/sh
-# Daily household launcher (user decision 2026-10-21): run a bk command on the household
-# book, then commit any change and push it to the household's own Git
+# Daily household launcher (user decision 2026-10-21): open the screens (TUI) or run a
+# bk command on the household book, then commit any change and push it to the household's own Git
 # remote (an off-site backup). A failed push keeps the local commit and is
 # retried next time, even without a new change. Any backup problem (staging,
 # diff, commit, missing upstream, pending log, push) warns, keeps Git's own
@@ -20,7 +20,7 @@
 # refuses. The line that names the commit names the installed one only: without
 # the stamp it says the commit is unknown.
 # Arguments go to the binary after --book: a bk command (bk help lists them,
-# cli/command_line.ml); none prints today's pace and the list.
+# cli/command_line.ml); none opens the screens (tui/).
 # BAKHLO_HOUSEHOLD overrides the household directory (default: ../bakhlo-data).
 set -u
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
@@ -28,7 +28,7 @@ household=${BAKHLO_HOUSEHOLD:-$root/../bakhlo-data}
 run_dir=$root/.run
 worktree=$run_dir/src
 binary=$run_dir/bakhlo.exe
-target=$worktree/_build/default/cli/bakhlo.exe
+target=$worktree/_build/default/tui/app/bakhlo_tui.exe
 stamp=$run_dir/built-commit
 
 if [ ! -f "$household/book.txt" ] || [ ! -d "$household/.git" ]; then
@@ -83,7 +83,7 @@ if [ -n "$want" ]; then
   if [ -n "$head" ] && { [ "$built" != "$head" ] || [ ! -x "$binary" ]; }; then
     printf 'Building bakhlo %s …\n' "$(short "$head")"
     if "$root/tools/opam" exec -- dune build --no-print-directory --root "$worktree" \
-      cli/bakhlo.exe >/dev/null; then
+      tui/app/bakhlo_tui.exe >/dev/null; then
       # Install atomically: a copy under a temporary name, then a rename.
       if cp "$target" "$binary.tmp.$$" && chmod 755 "$binary.tmp.$$" && mv -f "$binary.tmp.$$" "$binary"
       then

@@ -11,6 +11,26 @@ From 2026-11-09 (user decision) an entry names its commit (or comes in it) and s
 result, keeping synthetic checks, CI, latest-data checks, physical terminal/IME,
 human acceptance and P7/power loss apart. What changed and why is that commit's message.
 
+## The TUI restored (2026-11-11)
+
+- `./tools/check` passed: build of `@all`, every sample and core test, the bk command
+  checks, the synthetic TUI checks (`tui/`), `arch_check: ok` with
+  `test/arch.t`, `test/household.t` on the launcher's new target, and the privacy scan
+  (233 changed files; `./tools/privacy-scan --all`, 527 files, no match).
+  `./tools/format --check` passed.
+- `tools/ci-tui-pty _build/default/tui/app/bakhlo_tui.exe examples/book.txt` passed on
+  macOS x86_64 (four PTY sizes, keys, resize, Ctrl-Q, cold reopen, bytes unchanged).
+- On a synthetic copy of `examples/book.txt` the program printed `bk help` (first line:
+  open the screens) and `bk bal`, and plain `--book` opened the Home screen in tmux.
+- Latest-data check: `./tools/household-copy refresh`, then `./ui` in tmux on the copy
+  opened Home, Actual, Balances, Daily Pace and Scheduled and left with exit 0, no
+  refusal text on any of them (screen contents not recorded); the household's
+  `book.txt` MD5 was the same before and after; `clean-copies` kept the one copy.
+- `bakhlo.opam.locked` is the file of `a346668` again, not a fresh `opam lock`.
+- Not executed: CI for this commit at the time of writing, a physical terminal with
+  the macOS IME, human acceptance, a write through the screens on household data,
+  P7 and power loss.
+
 ## Blank line after the launcher's Running line (2026-11-09)
 
 - moko ran `bk` with the edited `tools/household` and saw the blank line. `dune runtest

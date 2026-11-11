@@ -1,8 +1,10 @@
 ; The household's commands (bk): each asks one line at a time, previews and saves
 ; through the single writer. The rules live in household/; this only asks and prints.
+; Public so that tui/ (its own Dune project) builds the screens on the same wording.
 
 (library
  (name bakhlo_cli)
+ (public_name bakhlo.cli)
  (wrapped false)
  (modules :standard \ bakhlo)
  (libraries bakhlo.household bakhlo.book_txt bakhlo.store unix zarith))

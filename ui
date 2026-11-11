@@ -1,13 +1,13 @@
 #!/bin/sh
-# A bk command on a copy: the latest household copy or a synthetic book. Never opens
-# the household itself.
+# The screens (TUI), or a bk command, on a copy: the latest household copy or a
+# synthetic book. Never opens the household itself.
 set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
 cd "$root"
 umask 077
 usage() {
-  printf '%s\n' './ui [COMMAND]          a bk command on the selected household copy (tools/household-copy)' \
-    './ui --demo [COMMAND]  a bk command on a synthetic preview book'
+  printf '%s\n' './ui [COMMAND]          the screens, or a bk command, on the selected household copy (tools/household-copy)' \
+    './ui --demo [COMMAND]  the same on a synthetic preview book'
 }
 mode=copy
 case "${1:-}" in
@@ -17,8 +17,8 @@ esac
 if [ -L "$root/scratch" ]; then
   printf '%s\n' 'Copy directories must not be symlinks.' >&2; exit 2
 fi
-./tools/opam exec -- dune build --root . cli/bakhlo.exe
-bin=$root/_build/default/cli/bakhlo.exe
+./tools/opam exec -- dune build --root . tui/app/bakhlo_tui.exe
+bin=$root/_build/default/tui/app/bakhlo_tui.exe
 if [ "$mode" = --demo ]; then
   trial=$root/scratch/ui-preview
   if [ -L "$trial" ]; then

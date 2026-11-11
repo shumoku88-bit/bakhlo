@@ -1,0 +1,499 @@
+(* Income & Expense Report: period-based P/L analysis by month, cycle, year, or all-time. *)
+module B = Bakhlo_household.Book
+module Day = Bakhlo_household.Day
+module IE = Bakhlo_household.Income_expense
+module O = Ui_render
+module A = Draft
+
+type period_preset = Period_window.preset = Month | Cycle | Previous_cycle | Year | All_time
+
+type period = Period_window.period = {
+  preset : period_preset;
+  start_day : string;
+  end_exclusive : string;
+  label : string;
+}
+
+type line_item = { locus : string; label : string; amount : Z.t }
+
+type measure_summary = {
+  measure : string;
+  income_items : line_item list;
+  total_income : Z.t;
+  expense_items : line_item list;
+  total_expense : Z.t;
+  scheduled_expense : Z.t;
+  ordinary_expense : Z.t;
+  net_savings : Z.t;
+}
+
+type report = {
+  period : period;
+  summaries : measure_summary list;
+  unresolved_effects : (string * string * string * Z.t) list;
+}
+
+type comparison = { window : period; same_age : report; whole : report option }
+type t = { preset : period_preset; period_offset : int }
+
+let initial () = { preset = Cycle; period_offset = 0 }
+
+let preset_label = function
+  | Month -> "Month"
+  | Cycle -> "Cycle"
+  | Previous_cycle -> "Previous Cycle"
+  | Year -> "Year"
+  | All_time -> "All Time"
+
+let presets = [ Month; Cycle; Previous_cycle; Year; All_time ]
+let resolve_period = Period_window.resolve
+
+(* The core's answer for the window, with each Locus named as the reader knows
+   it and listed by that name. *)
+let compute_report ~book ~period =
+  let r = IE.compute book ~start:period.start_day ~stop:period.end_exclusive in
+  let items (lines : IE.line list) =
+    List.map
+      (fun (l : IE.line) ->
+        let label = B.label book l.locus in
+        let label =
+          if label <> "" && label <> l.locus then Printf.sprintf "%s [%s]" label l.locus
+          else l.locus
+        in
+        { locus = l.locus; label; amount = l.amount })
+      lines
+    |> List.sort (fun a b -> String.compare a.label b.label)
+  in
+  let summary (s : IE.summary) =
+    {
+      measure = s.measure;
+      income_items = items s.income;
+      total_income = s.total_income;
+      expense_items = items s.expense;
+      total_expense = s.total_expense;
+      scheduled_expense = s.scheduled;
+      ordinary_expense = s.other;
+      net_savings = s.net;
+    }
+  in
+  {
+    period;
+    summaries = List.map summary r.summaries;
+    unresolved_effects =
+      List.map (fun (u : IE.unresolved) -> (u.day, u.locus, u.measure, u.amount)) r.unresolved;
+  }
+
+(* A Measure is active when the window has any role-classified income or expense.
+   Inactive Measures are named once instead of painted as empty blocks. *)
+let measure_active (ms : measure_summary) = ms.income_items <> [] || ms.expense_items <> []
+let split_measures summaries = List.partition measure_active summaries
+
+let by_amount_desc (items : line_item list) =
+  List.sort (fun a b -> Z.compare b.amount a.amount) items
+
+let signed book measure value =
+  (if Z.sign value > 0 then "+" else "") ^ Book_display.format_money book measure value
+
+(* Proportional bar in the room that is left after the label and the exact
+   amount. The amount is right-aligned and never clipped; when the room is too
+   small the bar disappears first. *)
+let bar ~glyph ~room amount max_amount =
+  if room < 3 || Z.sign amount <= 0 || Z.sign max_amount <= 0 then ""
+  else
+    let cells =
+      if Z.gt amount max_amount then room
+      else Z.to_int (Z.div (Z.mul (Z.of_int room) amount) max_amount)
+    in
+    String.concat "" (List.init (max 0 (min room cells)) (fun _ -> glyph))
+
+let this_glyph = "█"
+let compared_glyph = "░"
+
+(* One line per Locus; with a comparison, the compared window's amount and bar sit
+   under it in the quiet style, on the same scale. Loci that appear only in the
+   compared window follow at this window's exact zero. *)
+let item_lines ~width_of ~pad_w ~book ~measure ~with_bar ~compared items =
+  let col_locus = max 18 (min 36 (pad_w / 2)) in
+  let col_amt = max 12 (min 22 (pad_w - col_locus - 6)) in
+  let amount_of locus list =
+    match List.find_opt (fun (it : line_item) -> it.locus = locus) list with
+    | Some it -> it.amount
+    | None -> Z.zero
+  in
+  let rows =
+    let here = by_amount_desc items in
+    match compared with
+    | None -> List.map (fun (it : line_item) -> (it, None)) here
+    | Some before ->
+        let only_before =
+          List.filter
+            (fun (it : line_item) ->
+              not (List.exists (fun (b : line_item) -> b.locus = it.locus) items))
+            (by_amount_desc before)
+        in
+        List.map (fun (it : line_item) -> (it, Some (amount_of it.locus before))) here
+        @ List.map
+            (fun (it : line_item) -> ({ it with amount = Z.zero }, Some it.amount))
+            only_before
+  in
+  let max_amount =
+    List.fold_left
+      (fun acc ((it : line_item), before) ->
+        List.fold_left Z.max acc (it.amount :: Option.to_list before))
+      Z.zero rows
+  in
+  let line ~glyph label amount =
+    let amount_cell =
+      O.pad_left ~width_of col_amt (Book_display.format_money book measure amount)
+    in
+    let label_cell = O.pad ~width_of col_locus label in
+    let bar_room =
+      if not with_bar then 0 else max 0 (pad_w - width_of label_cell - width_of amount_cell - 2)
+    in
+    let mark = bar ~glyph ~room:bar_room amount max_amount in
+    "  " ^ label_cell ^ "  " ^ amount_cell ^ if mark = "" then "" else "  " ^ mark
+  in
+  List.concat_map
+    (fun ((it : line_item), before) ->
+      (O.Plain, line ~glyph:this_glyph it.label it.amount)
+      ::
+      (match before with
+      | None -> []
+      | Some amount -> [ (O.Chrome, line ~glyph:compared_glyph "" amount) ]))
+    rows
+
+let last_day (period : period) =
+  match Day.shift_days period.end_exclusive (-1) with Ok day -> day | Error _ -> period.start_day
+
+(* A window by its first and last day, as the Actual's period picker names it. *)
+let span (period : period) = period.start_day ^ " .. " ^ last_day period
+
+let render_report_lines ~width ~width_of ~book ~report ~today ~comparison =
+  let pad_w = max 0 (width - 4) in
+  let summary_of (source : report option) measure =
+    Option.bind source (fun (rep : report) ->
+        List.find_opt (fun (ms : measure_summary) -> ms.measure = measure) rep.summaries)
+  in
+  let previous = Option.map (fun c -> c.same_age) comparison in
+  let previous_full = Option.bind comparison (fun c -> c.whole) in
+  let elapsed_days, total_days =
+    Bakhlo_household.Period.elapsed ~today (report.period.start_day, report.period.end_exclusive)
+  in
+  let started = not (total_days > 0 && elapsed_days = 0) in
+  let partial = total_days > 0 && elapsed_days < total_days in
+  (* Two lines: this window and how far it has run, then the compared window at
+     the same age. *)
+  let header =
+    [
+      ( O.Heading,
+        span report.period
+        ^
+        if not started then "  ·  not started"
+        else if partial then Printf.sprintf "  ·  day %d of %d" elapsed_days total_days
+        else "" );
+      ( O.Plain,
+        match comparison with
+        | None -> "vs  no such earlier window (c chooses one; nothing is inferred)"
+        | Some c ->
+            "vs  " ^ span c.window
+            ^
+            if not started then "  (0 days)"
+            else if partial then Printf.sprintf "  (first %d days)" elapsed_days
+            else "" );
+      (O.Plain, "");
+    ]
+  in
+  let legend =
+    match comparison with
+    | None -> ""
+    | Some _ -> Printf.sprintf "   %s this  %s compared" this_glyph compared_glyph
+  in
+  (* A Measure absent from the compared window has no flow there: exact zeros. *)
+  (* The legend only where it fits beside the heading; a narrow pane has no bars. *)
+  let fitting heading legend =
+    if width_of (heading ^ legend) <= pad_w then heading ^ legend else heading
+  in
+  let compared_items measure pick =
+    match comparison with
+    | None -> None
+    | Some _ -> Some (match summary_of previous measure with Some s -> pick s | None -> [])
+  in
+  let totals_block (ms : measure_summary) =
+    let m = ms.measure in
+    let prev = summary_of previous m in
+    let prev_full = summary_of previous_full m in
+    let prev_of pick = Option.map pick prev in
+    let full_of pick = Option.map pick prev_full in
+    let line label current previous_value full_value =
+      let amount = Book_display.format_money book m current ^ " " ^ m in
+      let assemble detail = Printf.sprintf "  %-10s %14s   %s" label amount detail in
+      let text =
+        match previous_value with
+        | None -> assemble "vs n/a"
+        | Some prev_value ->
+            let delta = Z.sub current prev_value in
+            let detailed =
+              assemble
+                (Printf.sprintf "vs %s  %s"
+                   (Book_display.format_money book m prev_value)
+                   (signed book m delta))
+            in
+            (* Keep the difference itself when the full comparison does not fit. *)
+            if width_of detailed <= pad_w then detailed
+            else assemble (Printf.sprintf "Δ %s" (signed book m delta))
+      in
+      (* The whole compared window stays visible when it is a different number and
+         the line still fits; a partial comparison never hides its own delta. *)
+      let text =
+        match (previous_value, full_value) with
+        | Some partial_value, Some full_value when not (Z.equal partial_value full_value) ->
+            let candidate =
+              text ^ Printf.sprintf "  (whole %s)" (Book_display.format_money book m full_value)
+            in
+            if width_of candidate <= pad_w then candidate else text
+        | _ -> text
+      in
+      (O.Active, text)
+    in
+    [
+      (O.Heading, Printf.sprintf "Currency: %s" m);
+      line "Income" ms.total_income
+        (prev_of (fun (p : measure_summary) -> p.total_income))
+        (full_of (fun (p : measure_summary) -> p.total_income));
+      line "Expense" ms.total_expense
+        (prev_of (fun (p : measure_summary) -> p.total_expense))
+        (full_of (fun (p : measure_summary) -> p.total_expense));
+      line "Result" ms.net_savings
+        (prev_of (fun (p : measure_summary) -> p.net_savings))
+        (full_of (fun (p : measure_summary) -> p.net_savings));
+      ( O.Plain,
+        Printf.sprintf "  split: Scheduled %s  |  other %s"
+          (Book_display.format_money book m ms.scheduled_expense ^ " " ^ m)
+          (Book_display.format_money book m ms.ordinary_expense ^ " " ^ m) );
+      (O.Plain, "");
+    ]
+  in
+  let breakdown (ms : measure_summary) =
+    if ms.expense_items = [] then []
+    else
+      (O.Chrome, fitting "  Expense by Locus (largest first)" legend)
+      :: item_lines ~width_of ~pad_w ~book ~measure:ms.measure ~with_bar:true
+           ~compared:(compared_items ms.measure (fun s -> s.expense_items))
+           ms.expense_items
+      @ [ (O.Plain, "") ]
+  in
+  let income_breakdown (ms : measure_summary) =
+    if ms.income_items = [] then []
+    else
+      (O.Chrome, "  Income by Locus (largest first)")
+      :: item_lines ~width_of ~pad_w ~book ~measure:ms.measure ~with_bar:false
+           ~compared:(compared_items ms.measure (fun s -> s.income_items))
+           ms.income_items
+      @ [ (O.Plain, "") ]
+  in
+  let active, inactive = split_measures report.summaries in
+  let summaries_lines =
+    List.concat_map
+      (fun (ms : measure_summary) -> totals_block ms @ breakdown ms @ income_breakdown ms)
+      active
+  in
+  let empty_lines =
+    if active = [] then [ (O.Chrome, "  (no role-classified activity in this window)") ] else []
+  in
+  let inactive_lines =
+    match inactive with
+    | [] -> []
+    | names ->
+        [
+          ( O.Chrome,
+            "No activity in this window: "
+            ^ String.concat ", " (List.map (fun (ms : measure_summary) -> ms.measure) names) );
+        ]
+  in
+  let unresolved_lines =
+    if report.unresolved_effects = [] then []
+    else
+      [
+        (O.Status, "── Unresolved Role Effects ─────────────────────────────────────────");
+        (O.Chrome, "Activity exists on accounts without an explicit accounting role:");
+      ]
+      @ List.map
+          (fun (date, locus, m, q) ->
+            ( O.Plain,
+              Printf.sprintf "  %s  %-20s  %s %s" date locus (Book_display.format_money book m q) m
+            ))
+          report.unresolved_effects
+  in
+  header @ summaries_lines @ empty_lines @ inactive_lines @ unresolved_lines
+
+(* Compare view: the last N windows of the same kind side by side. Rows are the
+   answers; columns are windows. Measures stay separate (one block per Measure). *)
+let short_window (period : period) =
+  if String.length period.start_day >= 10 then String.sub period.start_day 5 5 ^ "→"
+  else period.label
+
+let render_compare_lines ~width ~width_of ~book ~today ~reports =
+  let pad_w = max 0 (width - 4) in
+  let n_total = List.length reports in
+  let col_w = 12 in
+  let fits = max 1 (max 0 (pad_w - 16) / col_w) in
+  let n = min n_total fits in
+  let reports =
+    let skip = max 0 (n_total - n) in
+    List.filteri (fun i _ -> i >= skip) reports
+  in
+  let label_w = max 12 (pad_w - (n * col_w) - n) in
+  let measures =
+    List.sort_uniq String.compare
+      (List.concat_map
+         (fun (_, (r : report)) -> List.map (fun (ms : measure_summary) -> ms.measure) r.summaries)
+         reports)
+  in
+  let measure_active_in measure =
+    List.exists
+      (fun (_, (r : report)) ->
+        List.exists
+          (fun (ms : measure_summary) -> ms.measure = measure && measure_active ms)
+          r.summaries)
+      reports
+  in
+  let summary_of measure (r : report) =
+    List.find_opt (fun (ms : measure_summary) -> ms.measure = measure) r.summaries
+  in
+  let current_is_partial =
+    match List.rev reports with
+    | ((p : period), _) :: _ ->
+        let elapsed_days, total_days =
+          Bakhlo_household.Period.elapsed ~today (p.start_day, p.end_exclusive)
+        in
+        total_days > 0 && elapsed_days < total_days
+    | [] -> false
+  in
+  let starts = List.map (fun ((p : period), _) -> p.start_day) reports in
+  let header_cells =
+    List.mapi
+      (fun index (p : period) ->
+        let marker =
+          if index = List.length reports - 1 && current_is_partial then "(partial)" else ""
+        in
+        O.pad_left ~width_of col_w (if marker = "" then short_window p else marker))
+      (List.map fst reports)
+  in
+  let header =
+    (O.Heading, Printf.sprintf "Compare: %d window(s) of this kind" n)
+    :: ( O.Chrome,
+         "Window starts: " ^ String.concat "  " (List.map (fun day -> String.sub day 5 5) starts) )
+    :: (O.Plain, "  " ^ O.pad ~width_of label_w "" ^ " " ^ String.concat " " header_cells)
+    :: [ (O.Plain, "") ]
+  in
+  let cell measure index (ms : measure_summary option) =
+    match ms with
+    | None -> "—"
+    | Some summary ->
+        let value =
+          match index with
+          | 0 -> summary.total_income
+          | 1 -> summary.total_expense
+          | 2 -> summary.scheduled_expense
+          | 3 -> summary.ordinary_expense
+          | _ -> summary.net_savings
+        in
+        Book_display.format_money book measure value
+  in
+  let row measure label index =
+    let cells = List.map (fun (_, r) -> cell measure index (summary_of measure r)) reports in
+    ( O.Plain,
+      "  " ^ O.pad ~width_of label_w label ^ " "
+      ^ String.concat " " (List.map (O.pad_left ~width_of col_w) cells) )
+  in
+  let block measure =
+    if not (measure_active_in measure) then []
+    else
+      let top_loci =
+        match List.rev reports with
+        | (_, (newest : report)) :: _ -> (
+            match summary_of measure newest with
+            | None -> []
+            | Some ms -> List.filteri (fun i _ -> i < 6) (by_amount_desc ms.expense_items))
+        | [] -> []
+      in
+      let locus_row (it : line_item) =
+        let cells =
+          List.map
+            (fun (_, (r : report)) ->
+              match summary_of measure r with
+              | None -> "—"
+              | Some ms ->
+                  let amount =
+                    List.fold_left
+                      (fun acc (candidate : line_item) ->
+                        if candidate.locus = it.locus then candidate.amount else acc)
+                      Z.zero ms.expense_items
+                  in
+                  if Z.equal amount Z.zero then ""
+                  else Book_display.format_money book measure amount)
+            reports
+        in
+        ( O.Plain,
+          "  " ^ O.pad ~width_of label_w it.label ^ " "
+          ^ String.concat " " (List.map (O.pad_left ~width_of col_w) cells) )
+      in
+      [
+        (O.Heading, Printf.sprintf "  %s" measure);
+        row measure "Income" 0;
+        row measure "Expense" 1;
+        row measure "  Scheduled" 2;
+        row measure "  other" 3;
+        row measure "Result" 4;
+        (O.Chrome, "  top expense Loci");
+      ]
+      @ List.map locus_row top_loci
+      @ [ (O.Plain, "") ]
+  in
+  header @ List.concat_map block measures
+
+let print_summary ~book ~report =
+  let lines = ref [] in
+  let add s = lines := s :: !lines in
+  add (Printf.sprintf "Income & Expense Report - %s" report.period.label);
+  add
+    (Printf.sprintf "Period: %s through %s (exclusive)" report.period.start_day
+       report.period.end_exclusive);
+  add "============================================================";
+  let active, inactive = split_measures report.summaries in
+  List.iter
+    (fun (ms : measure_summary) ->
+      let m = ms.measure in
+      let fmt q = Book_display.format_money book m q ^ " " ^ m in
+      add "";
+      add (Printf.sprintf "Currency: %s" m);
+      add (Printf.sprintf "Income:  %s" (fmt ms.total_income));
+      add (Printf.sprintf "Expense: %s" (fmt ms.total_expense));
+      add (Printf.sprintf "  Scheduled: %s" (fmt ms.scheduled_expense));
+      add (Printf.sprintf "  other:     %s" (fmt ms.ordinary_expense));
+      add (Printf.sprintf "Result:  %s" (fmt ms.net_savings));
+      if ms.expense_items <> [] then
+        List.iter
+          (fun (it : line_item) -> add (Printf.sprintf "  %-28s  %16s" it.label (fmt it.amount)))
+          (by_amount_desc ms.expense_items);
+      if ms.income_items <> [] then
+        List.iter
+          (fun (it : line_item) -> add (Printf.sprintf "  +%-27s  %16s" it.label (fmt it.amount)))
+          (by_amount_desc ms.income_items))
+    active;
+  if active = [] then add "  (no role-classified activity in this window)";
+  (match inactive with
+  | [] -> ()
+  | names ->
+      add
+        ("No activity in this window: "
+        ^ String.concat ", " (List.map (fun (ms : measure_summary) -> ms.measure) names)));
+  if report.unresolved_effects <> [] then begin
+    add "";
+    add "--- Unresolved Role Effects ---";
+    List.iter
+      (fun (date, locus, m, q) ->
+        add (Printf.sprintf "  %s  %-20s  %s %s" date locus (Book_display.format_money book m q) m))
+      report.unresolved_effects
+  end;
+  List.rev !lines

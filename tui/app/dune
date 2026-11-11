@@ -1,0 +1,21 @@
+; Notty terminal adapter and the command-line entry point.
+
+(library
+ (name bakhlo_tui_terminal)
+ (wrapped false)
+ (modules notty_render notty_terminal)
+ (libraries
+  bakhlo_tui_kit
+  bakhlo_tui_book
+  bakhlo.cli
+  bakhlo_tui_shell
+  bakhlo.store
+  unix
+  uutf
+  notty-community
+  notty-community.unix))
+
+(executable
+ (name bakhlo_tui)
+ (modules bakhlo_tui)
+ (libraries bakhlo_tui_terminal bakhlo.cli))

@@ -35,18 +35,19 @@ and what ran with its result in `docs/VERIFICATION.md`, never here.
   No branch/PR for ordinary changes; isolate only large/risky/parallel experiments.
   Never force-push or overwrite/commit another worker's uncommitted edits.
 - At the start of a pass, inspect remote HEAD, pending edits and `tasks/todo.md`. The
-  per-screen LOAM ledgers and the cutover checklist went with the TUI (in Git up to
-  `6453e14`).
+  per-screen LOAM ledgers and the cutover checklist left with the 2026-11-09 removal
+  and stay out (in Git up to `6453e14`).
 - Choose one bounded slice, read its owner and dependencies, preserve existing
   features, add narrow regression checks, run `./tools/check` (it includes the bk
-  command checks), review the exact diff, push. User decision (2026-11-09, from qemacs):
+  command and synthetic TUI checks), review the exact diff, push. User decision (2026-11-09, from qemacs):
   the commit message says what changed and why (a subject, then one bullet per change);
   `docs/VERIFICATION.md` records only what ran and its result, not the change again;
   `tasks/todo.md` loses the item in the commit that finishes it.
   If something could not run, record **not executed**; never fabricate success,
   infer a missing balance or weaken Preview/save refusal.
 - After pushing, inspect the CI run for the **matching commit SHA**
-  (`core.yml`: build, samples and bk command tests). Synthetic green ≠ physical-terminal,
+  (`core.yml`: build, samples, bk command and TUI tests, the Linux PTY lane).
+  Synthetic green ≠ physical-terminal,
   IME or P7 acceptance. Investigate failures.
 - Parallel AI work: agree file/function ownership first; shared Shell/API changes are
   serialized.
@@ -61,7 +62,8 @@ and what ran with its result in `docs/VERIFICATION.md`, never here.
   a synthetic year is `cli/test/views.expected` (user decision 2026-11-09, as FFmpeg
   diffs its outputs against a reference); run the affected bk commands (`./ui`) on a
   household copy before and after only when real data can show what the synthetic
-  year cannot. Read-only flows only unless the user explicitly asks for writes; verify
+  year cannot (plain `./ui` opens the screens on the copy). Read-only flows only
+  unless the user explicitly asks for writes; verify
   the household's bytes are unchanged afterwards.
 - Then close only the AI's processes and run `./tools/household-copy clean-copies` (keeps
   the selected generation). Never fall back to originals or an old copy.
@@ -72,9 +74,10 @@ and what ran with its result in `docs/VERIFICATION.md`, never here.
 
 ## Product
 
-- User decision (2026-11-08): the household uses Bakhlo through `bk` line commands, not a
-  full-screen TUI; the TUI was removed (2026-11-09, in Git up to `a346668`) and LOAM's
-  screens are no longer reproduced. LOAM stays the behavioral reference
+- User decision (2026-11-11): after daily use with `bk` commands alone, the household
+  wants the full-screen TUI back. Plain `bk` opens the screens again (`tui/`, restored
+  from `a346668`, where the 2026-11-08 decision had removed it); the `bk` line commands
+  stay, in the same program. LOAM stays the behavioral reference
   for what can be recorded and seen (recording/editing, plans, balances, Daily Pace,
   reports), not for appearance. Commands ask one line at a time, show a Preview before
   every save, name things by display name (IDs are internal), align tables by display
@@ -86,10 +89,11 @@ and what ran with its result in `docs/VERIFICATION.md`, never here.
   hledger export are out of scope (other output/diagnostics are not, without a
   separate decision). Internal structures need not match LOAM; observable results and
   safety behavior must. The cutover was done on 2026-10-21.
-- Today's spending guide is Daily Pace (`bk pace`; plain `bk` prints it first). The
-  commands are described in `cli/README.md`; English first. User decision (2026-11-09):
-  commands complete with Tab in bash (`tools/bk-completion.bash`); plain `bk` stays
-  glance-and-exit (an fzf picker on it was tried and removed the same day).
+- Today's spending guide is Daily Pace (`bk pace`, and the Daily Pace screen). The
+  commands are described in `cli/README.md`, the screens in `tui/README.md`; English
+  first. User decision (2026-11-09): commands complete with Tab in bash
+  (`tools/bk-completion.bash`; an fzf picker on plain `bk` was tried and removed the
+  same day).
 - Reports (user decision 2026-10-22): improve on LOAM rather than copy it, keeping
   what LOAM did well (Trend look, I&E summary with Scheduled split, period compare).
   Order reports by what the household's data shows matters; default to the configured

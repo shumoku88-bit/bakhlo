@@ -8,7 +8,7 @@ published, has no selected redistribution license, and carries no stable public
 API promise. Use bakhlo.opam.locked for the qualified dependency baseline."""
 maintainer: "Bakhlo maintainers"
 depends: [
-  "base" {= "v0.17.3" & with-test}
+  "base" {= "v0.17.3"}
   "base-bigarray" {= "base"}
   "base-domains" {= "base"}
   "base-effects" {= "base"}
@@ -18,20 +18,24 @@ depends: [
   "base_quickcheck" {= "v0.17.1" & with-test}
   "conf-gmp" {= "5"}
   "conf-pkg-config" {= "5"}
-  "csexp" {= "1.5.2" & with-test}
+  "cppo" {= "1.8.0"}
+  "csexp" {= "1.5.2"}
   "dune" {= "3.24.2"}
-  "dune-configurator" {= "3.24.2" & with-test}
+  "dune-configurator" {= "3.24.2"}
   "fieldslib" {= "v0.17.0" & with-test}
   "jane-street-headers" {= "v0.17.0" & with-test}
   "jst-config" {= "v0.17.0" & with-test}
+  "notty-community" {= "0.2.4"}
   "ocaml" {= "5.4.1"}
   "ocaml-base-compiler" {= "5.4.1"}
   "ocaml-compiler" {= "5.4.1"}
   "ocaml-compiler-libs" {= "v0.17.0" & with-test}
   "ocaml-config" {= "3"}
   "ocaml-options-vanilla" {= "1"}
-  "ocaml_intrinsics_kernel" {= "v0.17.2" & with-test}
+  "ocaml_intrinsics_kernel" {= "v0.17.2"}
+  "ocamlbuild" {= "0.16.1"}
   "ocamlfind" {= "1.9.8"}
+  "parsexp" {= "v0.17.0"}
   "ppx_assert" {= "v0.17.0" & with-test}
   "ppx_base" {= "v0.17.0" & with-test}
   "ppx_bench" {= "v0.17.1" & with-test}
@@ -52,11 +56,13 @@ depends: [
   "ppx_sexp_value" {= "v0.17.0" & with-test}
   "ppxlib" {= "0.38.0" & with-test}
   "ppxlib_jane" {= "v0.17.4" & with-test}
-  "sexplib0" {= "v0.17.0" & with-test}
+  "sexplib0" {= "v0.17.0"}
   "splittable_random" {= "v0.17.0" & with-test}
   "stdio" {= "v0.17.0" & with-test}
   "stdlib-shims" {= "0.3.0" & with-test}
   "time_now" {= "v0.17.0" & with-test}
+  "topkg" {= "1.1.1"}
+  "uutf" {= "1.0.4"}
   "zarith" {= "1.14"}
 ]
 build: ["dune" "build" "-p" name "-j" jobs "@install"]

@@ -1,0 +1,11 @@
+(library
+ (name bakhlo_screen_balances)
+ (wrapped false)
+ (libraries
+  bakhlo_tui_kit
+  bakhlo_tui_book
+  bakhlo.cli
+  bakhlo_tui_protocol
+  bakhlo.household
+  bakhlo.book_txt
+  zarith))

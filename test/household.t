@@ -27,13 +27,13 @@ tagged with the commit it was built from, which the launcher copies to .run.
   >   shift
   > done
   > commit=$(git -C "$root" rev-parse --short HEAD)
-  > mkdir -p "$root/_build/default/cli"
+  > mkdir -p "$root/_build/default/tui/app"
   > {
   >   printf '#!/bin/sh\n'
   >   printf 'printf "bakhlo built from %%s\\n" "%s"\n' "$commit"
   >   cat "$(dirname -- "$0")/fake-bakhlo"
-  > } > "$root/_build/default/cli/bakhlo.exe"
-  > chmod +x "$root/_build/default/cli/bakhlo.exe"
+  > } > "$root/_build/default/tui/app/bakhlo_tui.exe"
+  > chmod +x "$root/_build/default/tui/app/bakhlo_tui.exe"
   > EOF
   $ chmod +x run/tools/fake-bakhlo run/tools/opam run/tools/household
 
@@ -87,15 +87,15 @@ at a stable path and names the commit it runs; nothing is recorded or pushed.
   commit-named
   $ test "$(git -C run/.run/src rev-parse HEAD)" = "$(git -C run rev-parse origin/main)" && echo worktree-at-origin-main
   worktree-at-origin-main
-  $ test -x run/.run/src/_build/default/cli/bakhlo.exe && echo worktree-binary-built
+  $ test -x run/.run/src/_build/default/tui/app/bakhlo_tui.exe && echo worktree-binary-built
   worktree-binary-built
   $ test -x run/.run/bakhlo.exe && echo stable-copy-installed
   stable-copy-installed
 
 The launcher runs the installed copy, not the worktree's build output.
 
-  $ printf '#!/bin/sh\nprintf "worktree binary ran\\n"\n' > run/.run/src/_build/default/cli/bakhlo.exe
-  $ chmod +x run/.run/src/_build/default/cli/bakhlo.exe
+  $ printf '#!/bin/sh\nprintf "worktree binary ran\\n"\n' > run/.run/src/_build/default/tui/app/bakhlo_tui.exe
+  $ chmod +x run/.run/src/_build/default/tui/app/bakhlo_tui.exe
   $ runhh "$H0" 0 0
   Running bakhlo from commit SHA
   
@@ -286,7 +286,7 @@ failing build removes the target it was going to replace; the installed copy sta
   >   if [ "$1" = "--root" ]; then root=$2; shift 2; continue; fi
   >   shift
   > done
-  > rm -f "$root/_build/default/cli/bakhlo.exe"
+  > rm -f "$root/_build/default/tui/app/bakhlo_tui.exe"
   > printf 'synthetic build failure\n' >&2
   > exit 1
   > EOF
