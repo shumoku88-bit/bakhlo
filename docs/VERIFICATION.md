@@ -27,8 +27,9 @@ human acceptance and P7/power loss apart. What changed and why is that commit's 
   refusal text on any of them (screen contents not recorded); the household's
   `book.txt` MD5 was the same before and after; `clean-copies` kept the one copy.
 - `bakhlo.opam.locked` is the file of `a346668` again, not a fresh `opam lock`.
-- Not executed: CI for this commit at the time of writing, a physical terminal with
-  the macOS IME, human acceptance, a write through the screens on household data,
+- CI for `09c2380` passed, the Linux PTY lane included
+  ([run 43029052997](https://github.com/shumoku88-bit/bakhlo/actions/runs/43029052997)).
+- Not executed: a physical terminal with the macOS IME, human acceptance, a write through the screens on household data,
   P7 and power loss.
 
 ## Blank line after the launcher's Running line (2026-11-09)
