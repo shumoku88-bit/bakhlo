@@ -20,6 +20,8 @@ human acceptance and P7/power loss apart. What changed and why is that commit's 
   the copy: Daily Pace / 10d showed the full `Average spent` line unclipped in History
   and in Selected day (amounts not recorded); the household's `book.txt` MD5 was the
   same before and after; `clean-copies` kept the one copy.
+- CI for `2071634` passed, the Linux PTY lane included
+  ([run 43357838162](https://github.com/shumoku88-bit/bakhlo/actions/runs/43357838162)).
 - Physical terminal/IME and P7/power loss **not executed**.
 
 ## The TUI restored (2026-11-11)
