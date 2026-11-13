@@ -326,12 +326,8 @@ let save io (session : F.t) (tx : R.transaction) =
   in
   match String.lowercase_ascii (ask io ~default:"y" question) with
   | "o" when (not tx.replace) && tx.plan = None -> (
-      let others =
-        List.filter
-          (fun (m, _) -> not (List.exists (fun (p : B.posting) -> p.measure = m) tx.entry.effects))
-          (B.measures book)
-      in
-      let default = match others with (m, _) :: _ -> m | [] -> "" in
+      let except = List.map (fun (p : B.posting) -> p.measure) tx.entry.effects in
+      let default = Book_display.recent_measure book ~except in
       let measure = ask io ~default "Original Measure (what was paid in)" in
       match List.assoc_opt measure (B.measures book) with
       | None ->
@@ -1416,7 +1412,7 @@ let fx io (session : F.t) ~today =
   | [] | [ _ ] ->
       say io "An exchange needs two Measures in the book.";
       `Stopped
-  | (first, _) :: (second, _) :: _ -> (
+  | (first, _) :: _ :: _ -> (
       let day = ask_day io ~default:today "Date" in
       let memo = ask io "Memo" in
       let rec side label ~default =
@@ -1441,7 +1437,7 @@ let fx io (session : F.t) ~today =
             (locus, measure, amount ())
       in
       let ((_, from_measure, _) as from) = side "From" ~default:first in
-      let into = side "Into" ~default:(if from_measure = first then second else first) in
+      let into = side "Into" ~default:(Book_display.recent_measure book ~except:[ from_measure ]) in
       match R.exchange ~new_id:F.new_id ~day ~memo ~from ~into with
       | Error "same-measure" ->
           say io "An exchange is between two different Measures; nothing was saved.";

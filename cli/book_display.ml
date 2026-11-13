@@ -21,6 +21,24 @@ let format_money book measure q =
   Buffer.add_substring out raw stop (String.length raw - stop);
   Buffer.contents out
 
+let recent_measure book ~except =
+  let other m = not (List.mem m except) in
+  let used (e : B.entry) =
+    List.map (fun (p : B.posting) -> p.measure) e.effects
+    @ Option.to_list (Option.map fst e.original_amount)
+  in
+  let latest =
+    List.fold_left
+      (fun last e -> match List.find_opt other (used e) with Some m -> Some m | None -> last)
+      None (B.entries book)
+  in
+  match latest with
+  | Some m -> m
+  | None -> (
+      match List.find_opt (fun (m, _) -> other m) (B.measures book) with
+      | Some (m, _) -> m
+      | None -> "")
+
 let locus_candidates book query =
   let query = String.lowercase_ascii (String.trim query) in
   let choices = Option.value ~default:[] (B.approved_loci book) in

@@ -525,6 +525,7 @@ let run_all () =
     "BOOK\t1\n\
      MEASURE\tjpy\t0\n\
      MEASURE\tusd\t2\n\
+     MEASURE\tils\t2\n\
      LOCUS\tbank\tBank\t\n\
      LOCUS\twallet\tWallet\t\n\
      LOCUS\tfood\tFood\t\n\
@@ -553,6 +554,20 @@ let run_all () =
         ORIGINAL\tusd\t1250\n\
         ENDTX")
     "bk-r-adds-an-original-amount";
+  (* Abroad, the second Measure offered is the one used last, not the book's first
+     foreign one: after shekels, Enter takes ils for an original amount and an
+     exchange. *)
+  in_fx `Fx [ ""; "to shekels"; "bank"; ""; "4000"; "wallet"; "ils"; "100"; "" ];
+  in_fx `Record [ ""; "falafel"; ""; "bank"; "-900"; "food"; ""; ""; "o"; ""; "22.50"; ""; "n" ];
+  in_fx `Fx [ ""; "more shekels"; "bank"; ""; "2000"; "wallet"; ""; "50"; "" ];
+  require
+    (contains (F.read "scratch/bk-fx/book.txt")
+       "DESC\tfalafel\nEFFECT\tbank\tjpy\t-900\nEFFECT\tfood\tjpy\t900\nORIGINAL\tils\t2250\nENDTX"
+    && contains (F.read "scratch/bk-fx/book.txt")
+         "DESC\tmore shekels\n\
+          EFFECT\tbank\tjpy\t-2000\texchange-source\n\
+          EFFECT\twallet\tils\t5000\texchange-destination\n")
+    "bk-offers-the-measure-used-last";
   (* `bk todo`: add two matters, list them (the past one marked !), mark one done. *)
   let todo action answers =
     let io, out = script answers in

@@ -11,6 +11,20 @@ From 2026-11-09 (user decision) an entry names its commit (or comes in it) and s
 result, keeping synthetic checks, CI, latest-data checks, physical terminal/IME,
 human acceptance and P7/power loss apart. What changed and why is that commit's message.
 
+## bk fx / original amount: the Measure used last is offered (2026-11-13)
+
+- `./tools/check` and `./tools/format --check` passed (exit 0), with the new
+  `bk-offers-the-measure-used-last` check; the existing `bk-fx-records-an-exchange`
+  and `bk-r-adds-an-original-amount` still pass unchanged.
+- Latest-data check on a throwaway copy of the household copy (deleted afterwards):
+  after one exchange into ils, `bk fx` offered `Into Measure [ils]` and `bk r` → `o`
+  offered `Original Measure [ils]`. The copy was written; the household was not.
+- Before this change, a read-only travel rehearsal on a throwaway copy ran `bk fx`
+  (jpy→ils twice), `bk r` in ils, `bk r` with an ils original amount, `bk check`
+  of an ils wallet and the Multicurrency Spend screen (tmux, 140×42): all saved
+  and displayed; the ils wallet balance stays unknown until a `bk check`.
+- Physical terminal/IME and P7/power loss **not executed**.
+
 ## Daily Pace: average spent over the displayed days (2026-11-13)
 
 - `./tools/check` and `./tools/format --check` passed (exit 0), with the new
