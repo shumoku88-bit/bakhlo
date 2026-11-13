@@ -220,6 +220,14 @@ let run ~width_of ~directory ~path =
   in
   let exch_modal = key ~width_of to_exch `Enter in
   require (visible_form_id exch_modal = Some "exchange") "commands-opens-exchange-form";
+  (* As `bk fx`: the book's first Measure leaves, the other one used last arrives. *)
+  require
+    (match visible_form exch_modal with
+    | Some f ->
+        Ui_form.get_text f "source_measure" = Some "jpy"
+        && Ui_form.get_text f "destination_measure" = Some "eur"
+    | None -> false)
+    "exchange-offers-measures";
   (* Validate error on same measure *)
   let err_form =
     match visible_form exch_modal with

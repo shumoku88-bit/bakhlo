@@ -30,7 +30,10 @@ let with_form form t =
   | Some (Editing _) -> { editor = Some (Editing form) }
   | Some (Review r) -> { editor = Some (Review { r with form }) }
 
-let exchange_form ~default_date =
+(* The book's first Measure leaves and the one used last arrives, as `bk fx` offers. *)
+let exchange_form ~book ~default_date =
+  let source = match B.measures book with (m, _) :: _ -> m | [] -> "" in
+  let destination = Book_display.recent_measure book ~except:[ source ] in
   Form.create ~id:"exchange" ~title:"Exchange / Record"
     ~summary:
       [
@@ -44,13 +47,12 @@ let exchange_form ~default_date =
         Form.text_field ~id:"date" ~label:"Date" ~value:default_date ();
         Form.text_field ~id:"memo" ~label:"Description" ~placeholder:"Optional description" ();
         Form.text_field ~id:"source_locus" ~label:"Source Locus" ~placeholder:"e.g. wallet_jpy" ();
-        Form.text_field ~id:"source_measure" ~label:"Source Measure" ~value:"jpy" ();
+        Form.text_field ~id:"source_measure" ~label:"Source Measure" ~value:source ();
         Form.text_field ~id:"source_amount" ~label:"Source amount"
           ~placeholder:"Positive amount (deducted)" ();
         Form.text_field ~id:"destination_locus" ~label:"Destination Locus"
           ~placeholder:"e.g. wallet_usd" ();
-        Form.text_field ~id:"destination_measure" ~label:"Destination Measure"
-          ~placeholder:"e.g. usd" ();
+        Form.text_field ~id:"destination_measure" ~label:"Destination Measure" ~value:destination ();
         Form.text_field ~id:"destination_amount" ~label:"Destination amount"
           ~placeholder:"Positive amount (added)" ();
         Form.action_buttons ~confirm:"Preview Exchange" ~cancel:"Cancel" ();
@@ -75,7 +77,8 @@ let review_form ~canon_day ~memo ~src_locus ~src_measure ~src_quanta_str ~dst_lo
     ()
 
 (* Commands entry: the editor opens over the current route on its day. *)
-let open_editor ~default_date _t = { editor = Some (Editing (exchange_form ~default_date)) }
+let open_editor ~book ~default_date _t =
+  { editor = Some (Editing (exchange_form ~book ~default_date)) }
 
 let amount_refusal side measure = function
   | "non-positive-amount" -> tr (side ^ " amount must be positive.")

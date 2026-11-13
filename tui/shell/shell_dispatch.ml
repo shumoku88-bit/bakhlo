@@ -372,7 +372,9 @@ let open_command state = function
         screens =
           {
             state.screens with
-            exchange = Exchange_screen.open_editor ~default_date state.screens.exchange;
+            exchange =
+              Exchange_screen.open_editor ~book:state.session.book ~default_date
+                state.screens.exchange;
           };
       }
   | M.Settlements -> open_route state W.Settlements

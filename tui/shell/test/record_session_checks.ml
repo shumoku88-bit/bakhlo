@@ -763,22 +763,24 @@ let self_check ~width_of () =
     (contains orig_editor "[Enter] next/attach" && contains orig_editor "[Esc] cancel")
     "orig-amount-footer-shortcuts";
 
+  (* The other Measure is offered; Backspace clears it. *)
+  require (contains orig_editor "eur|") "orig-amount-offers-other-measure";
+  let blank_editor = key (key (key orig_editor `Backspace) `Backspace) `Backspace in
   (* Validation: empty Measure *)
-  let bad_m = key orig_editor `Enter in
+  let bad_m = key blank_editor `Enter in
   let bad_m_attached = key bad_m `Enter in
   require
     (contains bad_m_attached "Enter a nonempty single-line original Measure token.")
     "orig-amount-empty-measure-refused";
   (* Validation: unregistered Measure *)
-  let unreg_m = text orig_editor "usd" in
+  let unreg_m = text blank_editor "usd" in
   let unreg_m_refused = key unreg_m `Enter in
   require
     (contains unreg_m_refused "Measure 'usd' scale is not configured in this book.")
     "orig-amount-unregistered-measure-refused";
 
   (* Scale 0 (JPY): allows integer, rejects decimals *)
-  let jpy_editor = key orig_editor `Backspace in
-  let jpy_editor = text jpy_editor "jpy" in
+  let jpy_editor = text blank_editor "jpy" in
   let jpy_amount = key jpy_editor `Enter in
   let jpy_decimal = key (text jpy_amount "500.5") `Enter in
   require
@@ -795,9 +797,8 @@ let self_check ~width_of () =
   let cleared = ctrl (ctrl jpy_valid 'o') 'd' in
   require (contains cleared "Original amount: (none)   Ctrl-O add") "cleared-jpy-summary";
 
-  (* Open fresh original editor for EUR (scale 2) *)
-  let eur_editor = ctrl cleared 'o' in
-  let with_m = text eur_editor "eur" in
+  (* Open fresh original editor: Enter takes the offered EUR (scale 2) *)
+  let with_m = ctrl cleared 'o' in
   let to_amount = key with_m `Enter in
   (* The Original field reads amounts as the Record rows do: commas group thousands
      and arithmetic is exact. *)

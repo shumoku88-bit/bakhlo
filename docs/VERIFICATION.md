@@ -11,6 +11,18 @@ From 2026-11-09 (user decision) an entry names its commit (or comes in it) and s
 result, keeping synthetic checks, CI, latest-data checks, physical terminal/IME,
 human acceptance and P7/power loss apart. What changed and why is that commit's message.
 
+## TUI Exchange and Record Ctrl-O: the same offered Measures (2026-11-13)
+
+- `./tools/check` and `./tools/format --check` passed (exit 0), with the new
+  `exchange-offers-measures`, `orig-integration-offers-other-measure` and
+  `orig-amount-offers-other-measure` checks; the original-amount checks that typed a
+  Measure into the empty field now clear the offered one first or take it with Enter.
+- Latest-data check on a throwaway copy of the household copy (deleted afterwards),
+  after one `bk fx` into ils: `bk` in tmux at 120×40 showed the Exchange form with
+  `Source Measure: jpy` / `Destination Measure: ils`, and Record → Tab → Ctrl-O showed
+  `Measure: ils|`. The copy was written; the household was not.
+- Physical terminal/IME and P7/power loss **not executed**.
+
 ## bk fx / original amount: the Measure used last is offered (2026-11-13)
 
 - `./tools/check` and `./tools/format --check` passed (exit 0), with the new

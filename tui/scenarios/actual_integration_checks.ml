@@ -1253,6 +1253,13 @@ let original_amount_integration_checks ~width_of ~directory () =
   let orig_ed =
     match open_orig with Some s -> s | None -> raise (F.Refused "orig-open-orig-editor")
   in
+  (* The other Measure is offered; Backspace clears it for another. *)
+  require (contains (rec_screen orig_ed) "usd|") "orig-integration-offers-other-measure";
+  let orig_ed =
+    List.fold_left
+      (fun s _ -> Option.get (H.handle ~width_of s (`Key (`Backspace, []))))
+      orig_ed (List.init 3 Fun.id)
+  in
   (* Test 1a: Unregistered measure refusal *)
   let unreg_m =
     List.fold_left
@@ -1307,13 +1314,8 @@ let original_amount_integration_checks ~width_of ~directory () =
   in
   require (contains (rec_screen cleared_state) "Original amount: (none)") "orig-integration-cleared";
 
-  (* Test 1c: Registered scale 2 (USD): enter "usd" and "30.00" *)
-  let reopen_ed = Option.get (H.handle ~width_of cleared_state (`Key (`ASCII 'o', [ `Ctrl ]))) in
-  let with_m =
-    List.fold_left
-      (fun s c -> Option.get (H.handle ~width_of s (`Key (`ASCII c, []))))
-      reopen_ed [ 'u'; 's'; 'd' ]
-  in
+  (* Test 1c: Registered scale 2 (USD): Enter takes the offered "usd", then "30.00" *)
+  let with_m = Option.get (H.handle ~width_of cleared_state (`Key (`ASCII 'o', [ `Ctrl ]))) in
   let to_amount = Option.get (H.handle ~width_of with_m (`Key (`Enter, []))) in
   let with_amt =
     List.fold_left
@@ -1395,11 +1397,6 @@ let original_amount_integration_checks ~width_of ~directory () =
   (* 3. 保存失敗 (save failure): Filesystem read-only error preserves draft and file *)
   let new_rec = H.handle ~width_of cold_state (`Key (`ASCII 'n', [])) |> Option.get in
   let new_rec = H.handle ~width_of new_rec (`Key (`ASCII 'o', [ `Ctrl ])) |> Option.get in
-  let new_rec =
-    List.fold_left
-      (fun s c -> Option.get (H.handle ~width_of s (`Key (`ASCII c, []))))
-      new_rec [ 'u'; 's'; 'd' ]
-  in
   let new_rec = Option.get (H.handle ~width_of new_rec (`Key (`Enter, []))) in
   let new_rec =
     List.fold_left

@@ -690,7 +690,8 @@ let rec handle ~new_id ~book ~base_revision ~blocked ~dimensions ~width_of t
                 | A.Actual R.New -> (
                     match t.original_amount with
                     | None ->
-                        let ed = { measure = ""; amount = ""; field = Original_measure } in
+                        let measure = Book_display.recent_measure book ~except:[ t.measure ] in
+                        let ed = { measure; amount = ""; field = Original_measure } in
                         update { t with phase = Original ed; cursor = None; notice = "" }
                     | Some (m, q) -> (
                         match List.assoc_opt m (B.measures book) with

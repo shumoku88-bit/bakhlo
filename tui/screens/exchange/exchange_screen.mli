@@ -11,8 +11,9 @@ val handle : Screen.env -> Screen.geometry -> t -> Ui_input.input -> t * Screen.
 val published : Screen.env -> Screen.geometry -> Screen.publish_outcome -> t -> t * Screen.request
 val view : Screen.env -> Screen.geometry -> t -> Screen.view
 
-val open_editor : default_date:string -> t -> t
-(** Commands entry, dated by the Shell's focus day. *)
+val open_editor : book:Bakhlo_household.Book.t -> default_date:string -> t -> t
+(** Commands entry, dated by the Shell's focus day; the Measures are prefilled as
+    `bk fx` offers them ([Book_display.recent_measure]). *)
 
 (** {2 Queries for checks} *)
 
