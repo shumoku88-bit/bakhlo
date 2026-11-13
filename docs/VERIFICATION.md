@@ -22,6 +22,8 @@ human acceptance and P7/power loss apart. What changed and why is that commit's 
   refusal path that has a check runs on synthetic books. Settlements, Observe and
   bulk plan amounts have no wording check (Observe and bulk showed the bare code
   before).
+- CI for `37e36c0` passed, the Linux PTY lane included
+  ([run 43428077557](https://github.com/shumoku88-bit/bakhlo/actions/runs/43428077557)).
 - Physical terminal/IME and P7/power loss **not executed**.
 
 ## Stock–Flow reads balance-view.tsv like every other reader (2026-11-13)
@@ -32,6 +34,8 @@ human acceptance and P7/power loss apart. What changed and why is that commit's 
 - Latest-data check: the selected household copy's `balance-view.tsv` has no
   comment or blank line, so its Stock–Flow selection reads the same before and
   after. Stock–Flow itself was not opened on the copy.
+- CI for `dea3997` passed, the Linux PTY lane included
+  ([run 43427389462](https://github.com/shumoku88-bit/bakhlo/actions/runs/43427389462)).
 - Physical terminal/IME and P7/power loss **not executed**.
 
 ## Trend on the shared calendar, backspace and month names (2026-11-13)
