@@ -11,6 +11,14 @@ From 2026-11-09 (user decision) an entry names its commit (or comes in it) and s
 result, keeping synthetic checks, CI, latest-data checks, physical terminal/IME,
 human acceptance and P7/power loss apart. What changed and why is that commit's message.
 
+## TUI: unused draft wording removed, Stock–Flow uses the shared footer (2026-11-13)
+
+- `./tools/check` and `./tools/format --check` passed (exit 0). No check reads
+  Stock–Flow's footer; the removed literal was byte-identical to `Report_frame.footer`
+  (compared in the diff).
+- Latest-data check not needed: no displayed text or behaviour changed.
+- Physical terminal/IME and P7/power loss **not executed**.
+
 ## TUI Exchange and Record Ctrl-O: the same offered Measures (2026-11-13)
 
 - `./tools/check` and `./tools/format --check` passed (exit 0), with the new

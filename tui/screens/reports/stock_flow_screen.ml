@@ -168,10 +168,4 @@ let view env geometry t =
   P.view_of ~title:"Stock–Flow" ~geometry
     ~rows:(lazy (rows env geometry t))
     overlay
-    ~footer:
-      (if Option.is_some t.help then Frame.help_footer
-       else
-         [
-           "j/k line  PgUp/PgDn page  Home/End ends  g/G top/bottom  ? help";
-           "1-5 period  [ / ] shift  p print  q/Esc Home";
-         ])
+    ~footer:(if Option.is_some t.help then Frame.help_footer else Frame.footer)
