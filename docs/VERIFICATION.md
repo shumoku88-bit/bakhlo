@@ -11,6 +11,16 @@ From 2026-11-09 (user decision) an entry names its commit (or comes in it) and s
 result, keeping synthetic checks, CI, latest-data checks, physical terminal/IME,
 human acceptance and P7/power loss apart. What changed and why is that commit's message.
 
+## Stock–Flow reads balance-view.tsv like every other reader (2026-11-13)
+
+- `./tools/check` and `./tools/format --check` passed (exit 0), with the new
+  `balance-view-reads-only-what-bakhlo-writes` examples and two more refused
+  Stock–Flow files (a comment line, a blank line).
+- Latest-data check: the selected household copy's `balance-view.tsv` has no
+  comment or blank line, so its Stock–Flow selection reads the same before and
+  after. Stock–Flow itself was not opened on the copy.
+- Physical terminal/IME and P7/power loss **not executed**.
+
 ## Trend on the shared calendar, backspace and month names (2026-11-13)
 
 - `./tools/check` and `./tools/format --check` passed (exit 0), including the Trend

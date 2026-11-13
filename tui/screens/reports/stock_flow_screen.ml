@@ -26,24 +26,6 @@ let scroll t = t.frame.Frame.scroll
 let saved _env _geometry _result t = (t, Screen.Stay)
 
 let result (env : Screen.env) t =
-  let parse_selection text =
-    let valid_token s =
-      s <> "" && String.for_all (fun c -> Char.code c > 32 && Char.code c <> 127) s
-    in
-    let rec rows acc = function
-      | [] -> Ok (List.rev acc)
-      | raw :: rest -> (
-          let line = String.trim raw in
-          if line = "" || String.starts_with ~prefix:"#" line || String.starts_with ~prefix:";" line
-          then rows acc rest
-          else
-            match String.split_on_char '\t' line with
-            | [ locus; measure ] when valid_token locus && valid_token measure ->
-                rows ((locus, measure) :: acc) rest
-            | _ -> Error "Invalid balance-view.tsv; no partial selection used.")
-    in
-    rows [] (String.split_on_char '\n' text)
-  in
   (* The debt section: every Locus whose role is Liability. *)
   let liability_coords tracked_measure =
     List.filter_map
@@ -53,7 +35,10 @@ let result (env : Screen.env) t =
   Result.bind (env.config balance_view_file) (function
     | None -> Error "Stock–Flow requires an explicit balance-view.tsv selection."
     | Some text ->
-        Result.bind (parse_selection text) (fun tracked_coords ->
+        let pair (c : Balance_view_data.coordinate) = (c.locus, c.measure) in
+        Result.bind
+          (Result.map (List.map pair) (Balance_view_data.of_string text))
+          (fun tracked_coords ->
             match tracked_coords with
             | [] -> Error "Stock–Flow requires a nonempty balance-view.tsv selection."
             | (_, measure) :: _ ->

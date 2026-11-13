@@ -1,4 +1,17 @@
-(** balance_view_data.ml - Balance view configuration (balance-view.tsv) *)
+(* Which balances the household looks at: balance-view.tsv.
+
+   One account and one Measure per line, separated by a tab, in the order the
+   balances are shown:
+
+     cash\tjpy
+     smbc\tjpy
+
+   Bakhlo writes this file itself (Balances, [c]) and never writes a comment or
+   a blank line, so a line of any other shape means the file was changed by hand
+   or damaged. Then the whole file is refused: showing some of the balances
+   would let a missing account pass for one that is not chosen. `bk bal`, the
+   Balances screen, Stock–Flow and Liquidity all read it here, so they accept
+   and refuse the same files. *)
 
 type coordinate = { locus : string; measure : string }
 type t = coordinate list

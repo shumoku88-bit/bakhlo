@@ -70,6 +70,15 @@ let run_all () =
     (List.map Book_display.month_name [ "01"; "11"; "12"; "00"; "13"; "+1"; "1"; "" ]
     = [ "Jan"; "Nov"; "Dec"; "00"; "13"; "+1"; "1"; "" ])
     "month-name-reads-two-digit-months-only";
+  (* balance-view.tsv as cli/balance_view_data.ml shows it: what Bakhlo writes reads
+     back the same; a comment, a blank line or a third column refuses the whole file. *)
+  let view = "cash\tjpy\nsmbc\tjpy\n" in
+  require
+    (Result.map Balance_view_data.to_string (Balance_view_data.of_string view) = Ok view
+    && List.for_all
+         (fun text -> Result.is_error (Balance_view_data.of_string text))
+         [ "# by hand\ncash\tjpy\n"; "cash\tjpy\n\nsmbc\tjpy\n"; "cash\tjpy\t1\n" ])
+    "balance-view-reads-only-what-bakhlo-writes";
   (* A prefix with one Locus is taken; several are numbered; Enter balances. *)
   let result, out, after =
     run "bk-r" `Record [ ""; "ramen"; "wa"; "1"; "-1200"; "fo"; ""; ""; "" ]

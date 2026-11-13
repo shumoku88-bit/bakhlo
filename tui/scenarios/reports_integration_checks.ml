@@ -388,7 +388,15 @@ let run ~width_of ~directory (back_home : C.state) =
     (fun bytes ->
       configure bytes;
       refused ())
-    [ "food\tjpy\nbad-row\n"; "food\tjpy\nwallet\teur\n"; "food\tjpy\nfood\tjpy\n"; "" ];
+    (* As `bk bal` and Balances: a comment or blank line refuses the whole file. *)
+    [
+      "food\tjpy\nbad-row\n";
+      "food\tjpy\nwallet\teur\n";
+      "food\tjpy\nfood\tjpy\n";
+      "";
+      "# by hand\nfood\tjpy\n";
+      "food\tjpy\n\nbank\tjpy\n";
+    ];
   (* A valid selection with no support at all is listed, not refused; the wallet
      observation is exact but undated, so it is not in this list. *)
   configure "bank\tjpy\n";
