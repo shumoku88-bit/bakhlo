@@ -15,6 +15,10 @@ val pool_of :
   (B.coordinate list, string) result
 (** The pool in daily-pace.tsv for [measure]; a malformed file refuses as a whole. *)
 
+val pool_accounts : measure:string -> string -> (string list, string) result
+(** The accounts daily-pace.tsv chooses, in its order; none for a file with no
+    rows. A malformed file, a repeated account or another Measure refuses. *)
+
 val format_pace_error : string -> string
 (** Why there is no pace today, in words, with the account when the core names it. *)
 

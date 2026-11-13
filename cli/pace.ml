@@ -37,20 +37,38 @@ let window_of ~config ~today =
         | Error why -> Error (Period.message ~today why)
         | Ok cycle -> Ok (List.nth cycle.windows cycle.index)))
 
-let pool_of ~config ~measure =
-  let rec coordinates acc = function
-    | [] -> if acc = [] then Error "Daily Pace pool is empty." else Ok (List.rev acc)
+(* daily-pace.tsv names the accounts the pace spends from, one per line with the
+   pace Measure, as `bk pace pool` and the screen's picker write it:
+
+     cash\tjpy
+     smbc\tjpy
+
+   Blank lines and lines starting with # are skipped. A line of any other shape,
+   an account named twice or another Measure refuses the whole file: a pace over
+   part of the pool would look like a smaller, wrong pool. The picker and
+   `bk pace pool` refuse to replace such a file rather than start from nothing. *)
+let pool_accounts ~measure text =
+  let rec accounts acc = function
+    | [] -> Ok (List.rev acc)
     | line :: rest -> (
         match String.split_on_char '\t' line with
         | [ locus; m ] when config_token locus && config_token m && m = measure ->
-            let coordinate = { B.locus; measure = m } in
-            if List.mem coordinate acc then Error "Duplicate Daily Pace coordinate."
-            else coordinates (coordinate :: acc) rest
-        | _ -> Error "Malformed daily-pace.tsv or mismatched Measure; no rows were skipped.")
+            if List.mem locus acc then Error "Duplicate Daily Pace coordinate."
+            else accounts (locus :: acc) rest
+        | [ locus; m ] when config_token locus && config_token m ->
+            Error ("daily-pace.tsv holds another Measure: " ^ m ^ ".")
+        | _ -> Error "Malformed daily-pace.tsv; no rows were skipped.")
   in
+  accounts [] (config_lines text)
+
+let pool_of ~config ~measure =
   Result.bind (config "daily-pace.tsv") (function
     | None -> Error "Daily Pace pool not configured (daily-pace.tsv missing)."
-    | Some text -> coordinates [] (config_lines text))
+    | Some text -> (
+        match pool_accounts ~measure text with
+        | Error _ as refused -> refused
+        | Ok [] -> Error "Daily Pace pool is empty."
+        | Ok loci -> Ok (List.map (fun locus -> { B.locus; measure }) loci)))
 
 let format_pace_error why =
   let coordinate () =

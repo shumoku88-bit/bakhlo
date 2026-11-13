@@ -547,6 +547,30 @@ let run_all () =
   require
     (F.read "scratch/bk-settings/daily-pace.tsv" = "wallet\tjpy\nbank\tjpy\n")
     "bk-pace-pool-saves";
+  (* daily-pace.tsv as cli/pace.ml shows it: comments and blank lines are skipped;
+     another Measure, a repeated account or another shape refuses the whole file. *)
+  let accounts text = Pace.pool_accounts ~measure:"jpy" text in
+  require
+    (accounts "cash\tjpy\nsmbc\tjpy\n" = Ok [ "cash"; "smbc" ]
+    && accounts "# chosen\n\ncash\tjpy\n" = Ok [ "cash" ]
+    && accounts "" = Ok []
+    && accounts "cash\tusd\n" = Error "daily-pace.tsv holds another Measure: usd."
+    && accounts "cash\tjpy\ncash\tjpy\n" = Error "Duplicate Daily Pace coordinate."
+    && accounts "cash jpy\n" = Error "Malformed daily-pace.tsv; no rows were skipped.")
+    "pace-pool-file-reads-whole-or-not-at-all";
+  (* `bk pace pool` leaves a file it cannot read alone instead of starting empty. *)
+  let foreign = "wallet\tusd\n" in
+  Unix.unlink "scratch/bk-settings/daily-pace.tsv";
+  write "scratch/bk-settings/daily-pace.tsv" foreign;
+  let io, out = script [ "1"; "" ] in
+  ignore (L.run io `Pace_pool (F.load "scratch/bk-settings/book.txt") ~today:"2026-11-08");
+  require
+    (F.read "scratch/bk-settings/daily-pace.tsv" = foreign
+    && contains (Buffer.contents out)
+         "daily-pace.tsv holds another Measure: usd. Nothing was changed")
+    "bk-pace-pool-refuses-a-file-it-cannot-read";
+  Unix.unlink "scratch/bk-settings/daily-pace.tsv";
+  write "scratch/bk-settings/daily-pace.tsv" "wallet\tjpy\nbank\tjpy\n";
   settings `Pace_cycle [ ""; "2026-10-25 2026-11-25 2026-12-25"; "" ];
   require
     (F.read "scratch/bk-settings/boundary-presets.tsv" = "pay\t2026-10-25\t2026-11-25\t2026-12-25\n")

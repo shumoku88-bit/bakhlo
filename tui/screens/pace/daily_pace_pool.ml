@@ -16,28 +16,6 @@ type t = {
   notice : string;
 }
 
-let token s = s <> "" && String.for_all (fun c -> Char.code c > 32 && Char.code c <> 127) s
-
-let rows_from measure text =
-  let lines =
-    String.split_on_char '\n' text
-    |> List.filter (fun line ->
-        let s = String.trim line in
-        s <> "" && not (String.starts_with ~prefix:"#" s))
-  in
-  let rec loop acc = function
-    | [] -> Ok (List.rev acc)
-    | line :: rest -> (
-        match String.split_on_char '\t' line with
-        | [ locus; m ] when token locus && m = measure ->
-            if List.mem locus acc then Error "Duplicate Daily Pace coordinate."
-            else loop (locus :: acc) rest
-        | [ _; m ] when token m ->
-            Error ("Existing Pool uses another Measure: " ^ m ^ ". Refusing replacement.")
-        | _ -> Error "Malformed daily-pace.tsv; no rows were skipped.")
-  in
-  loop [] lines
-
 (* Candidates and their order are Book's ([pool_candidates]): every one has an exact
    current balance; the order is display order, not a ranking of reliability. *)
 let prepare ~book ~measure ~config =
@@ -46,7 +24,7 @@ let prepare ~book ~measure ~config =
     match config with
     | Error why -> Error ("Pool configuration was unreadable: " ^ why)
     | Ok None -> Ok []
-    | Ok (Some text) -> rows_from measure text
+    | Ok (Some text) -> Pace.pool_accounts ~measure text
   in
   let chosen, dropped, notice =
     match previous with

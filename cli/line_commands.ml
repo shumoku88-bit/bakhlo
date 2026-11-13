@@ -1227,53 +1227,56 @@ let pace_pool io (session : F.t) =
       say io ("daily-pace.tsv cannot be read: " ^ why);
       `Stopped
   | Ok expected -> (
-      let chosen =
-        match Pace.pool_of ~config:(fun _ -> Ok expected) ~measure with
-        | Ok pool -> List.map (fun (c : B.coordinate) -> c.locus) pool
-        | Error _ -> []
+      let previous =
+        match expected with None -> Ok [] | Some text -> Pace.pool_accounts ~measure text
       in
-      match B.pool_candidates book ~measure with
-      | [] ->
-          say io "No account has an exact balance yet; save one with bk check first.";
+      match previous with
+      | Error why ->
+          say io (why ^ " Nothing was changed; fix or remove daily-pace.tsv first.");
           `Stopped
-      | candidates ->
-          print_table io
-            (List.mapi
-               (fun i locus ->
-                 [
-                   Right (string_of_int (i + 1));
-                   Left (name book locus);
-                   Right (current book measure locus);
-                   Left measure;
-                   Left (if List.mem locus chosen then "in pool" else "");
-                 ])
-               candidates);
-          let marked =
-            String.concat " "
-              (List.concat
-                 (List.mapi
-                    (fun i l -> if List.mem l chosen then [ string_of_int (i + 1) ] else [])
-                    candidates))
-          in
-          let rec pick () =
-            match
-              pick_numbers
-                (ask io ~default:marked "Pool accounts (numbers like 1 3-4)")
-                (List.length candidates)
-            with
-            | Some numbers when numbers <> [] ->
-                List.map (fun n -> List.nth candidates (n - 1)) numbers
-            | _ ->
-                say io "Enter numbers from the list, like 1 3-4.";
-                pick ()
-          in
-          let pool = pick () in
-          save_config io session "daily-pace.tsv" ~expected
-            (String.concat "" (List.map (fun l -> l ^ "\t" ^ measure ^ "\n") pool))
-            ~title:"Daily Pace pool"
-            (List.map
-               (fun l -> [ Left (name book l); Right (current book measure l); Left measure ])
-               pool))
+      | Ok chosen -> (
+          match B.pool_candidates book ~measure with
+          | [] ->
+              say io "No account has an exact balance yet; save one with bk check first.";
+              `Stopped
+          | candidates ->
+              print_table io
+                (List.mapi
+                   (fun i locus ->
+                     [
+                       Right (string_of_int (i + 1));
+                       Left (name book locus);
+                       Right (current book measure locus);
+                       Left measure;
+                       Left (if List.mem locus chosen then "in pool" else "");
+                     ])
+                   candidates);
+              let marked =
+                String.concat " "
+                  (List.concat
+                     (List.mapi
+                        (fun i l -> if List.mem l chosen then [ string_of_int (i + 1) ] else [])
+                        candidates))
+              in
+              let rec pick () =
+                match
+                  pick_numbers
+                    (ask io ~default:marked "Pool accounts (numbers like 1 3-4)")
+                    (List.length candidates)
+                with
+                | Some numbers when numbers <> [] ->
+                    List.map (fun n -> List.nth candidates (n - 1)) numbers
+                | _ ->
+                    say io "Enter numbers from the list, like 1 3-4.";
+                    pick ()
+              in
+              let pool = pick () in
+              save_config io session "daily-pace.tsv" ~expected
+                (String.concat "" (List.map (fun l -> l ^ "\t" ^ measure ^ "\n") pool))
+                ~title:"Daily Pace pool"
+                (List.map
+                   (fun l -> [ Left (name book l); Right (current book measure l); Left measure ])
+                   pool)))
 
 let pace_cycle io (session : F.t) ~today =
   match config session "boundary-presets.tsv" with

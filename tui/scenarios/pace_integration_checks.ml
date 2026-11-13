@@ -127,7 +127,7 @@ let daily_pace_trend_fail_closed_checks ~width_of ~directory () =
   let malformed_pool = view () in
   screen_has ~width_of (80, 24) malformed_pool "Daily Pace unavailable:"
     "daily-pace-malformed-pool-header";
-  screen_has ~width_of (80, 24) malformed_pool "Malformed daily-pace.tsv or mismatched Measure"
+  screen_has ~width_of (80, 24) malformed_pool "daily-pace.tsv holds another Measure: usd."
     "daily-pace-malformed-pool-reason";
   (* 3. Comment-only pool: configured but empty, and still not a calculation. *)
   replace pool_path "# comment\n";

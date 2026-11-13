@@ -11,6 +11,16 @@ From 2026-11-09 (user decision) an entry names its commit (or comes in it) and s
 result, keeping synthetic checks, CI, latest-data checks, physical terminal/IME,
 human acceptance and P7/power loss apart. What changed and why is that commit's message.
 
+## One daily-pace.tsv reader; bk pace pool refuses what it cannot read (2026-11-13)
+
+- `./tools/check` and `./tools/format --check` passed (exit 0), with the new
+  `pace-pool-file-reads-whole-or-not-at-all` examples and
+  `bk-pace-pool-refuses-a-file-it-cannot-read` (a usd file is left byte-identical);
+  the screen's foreign-Measure check expects the new sentence.
+- Latest-data check: `./ui pace` on the selected household copy (read-only)
+  answered from its three-line pool as before.
+- Physical terminal/IME and P7/power loss **not executed**.
+
 ## Daily Pace screen answers through Pace (2026-11-13)
 
 - `./tools/check` and `./tools/format --check` passed (exit 0); the What-if and
