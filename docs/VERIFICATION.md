@@ -23,6 +23,8 @@ human acceptance and P7/power loss apart. What changed and why is that commit's 
   (jpy→ils twice), `bk r` in ils, `bk r` with an ils original amount, `bk check`
   of an ils wallet and the Multicurrency Spend screen (tmux, 140×42): all saved
   and displayed; the ils wallet balance stays unknown until a `bk check`.
+- CI for `f3a2e80` passed, the Linux PTY lane included
+  ([run 43420032923](https://github.com/shumoku88-bit/bakhlo/actions/runs/43420032923)).
 - Physical terminal/IME and P7/power loss **not executed**.
 
 ## Daily Pace: average spent over the displayed days (2026-11-13)
