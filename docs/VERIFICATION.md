@@ -18,6 +18,8 @@ human acceptance and P7/power loss apart. What changed and why is that commit's 
   binary before and after, the same keys: quick capture `lunch` ←← `Z`, the full
   form `ab` ← `X` Home `Y` End Backspace (`YaX`) and Shift-Tab `x/` Backspace.
   The three captures were byte-identical.
+- CI for `ed09de8` passed, the Linux PTY lane included
+  ([run 43436213034](https://github.com/shumoku88-bit/bakhlo/actions/runs/43436213034)).
 - Physical terminal/IME and P7/power loss **not executed**.
 
 ## Form text fields have a cursor; one line-editing rule (2026-11-13)
