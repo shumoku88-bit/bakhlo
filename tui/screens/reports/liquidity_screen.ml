@@ -113,40 +113,41 @@ let handle (env : Screen.env) geometry t input =
     let last = max 0 (List.length (remainder env geometry t) - Frame.capacity geometry) in
     ({ t with scroll = Ui_panel.move ~last ~position:t.scroll delta }, Screen.Stay)
   in
-  match P.lowercase input with
-  | Some ((`Escape | `ASCII 'q'), []) -> (t, Screen.Home)
-  | Some (`ASCII ' ', []) -> (t, Screen.Commands)
-  | Some (`Tab, []) | Some (`Tab, [ `Shift ]) ->
-      clear { t with focus = (if t.focus = Field then Run else Field); scroll = 0; notice = "" }
-  | Some (`Enter, []) when t.focus = Field -> clear { t with focus = Run; notice = "" }
-  | Some (`Enter, []) -> (
-      let next = { t with requested = true; notice = ""; scroll = 0 } in
-      match result env next with
-      | Ok _ -> clear next
-      | Error why -> ({ next with requested = false; notice = why }, Screen.Message why))
-  | Some (`ASCII 'm', []) ->
-      let draft = month_end env.today in
-      let next = invalidate { t with focus = Run } (Some draft) in
-      if draft <> "" then clear next
-      else
-        let why = "Conditional horizon reset unavailable; enter an explicit date." in
-        ({ next with notice = why }, Screen.Message why)
-  | Some ((`ASCII 'k' | `Arrow `Up), []) -> move (-1)
-  | Some ((`ASCII 'j' | `Arrow `Down), []) -> move 1
-  | key when Option.is_some (Frame.page_delta key) ->
-      move (Option.get (Frame.page_delta key) * max 1 (Frame.capacity geometry))
-  | Some (`Home, []) -> ({ t with scroll = 0 }, Screen.Stay)
-  | Some (`End, []) -> move max_int
-  | _ when t.focus = Field -> (
-      let value = assumption t in
-      match input with
-      | `Key (`ASCII c, []) when Char.code c >= 32 && Char.code c <> 127 ->
-          clear (invalidate t (Some (value ^ String.make 1 c)))
-      | `Key (`Uchar c, []) when O.printable_uchar c ->
-          clear (invalidate t (Some (value ^ O.utf8 c)))
-      | `Key (`Backspace, []) -> clear (invalidate t (Some (Line_edit.backspace value)))
+  (* Scrolling is the reports' one model (Report_frame), g/G included. *)
+  match Frame.scroll_move input with
+  | Some (Frame.Line delta) -> move delta
+  | Some (Frame.Page pages) -> move (pages * max 1 (Frame.capacity geometry))
+  | Some Frame.Top -> ({ t with scroll = 0 }, Screen.Stay)
+  | Some Frame.Bottom -> move max_int
+  | None -> (
+      match P.lowercase input with
+      | Some ((`Escape | `ASCII 'q'), []) -> (t, Screen.Home)
+      | Some (`ASCII ' ', []) -> (t, Screen.Commands)
+      | Some (`Tab, []) | Some (`Tab, [ `Shift ]) ->
+          clear { t with focus = (if t.focus = Field then Run else Field); scroll = 0; notice = "" }
+      | Some (`Enter, []) when t.focus = Field -> clear { t with focus = Run; notice = "" }
+      | Some (`Enter, []) -> (
+          let next = { t with requested = true; notice = ""; scroll = 0 } in
+          match result env next with
+          | Ok _ -> clear next
+          | Error why -> ({ next with requested = false; notice = why }, Screen.Message why))
+      | Some (`ASCII 'm', []) ->
+          let draft = month_end env.today in
+          let next = invalidate { t with focus = Run } (Some draft) in
+          if draft <> "" then clear next
+          else
+            let why = "Conditional horizon reset unavailable; enter an explicit date." in
+            ({ next with notice = why }, Screen.Message why)
+      | _ when t.focus = Field -> (
+          let value = assumption t in
+          match input with
+          | `Key (`ASCII c, []) when Char.code c >= 32 && Char.code c <> 127 ->
+              clear (invalidate t (Some (value ^ String.make 1 c)))
+          | `Key (`Uchar c, []) when O.printable_uchar c ->
+              clear (invalidate t (Some (value ^ O.utf8 c)))
+          | `Key (`Backspace, []) -> clear (invalidate t (Some (Line_edit.backspace value)))
+          | _ -> (t, Screen.Ignored))
       | _ -> (t, Screen.Ignored))
-  | _ -> (t, Screen.Ignored)
 
 let view (env : Screen.env) (geometry : Screen.geometry) t =
   let width, height = geometry.content in

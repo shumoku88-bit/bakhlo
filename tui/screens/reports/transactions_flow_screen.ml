@@ -118,6 +118,14 @@ let handle (env : Screen.env) geometry t input =
                    ~title:"Transactions Flow / Print Preview" lines);
           }
   in
+  (* The period keys act alike in the table and the detail; only Home differs. *)
+  let shared = function
+    | P.Home -> (t, Screen.Home)
+    | P.Help -> stay { t with help = Some (help_form ()) }
+    | P.Print -> print ()
+    | P.Preset preset -> period preset 0
+    | P.Shift delta -> period t.report.preset (t.report.period_offset + delta)
+  in
   match P.handle_overlays ~preview:t.preview ~help:t.help input with
   | Some (preview, help) -> stay { t with preview; help }
   | None -> (
@@ -129,39 +137,26 @@ let handle (env : Screen.env) geometry t input =
         with
         | Some detail_frame -> stay { t with detail_frame }
         | None -> (
-            match P.lowercase input with
-            | Some ((`Escape | `ASCII 'q' | `ASCII 'i' | `Tab | `Enter), _) -> leave_detail
-            | Some (`ASCII '?', []) -> stay { t with help = Some (help_form ()) }
-            | Some (`ASCII 'p', []) -> print ()
-            | Some (`ASCII ('1' .. '5' as c), []) -> period (P.preset_of_key c) 0
-            | Some (`ASCII (('[' | ']') as c), []) ->
-                period t.report.preset (t.report.period_offset + if c = '[' then -1 else 1)
-            | _ -> (t, Screen.Ignored))
+            match (P.key input, P.lowercase input) with
+            | Some P.Home, _ | _, Some ((`ASCII 'i' | `Tab | `Enter), _) -> leave_detail
+            | Some key, _ -> shared key
+            | None, _ -> (t, Screen.Ignored))
       else
-        match P.lowercase input with
-        | Some ((`Escape | `ASCII 'q'), []) -> (t, Screen.Home)
-        | Some (`ASCII '?', []) -> stay { t with help = Some (help_form ()) }
-        | Some (`ASCII 'p', []) -> print ()
-        | Some (`ASCII ('1' .. '5' as c), []) -> period (P.preset_of_key c) 0
-        | Some (`ASCII (('[' | ']') as c), []) ->
-            period t.report.preset (t.report.period_offset + if c = '[' then -1 else 1)
-        | Some ((`ASCII 'j' | `Arrow `Down), []) -> select 1
-        | Some ((`ASCII 'k' | `Arrow `Up), []) -> select (-1)
-        | Some (`Page `Down, []) | Some (`ASCII 'd', [ `Ctrl ]) ->
-            select (max 1 (Frame.capacity geometry - 1))
-        | Some (`Page `Up, []) | Some (`ASCII 'u', [ `Ctrl ]) ->
-            select (-max 1 (Frame.capacity geometry - 1))
-        | Some (`Home, []) | Some (`ASCII 'g', []) ->
-            stay { t with report = { t.report with selected_row = 0 } }
-        | Some (`End, []) | Some (`ASCII 'G', []) ->
+        (* The selection moves by the reports' one scroll model, so G is the last row. *)
+        match (Frame.scroll_move input, P.key input, P.lowercase input) with
+        | Some (Frame.Line delta), _, _ -> select delta
+        | Some (Frame.Page pages), _, _ -> select (pages * max 1 (Frame.capacity geometry - 1))
+        | Some Frame.Top, _, _ -> stay { t with report = { t.report with selected_row = 0 } }
+        | Some Frame.Bottom, _, _ ->
             stay
               {
                 t with
                 report = { t.report with selected_row = Ui_panel.clamp_index ~count max_int };
               }
-        | Some ((`Enter | `ASCII 'i' | `Tab), _) ->
+        | None, Some key, _ -> shared key
+        | None, None, Some ((`Enter | `ASCII 'i' | `Tab), _) ->
             stay { t with detail = true; detail_frame = Frame.create }
-        | _ -> (t, Screen.Ignored))
+        | None, None, _ -> (t, Screen.Ignored))
 
 let table ~geometry ~width ~title ~count ~selected rows =
   let capacity = Frame.capacity geometry in

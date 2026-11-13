@@ -30,12 +30,6 @@ let scroll_move input =
   else if input = key `End || input = key (`ASCII 'G') then Some Bottom
   else None
 
-(* The page direction only, for screens that keep their own step or position. *)
-let page_delta = function
-  | Some (`Page `Up, []) | Some (`ASCII 'u', [ `Ctrl ]) -> Some (-1)
-  | Some (`Page `Down, []) | Some (`ASCII 'd', [ `Ctrl ]) -> Some 1
-  | _ -> None
-
 let apply ~count ~capacity t = function
   | Line delta -> { scroll = max 0 (min (last ~count ~capacity) (t.scroll + delta)) }
   | Page delta -> { scroll = max 0 (min (last ~count ~capacity) (t.scroll + (delta * capacity))) }

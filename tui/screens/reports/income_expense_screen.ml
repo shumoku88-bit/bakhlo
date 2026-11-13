@@ -226,28 +226,21 @@ let handle (env : Screen.env) geometry t input =
           | Some frame -> stay { t with frame }
           | None -> (
               let reset = Frame.create in
-              match P.lowercase input with
-              | Some ((`Escape | `ASCII 'q'), []) -> (t, Screen.Home)
-              | Some (`ASCII '?', []) -> stay { t with help = Some (help_form ()) }
-              | Some (`ASCII 'c', []) -> open_picker env t
-              | Some (`ASCII 't', []) -> stay { t with table = not t.table; frame = reset }
-              | Some (`ASCII ('1' .. '5' as c), []) ->
-                  stay
-                    {
-                      t with
-                      frame = reset;
-                      back = 1;
-                      report = { preset = P.preset_of_key c; period_offset = 0 };
-                    }
-              | Some (`ASCII (('[' | ']') as c), []) ->
-                  let delta = if c = '[' then -1 else 1 in
+              match (P.key input, P.lowercase input) with
+              | Some P.Home, _ -> (t, Screen.Home)
+              | Some P.Help, _ -> stay { t with help = Some (help_form ()) }
+              | _, Some (`ASCII 'c', []) -> open_picker env t
+              | _, Some (`ASCII 't', []) -> stay { t with table = not t.table; frame = reset }
+              | Some (P.Preset preset), _ ->
+                  stay { t with frame = reset; back = 1; report = { preset; period_offset = 0 } }
+              | Some (P.Shift delta), _ ->
                   stay
                     {
                       t with
                       frame = reset;
                       report = { t.report with period_offset = t.report.period_offset + delta };
                     }
-              | Some (`ASCII 'p', []) -> (
+              | Some P.Print, _ -> (
                   match P.checked env t.report.preset t.report.period_offset with
                   | Error why -> (t, Screen.Message why)
                   | Ok period ->
@@ -260,7 +253,7 @@ let handle (env : Screen.env) geometry t input =
                               (P.print_form ~id:"income_expense_print_preview"
                                  ~title:"Income & Expense / Print Preview" lines);
                         })
-              | _ -> (t, Screen.Ignored))))
+              | None, _ -> (t, Screen.Ignored))))
 
 let rows env geometry t = Frame.rows ~geometry t.frame (content env geometry t)
 

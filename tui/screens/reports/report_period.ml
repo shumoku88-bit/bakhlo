@@ -59,3 +59,22 @@ let handle_overlays ~preview ~help input =
       | `Key (`ASCII '?', []) -> Some (None, None)
       | _ -> Some (None, handle_preview form input))
   | None, None -> None
+
+(* The keys every period report reads the same way, so a screen only says what
+   each one does to its own state:
+
+     q / Esc   back to Home           ?   help
+     1-5       Month, Cycle, Previous Cycle, Year, All Time
+     [ / ]     the window before / after the shown one
+     p         print preview *)
+type key = Home | Help | Preset of IncExp.period_preset | Shift of int | Print
+
+let key input =
+  match lowercase input with
+  | Some ((`Escape | `ASCII 'q'), []) -> Some Home
+  | Some (`ASCII '?', []) -> Some Help
+  | Some (`ASCII ('1' .. '5' as c), []) -> Some (Preset (preset_of_key c))
+  | Some (`ASCII '[', []) -> Some (Shift (-1))
+  | Some (`ASCII ']', []) -> Some (Shift 1)
+  | Some (`ASCII 'p', []) -> Some Print
+  | _ -> None

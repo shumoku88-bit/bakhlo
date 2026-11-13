@@ -141,6 +141,12 @@ let self_check () =
   require (last > 0) "tf-end-selects-last-row";
   let tf_back, _ = TF.handle env narrow tf_end (`Key (`ASCII 'k', [])) in
   require (TF.selected_row tf_back = last - 1) "tf-k-after-end-steps-back";
+  (* G is the last row and g the first, as the help says (G was read as g before). *)
+  let tf_bottom, _ = TF.handle env narrow tf (`Key (`ASCII 'G', [])) in
+  let tf_top, _ = TF.handle env narrow tf_bottom (`Key (`ASCII 'g', [])) in
+  require
+    (TF.selected_row tf_bottom = last && TF.selected_row tf_top = 0)
+    "tf-capital-g-selects-last-row";
   require (List.length (paint (TF.view env narrow tf)) > 0) "tf-narrow-renders";
 
   (* 7. Detail pane only from 100 columns; Enter opens it full width below. *)

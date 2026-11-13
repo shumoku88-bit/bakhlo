@@ -117,21 +117,19 @@ let handle (env : Screen.env) geometry t input =
       | Some frame -> stay { t with frame }
       | None -> (
           let reset = Frame.create in
-          match P.lowercase input with
-          | Some ((`Escape | `ASCII 'q'), []) -> (t, Screen.Home)
-          | Some (`ASCII '?', []) -> stay { t with help = Some (help_form ()) }
-          | Some (`ASCII ('1' .. '5' as c), []) ->
-              stay
-                { t with frame = reset; report = { preset = P.preset_of_key c; period_offset = 0 } }
-          | Some (`ASCII (('[' | ']') as c), []) ->
-              let delta = if c = '[' then -1 else 1 in
+          match P.key input with
+          | Some P.Home -> (t, Screen.Home)
+          | Some P.Help -> stay { t with help = Some (help_form ()) }
+          | Some (P.Preset preset) ->
+              stay { t with frame = reset; report = { preset; period_offset = 0 } }
+          | Some (P.Shift delta) ->
               stay
                 {
                   t with
                   frame = reset;
                   report = { t.report with period_offset = t.report.period_offset + delta };
                 }
-          | Some (`ASCII 'p', []) -> (
+          | Some P.Print -> (
               match result env t with
               | Ok (period, rep) ->
                   let lines = StockFlow.print_summary ~book:env.book ~period ~report:rep in
@@ -144,7 +142,7 @@ let handle (env : Screen.env) geometry t input =
                              ~title:"Stock–Flow / Print Preview" lines);
                     }
               | Error why -> (t, Screen.Message why))
-          | _ -> (t, Screen.Ignored)))
+          | None -> (t, Screen.Ignored)))
 
 let rows env geometry t = Frame.rows ~geometry t.frame (content env geometry t)
 

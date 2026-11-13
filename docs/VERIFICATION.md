@@ -11,6 +11,17 @@ From 2026-11-09 (user decision) an entry names its commit (or comes in it) and s
 result, keeping synthetic checks, CI, latest-data checks, physical terminal/IME,
 human acceptance and P7/power loss apart. What changed and why is that commit's message.
 
+## Reports read period and scroll keys in one place (2026-11-13)
+
+- `./tools/check` and `./tools/format --check` passed (exit 0), including the
+  existing report scenario and frame checks and the new
+  `tf-capital-g-selects-last-row` (fails on the previous code, where G was read as g).
+- Liquidity and Multicurrency Spend gain g/G through the shared scroll model; no
+  check reads their scroll yet.
+- Latest-data check not executed: key handling only; the synthetic report checks
+  drive every changed screen.
+- Physical terminal/IME and P7/power loss **not executed**.
+
 ## One daily-pace.tsv reader; bk pace pool refuses what it cannot read (2026-11-13)
 
 - `./tools/check` and `./tools/format --check` passed (exit 0), with the new

@@ -303,64 +303,66 @@ let handle env geometry t input =
     let last = max 0 (List.length (body env geometry t) - capacity geometry) in
     ({ t with scroll = Ui_panel.move ~last ~position:t.scroll delta }, Screen.Stay)
   in
-  match P.lowercase input with
-  | Some ((`Escape | `ASCII 'q'), []) -> (t, Screen.Home)
-  | Some (`ASCII ' ', []) -> (t, Screen.Commands)
-  | Some (`Tab, []) | Some (`Tab, [ `Shift ]) ->
-      let forward = input = `Key (`Tab, []) in
-      let focus =
-        match (t.focus, forward) with
-        | Start, true -> End_field
-        | Start, false -> Run
-        | End_field, true -> Run
-        | End_field, false -> Start
-        | Run, true -> Start
-        | Run, false -> End_field
-      in
-      clear_feedback { t with focus; scroll = 0 }
-  | Some (`Enter, []) -> (
-      match t.focus with
-      | Start -> clear_feedback { t with focus = End_field; scroll = 0 }
-      | End_field -> clear_feedback { t with focus = Run; scroll = 0 }
-      | Run -> (
-          let next, why = query env t in
-          match why with None -> clear_feedback next | Some why -> (next, Screen.Message why)))
-  | Some (`ASCII '[', []) -> cycle_source env (-1) t
-  | Some (`ASCII ']', []) -> cycle_source env 1 t
-  | Some (`ASCII 'm', []) -> (
-      match month_window env.today with
-      | Some (start_day, end_day) ->
-          clear_feedback
-            {
-              t with
-              kind = Calendar_month;
-              start_day;
-              end_day;
-              focus = Run;
-              answer = None;
-              notice = "";
-              scroll = 0;
-            }
-      | None ->
-          let why = "Selected day is not a canonical real date; enter dates explicitly." in
-          ({ t with answer = None; notice = why }, Screen.Message why))
-  | Some (`Arrow `Left, []) when t.kind = Calendar_month -> shift_month env (-1) t
-  | Some (`Arrow `Right, []) when t.kind = Calendar_month -> shift_month env 1 t
-  | Some ((`ASCII 'k' | `Arrow `Up), []) -> move (-1)
-  | Some ((`ASCII 'j' | `Arrow `Down), []) -> move 1
-  | key when Option.is_some (Frame.page_delta key) ->
-      move (Option.get (Frame.page_delta key) * max 1 (capacity geometry))
-  | Some (`Home, []) -> ({ t with scroll = 0 }, Screen.Stay)
-  | Some (`End, []) -> move max_int
-  | _ when t.focus = Start || t.focus = End_field -> (
-      let value = if t.focus = Start then t.start_day else t.end_day in
-      match input with
-      | `Key (`ASCII c, []) when Char.code c >= 32 && Char.code c <> 127 ->
-          clear_feedback (edit t (value ^ String.make 1 c))
-      | `Key (`Uchar c, []) when O.printable_uchar c -> clear_feedback (edit t (value ^ O.utf8 c))
-      | `Key (`Backspace, []) -> clear_feedback (edit t (Line_edit.backspace value))
+  (* Scrolling is the reports' one model (Report_frame), g/G included. *)
+  match Frame.scroll_move input with
+  | Some (Frame.Line delta) -> move delta
+  | Some (Frame.Page pages) -> move (pages * max 1 (capacity geometry))
+  | Some Frame.Top -> ({ t with scroll = 0 }, Screen.Stay)
+  | Some Frame.Bottom -> move max_int
+  | None -> (
+      match P.lowercase input with
+      | Some ((`Escape | `ASCII 'q'), []) -> (t, Screen.Home)
+      | Some (`ASCII ' ', []) -> (t, Screen.Commands)
+      | Some (`Tab, []) | Some (`Tab, [ `Shift ]) ->
+          let forward = input = `Key (`Tab, []) in
+          let focus =
+            match (t.focus, forward) with
+            | Start, true -> End_field
+            | Start, false -> Run
+            | End_field, true -> Run
+            | End_field, false -> Start
+            | Run, true -> Start
+            | Run, false -> End_field
+          in
+          clear_feedback { t with focus; scroll = 0 }
+      | Some (`Enter, []) -> (
+          match t.focus with
+          | Start -> clear_feedback { t with focus = End_field; scroll = 0 }
+          | End_field -> clear_feedback { t with focus = Run; scroll = 0 }
+          | Run -> (
+              let next, why = query env t in
+              match why with None -> clear_feedback next | Some why -> (next, Screen.Message why)))
+      | Some (`ASCII '[', []) -> cycle_source env (-1) t
+      | Some (`ASCII ']', []) -> cycle_source env 1 t
+      | Some (`ASCII 'm', []) -> (
+          match month_window env.today with
+          | Some (start_day, end_day) ->
+              clear_feedback
+                {
+                  t with
+                  kind = Calendar_month;
+                  start_day;
+                  end_day;
+                  focus = Run;
+                  answer = None;
+                  notice = "";
+                  scroll = 0;
+                }
+          | None ->
+              let why = "Selected day is not a canonical real date; enter dates explicitly." in
+              ({ t with answer = None; notice = why }, Screen.Message why))
+      | Some (`Arrow `Left, []) when t.kind = Calendar_month -> shift_month env (-1) t
+      | Some (`Arrow `Right, []) when t.kind = Calendar_month -> shift_month env 1 t
+      | _ when t.focus = Start || t.focus = End_field -> (
+          let value = if t.focus = Start then t.start_day else t.end_day in
+          match input with
+          | `Key (`ASCII c, []) when Char.code c >= 32 && Char.code c <> 127 ->
+              clear_feedback (edit t (value ^ String.make 1 c))
+          | `Key (`Uchar c, []) when O.printable_uchar c ->
+              clear_feedback (edit t (value ^ O.utf8 c))
+          | `Key (`Backspace, []) -> clear_feedback (edit t (Line_edit.backspace value))
+          | _ -> (t, Screen.Ignored))
       | _ -> (t, Screen.Ignored))
-  | _ -> (t, Screen.Ignored)
 
 let view env (geometry : Screen.geometry) t =
   let t = resolve env t in
