@@ -21,6 +21,8 @@ human acceptance and P7/power loss apart. What changed and why is that commit's 
   after one `bk fx` into ils: `bk` in tmux at 120×40 showed the Exchange form with
   `Source Measure: jpy` / `Destination Measure: ils`, and Record → Tab → Ctrl-O showed
   `Measure: ils|`. The copy was written; the household was not.
+- CI for `f40cc97` passed, the Linux PTY lane included
+  ([run 43421318573](https://github.com/shumoku88-bit/bakhlo/actions/runs/43421318573)).
 - Physical terminal/IME and P7/power loss **not executed**.
 
 ## bk fx / original amount: the Measure used last is offered (2026-11-13)
