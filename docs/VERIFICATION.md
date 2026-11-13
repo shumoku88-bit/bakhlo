@@ -11,6 +11,15 @@ From 2026-11-09 (user decision) an entry names its commit (or comes in it) and s
 result, keeping synthetic checks, CI, latest-data checks, physical terminal/IME,
 human acceptance and P7/power loss apart. What changed and why is that commit's message.
 
+## Every input box edits through Line_edit (2026-11-13)
+
+- `./tools/check` and `./tools/format --check` passed (exit 0).
+- tmux at 100×30 on a synthetic copy of `examples/book.txt` (deleted afterwards),
+  binary before and after, the same keys: quick capture `lunch` ←← `Z`, the full
+  form `ab` ← `X` Home `Y` End Backspace (`YaX`) and Shift-Tab `x/` Backspace.
+  The three captures were byte-identical.
+- Physical terminal/IME and P7/power loss **not executed**.
+
 ## Form text fields have a cursor; one line-editing rule (2026-11-13)
 
 - `./tools/check` and `./tools/format --check` passed (exit 0), with the new
@@ -18,6 +27,8 @@ human acceptance and P7/power loss apart. What changed and why is that commit's 
   still passes.
 - tmux at 100×34 on a synthetic copy of `examples/book.txt` (deleted afterwards):
   in Exchange, Source Measure `jpy`, ←←, `x` showed `jx|py`.
+- CI for `2bb72d7` passed, the Linux PTY lane included
+  ([run 43435045343](https://github.com/shumoku88-bit/bakhlo/actions/runs/43435045343)).
 - Physical terminal/IME and P7/power loss **not executed**.
 
 ## Record panels drawn with the shared panel border (2026-11-13)

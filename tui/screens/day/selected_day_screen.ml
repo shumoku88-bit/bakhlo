@@ -65,13 +65,7 @@ let drill ~entry ~parent t =
 let book_changed ~before:_ ~after t = (synced after { t with scroll = 0 }, "")
 let reloaded env t = ((if env.Screen.blocked then t else { t with scroll = 0 }), Screen.Stay)
 let saved _env _geometry _result t = (t, Screen.Stay)
-
-let input_text value = function
-  | `Key (`ASCII c, []) when Char.code c >= 32 && Char.code c <> 127 ->
-      Some (value ^ String.make 1 c)
-  | `Key (`Uchar c, []) when Line_edit.printable c -> Some (value ^ O.utf8 c)
-  | `Key (`Backspace, []) -> Some (Line_edit.backspace value)
-  | _ -> None
+let input_text value = function `Key (key, []) -> Line_edit.at_end value key | _ -> None
 
 let handle (env : Screen.env) (geometry : Screen.geometry) t input =
   let book = env.book in

@@ -26,3 +26,7 @@ val edit : value:string -> cursor:int option -> Ui_input.key -> (string * int op
 (** One key on one line, the same in every input box: ←/→ move one scalar,
     Home/End go to either end, Backspace erases before the cursor and a printable
     key is typed at it. [None] for any other key. *)
+
+val at_end : string -> Ui_input.key -> string option
+(** A box typed only at its end (a search, a date filter): a printable key is
+    added, Backspace removes the last scalar; [None] for any other key. *)

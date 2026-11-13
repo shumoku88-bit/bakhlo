@@ -141,11 +141,10 @@ let handle (env : Screen.env) geometry t input =
       | _ when t.focus = Field -> (
           let value = assumption t in
           match input with
-          | `Key (`ASCII c, []) when Char.code c >= 32 && Char.code c <> 127 ->
-              clear (invalidate t (Some (value ^ String.make 1 c)))
-          | `Key (`Uchar c, []) when Line_edit.printable c ->
-              clear (invalidate t (Some (value ^ O.utf8 c)))
-          | `Key (`Backspace, []) -> clear (invalidate t (Some (Line_edit.backspace value)))
+          | `Key (key, []) -> (
+              match Line_edit.at_end value key with
+              | Some typed -> clear (invalidate t (Some typed))
+              | None -> (t, Screen.Ignored))
           | _ -> (t, Screen.Ignored))
       | _ -> (t, Screen.Ignored))
 

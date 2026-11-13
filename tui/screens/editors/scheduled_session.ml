@@ -433,16 +433,12 @@ let handle ~blocked ~dimensions:((width, height) as _dim) ~width_of t (input : U
           | `ASCII 'u', [ `Ctrl ] -> Updated (auto_fill_suspense t)
           | `ASCII 'n', [ `Ctrl ] -> Updated (append_row t)
           | `ASCII 'd', [ `Ctrl ] -> Updated (drop_row t)
-          | `Arrow `Left, [] ->
-              Updated
-                { t with cursor = Some (Line_edit.move ~value:(value t) ~cursor:t.cursor (-1)) }
-          | `Arrow `Right, [] ->
-              if active_locus t <> None then Updated (accept_candidate t)
-              else
-                Updated
-                  { t with cursor = Some (Line_edit.move ~value:(value t) ~cursor:t.cursor 1) }
-          | `Home, [] -> Updated { t with cursor = Some 0 }
-          | `End, [] -> Updated { t with cursor = Some (String.length (value t)) }
+          | `Arrow `Right, [] when active_locus t <> None -> Updated (accept_candidate t)
+          | ((`Arrow (`Left | `Right) | `Home | `End) as key), [] -> (
+              (* The caret moves as in every input box (Line_edit.edit). *)
+              match Line_edit.edit ~value:(value t) ~cursor:t.cursor key with
+              | Some (_, cursor) -> Updated { t with cursor }
+              | None -> Updated t)
           (* Only arrows move candidates; j and k are text in a Locus such as "bank". *)
           | `Arrow `Up, [] -> Updated (move_candidate t true)
           | `Arrow `Down, [] -> Updated (move_candidate t false)
@@ -456,12 +452,16 @@ let handle ~blocked ~dimensions:((width, height) as _dim) ~width_of t (input : U
               else if foc = act + 1 then Updated (drop_row t)
               else if foc = act + 2 then Updated (preview t)
               else Closed
-          | `ASCII c, [] when t.focus < first_action t && Char.code c >= 32 && Char.code c <> 127 ->
-              if t.focus = 0 && not (is_date_char c) then Updated t
-              else if t.focus = 0 && String.length (value t) >= 10 && t.cursor = None then Updated t
-              else Updated (insert t (String.make 1 c))
-          | `Uchar c, [] when t.focus < first_action t && Line_edit.printable c ->
-              if t.focus = 0 then Updated t else Updated (insert t (O.utf8 c))
+          | key, [] when t.focus < first_action t -> (
+              (* The date takes only date characters, at most ten of them. *)
+              match Line_edit.typed key with
+              | Some text
+                when t.focus = 0
+                     && ((not (String.for_all is_date_char text))
+                        || (String.length (value t) >= 10 && t.cursor = None)) ->
+                  Updated t
+              | Some text -> Updated (insert t text)
+              | None -> Updated t)
           | _ -> Updated t))
   | `End -> Closed
   | `Resize _ | `Mouse _ | `Paste _ -> Updated t

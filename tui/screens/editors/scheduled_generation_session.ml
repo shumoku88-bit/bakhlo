@@ -245,12 +245,7 @@ let extend_plans ~new_id ~(source : B.plan) candidates resolutions =
                : B.plan))
            days)
 
-let typed value = function
-  | `Key (`ASCII c, []) when Char.code c >= 32 && Char.code c <> 127 ->
-      Some (value ^ String.make 1 c)
-  | `Key (`Uchar c, []) when Line_edit.printable c -> Some (value ^ O.utf8 c)
-  | `Key (`Backspace, []) -> Some (Line_edit.backspace value)
-  | _ -> None
+let typed value = function `Key (key, []) -> Line_edit.at_end value key | _ -> None
 
 let extend_preview t e limit resolutions plans =
   Updated

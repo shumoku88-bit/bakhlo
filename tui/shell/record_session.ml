@@ -394,11 +394,11 @@ let preview ~new_id ~book ~base_revision ~blocked t =
 (* Keep the edit's caret only if the field accepted the new text. *)
 let edit_value t (updated, cursor) =
   let next = set_value t updated in
-  if value next = updated then { next with cursor = Some cursor; candidate = 0 }
-  else { next with candidate = 0 }
+  if value next = updated then { next with cursor; candidate = 0 } else { next with candidate = 0 }
 
-let insert t text = edit_value t (Line_edit.insert ~value:(value t) ~cursor:t.cursor text)
-let erase t = edit_value t (Line_edit.erase ~value:(value t) ~cursor:t.cursor)
+let insert t text =
+  let updated, cursor = Line_edit.insert ~value:(value t) ~cursor:t.cursor text in
+  edit_value t (updated, Some cursor)
 
 (* The original-amount editor keeps its field choice separate from the draft's focus. *)
 let original_value (ed : original_editor) =
@@ -410,7 +410,7 @@ let edit_original t (ed : original_editor) (updated, cursor) =
     | Original_measure -> { ed with measure = updated }
     | Original_amount -> { ed with amount = updated }
   in
-  { t with phase = Original ed; cursor = Some cursor; notice = "" }
+  { t with phase = Original ed; cursor; notice = "" }
 
 let review_rows ~book review =
   match review.payload with
@@ -481,9 +481,10 @@ let rec handle ~new_id ~book ~base_revision ~blocked ~dimensions ~width_of t
         match t.phase with
         | Quick q -> update { t with phase = Quick (Quick_capture.insert q text) }
         | Original ed ->
-            update
-              (edit_original t ed
-                 (Line_edit.insert ~value:(original_value ed) ~cursor:t.cursor text))
+            let updated, cursor =
+              Line_edit.insert ~value:(original_value ed) ~cursor:t.cursor text
+            in
+            update (edit_original t ed (updated, Some cursor))
         | Review _ | Enabling -> update t
         | Form ->
             if t.focus >= action_start t then update t
@@ -639,28 +640,12 @@ let rec handle ~new_id ~book ~base_revision ~blocked ~dimensions ~width_of t
                               cursor = None;
                               notice = "";
                             }))
-          | `Arrow `Left, [] | `Arrow `Right, [] ->
-              let step = if button = `Arrow `Left then -1 else 1 in
-              update
-                {
-                  t with
-                  cursor = Some (Line_edit.move ~value:(original_value ed) ~cursor:t.cursor step);
-                }
-          | `Home, [] -> update { t with cursor = Some 0 }
-          | `End, [] -> update { t with cursor = None }
-          | `Backspace, [] ->
-              update
-                (edit_original t ed (Line_edit.erase ~value:(original_value ed) ~cursor:t.cursor))
-          | `ASCII c, [] when Char.code c >= 32 && Char.code c <> 127 ->
-              let typed = String.make 1 c in
-              update
-                (edit_original t ed
-                   (Line_edit.insert ~value:(original_value ed) ~cursor:t.cursor typed))
-          | `Uchar c, [] when Line_edit.printable c ->
-              let typed = O.utf8 c in
-              update
-                (edit_original t ed
-                   (Line_edit.insert ~value:(original_value ed) ~cursor:t.cursor typed))
+          | key, [] -> (
+              let value = original_value ed in
+              match Line_edit.edit ~value ~cursor:t.cursor key with
+              | Some (updated, cursor) when updated = value -> update { t with cursor }
+              | Some edit -> update (edit_original t ed edit)
+              | None -> update t)
           | _ -> update t)
       | Form -> (
           match (button, mods) with
@@ -721,19 +706,20 @@ let rec handle ~new_id ~book ~base_revision ~blocked ~dimensions ~width_of t
               let delta = if button = `Arrow `Up then -1 else 1 in
               update { t with candidate = (if n = 0 then 0 else (t.candidate + delta + n) mod n) }
           | `Arrow `Right, [] when is_locus t -> update (accept ~book t)
-          | `Arrow `Left, [] | `Arrow `Right, [] ->
-              let step = if button = `Arrow `Left then -1 else 1 in
-              update
-                { t with cursor = Some (Line_edit.move ~value:(value t) ~cursor:t.cursor step) }
-          | `Home, [] -> update { t with cursor = Some 0 }
-          | `End, [] -> update { t with cursor = None }
-          | `Backspace, [] when t.focus < action_start t -> update (erase t)
-          | `ASCII c, [] when t.focus < action_start t && Char.code c >= 32 && Char.code c <> 127 ->
-              if t.focus = 0 && not (is_date_char c) then update t
-              else if t.focus = 0 && String.length (value t) >= 10 && t.cursor = None then update t
-              else update (insert t (String.make 1 c))
-          | `Uchar c, [] when t.focus < action_start t && Line_edit.printable c ->
-              if t.focus = 0 then update t else update (insert t (O.utf8 c))
+          | key, [] when t.focus < action_start t -> (
+              (* The date takes only date characters, at most ten of them. *)
+              let date_refuses text =
+                t.focus = 0
+                && ((not (String.for_all is_date_char text))
+                   || (String.length (value t) >= 10 && t.cursor = None))
+              in
+              match Line_edit.typed key with
+              | Some text when date_refuses text -> update t
+              | _ -> (
+                  match Line_edit.edit ~value:(value t) ~cursor:t.cursor key with
+                  | Some (updated, cursor) when updated = value t -> update { t with cursor }
+                  | Some edit -> update (edit_value t edit)
+                  | None -> update t))
           | _ -> update t))
   | `End, _ ->
       let phase = match t.phase with Review _ -> Form | phase -> phase in

@@ -496,20 +496,14 @@ let update ~book t (input : Ui_input.input) =
   in
   match input with
   | `Key (`Escape, []) -> Cancel
-  | `Key (`Backspace, []) ->
-      if Line_edit.position ~value:t.text t.caret = 0 then Stay t
-      else edited t (Line_edit.erase ~value:t.text ~cursor:t.caret)
-  | `Key (`Arrow ((`Left | `Right) as d), []) ->
-      Stay
-        {
-          t with
-          caret = Some (Line_edit.move ~value:t.text ~cursor:t.caret (if d = `Left then -1 else 1));
-        }
-  | `Key (`Home, []) -> Stay { t with caret = Some 0 }
-  | `Key (`End, []) -> Stay { t with caret = Some (String.length t.text) }
-  | `Key (`ASCII c, []) when c >= ' ' && c <= '~' ->
-      edited t (Line_edit.insert ~value:t.text ~cursor:t.caret (String.make 1 c))
-  | `Key (`Uchar u, []) -> edited t (Line_edit.insert ~value:t.text ~cursor:t.caret (O.utf8 u))
+  | `Key (((`Backspace | `Arrow (`Left | `Right) | `Home | `End | `ASCII _ | `Uchar _) as key), [])
+    -> (
+      (* The line edits as every input box does (Line_edit.edit); a moved caret
+         keeps the chosen suggestion, an edit starts the suggestions over. *)
+      match Line_edit.edit ~value:t.text ~cursor:t.caret key with
+      | Some (text, caret) when text = t.text -> Stay { t with caret }
+      | Some (text, caret) -> Stay { t with text; caret; cursor = 0 }
+      | None -> Stay t)
   | `Key (`Arrow ((`Up | `Down) as d), []) ->
       let n = count () in
       if n = 0 then Stay t

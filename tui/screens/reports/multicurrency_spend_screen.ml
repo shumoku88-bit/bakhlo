@@ -356,11 +356,10 @@ let handle env geometry t input =
       | _ when t.focus = Start || t.focus = End_field -> (
           let value = if t.focus = Start then t.start_day else t.end_day in
           match input with
-          | `Key (`ASCII c, []) when Char.code c >= 32 && Char.code c <> 127 ->
-              clear_feedback (edit t (value ^ String.make 1 c))
-          | `Key (`Uchar c, []) when Line_edit.printable c ->
-              clear_feedback (edit t (value ^ O.utf8 c))
-          | `Key (`Backspace, []) -> clear_feedback (edit t (Line_edit.backspace value))
+          | `Key (key, []) -> (
+              match Line_edit.at_end value key with
+              | Some typed -> clear_feedback (edit t typed)
+              | None -> (t, Screen.Ignored))
           | _ -> (t, Screen.Ignored))
       | _ -> (t, Screen.Ignored))
 

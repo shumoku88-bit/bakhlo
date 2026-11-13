@@ -628,10 +628,10 @@ let handle_editor t (editor : editor) input =
               }
           else stay { t with editor = Some { editor with field = `Days; notice = "" } }
       | `Days -> apply_editor t editor)
-  | `Key (`ASCII c, []) when c >= ' ' && c <> '\127' ->
-      stay { t with editor = Some (insert_text editor (String.make 1 c)) }
-  | `Key (`Uchar c, []) when Line_edit.printable c ->
-      stay { t with editor = Some (insert_text editor (O.utf8 c)) }
+  | `Key (key, []) -> (
+      match Line_edit.typed key with
+      | Some text -> stay { t with editor = Some (insert_text editor text) }
+      | None -> (t, Screen.Ignored))
   | _ -> (t, Screen.Ignored)
 
 let handle_owner (env : Screen.env) t input =

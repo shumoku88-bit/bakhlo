@@ -61,3 +61,11 @@ let edit ~value ~cursor (key : Ui_input.key) =
   | `End -> Some (value, None)
   | `Backspace -> at (erase ~value ~cursor)
   | key -> Option.bind (typed key) (fun text -> at (insert ~value ~cursor text))
+
+(* A small box typed only at its end, such as a search or a date filter: a
+   printable key is added, Backspace takes the last character back. [None] for
+   any other key. Boxes whose text is corrected in the middle use [edit]. *)
+let at_end value (key : Ui_input.key) =
+  match key with
+  | `Backspace -> Some (backspace value)
+  | key -> Option.map (fun text -> value ^ text) (typed key)

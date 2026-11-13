@@ -203,12 +203,7 @@ let action book t action =
 let unless_blocked (env : Screen.env) message =
   if env.blocked then Screen.Stay else Screen.Message message
 
-let input_text value = function
-  | `Key (`ASCII c, []) when Char.code c >= 32 && Char.code c <> 127 ->
-      Some (value ^ String.make 1 c)
-  | `Key (`Uchar c, []) when Line_edit.printable c -> Some (value ^ O.utf8 c)
-  | `Key (`Backspace, []) -> Some (Line_edit.backspace value)
-  | _ -> None
+let input_text value = function `Key (key, []) -> Line_edit.at_end value key | _ -> None
 
 (* --- Series Calendar (LOAM ScheduledCoveragePane) and one plan's entries --- *)
 
