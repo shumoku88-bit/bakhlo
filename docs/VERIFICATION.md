@@ -18,6 +18,8 @@ human acceptance and P7/power loss apart. What changed and why is that commit's 
   binary before and after, at 80×24, 120×40, 50×16 and 34×12: the quick capture,
   the full form, the Original amount editor and an empty-Save refusal were
   byte-identical (16 pairs).
+- CI for `2f8bc5f` passed, the Linux PTY lane included
+  ([run 43433637683](https://github.com/shumoku88-bit/bakhlo/actions/runs/43433637683)).
 - Physical terminal/IME and P7/power loss **not executed**.
 
 ## Reports read period and scroll keys in one place (2026-11-13)
