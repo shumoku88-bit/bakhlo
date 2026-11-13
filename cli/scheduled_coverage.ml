@@ -156,19 +156,7 @@ let cell_text c =
 
 let month_label month =
   match String.sub month 5 2 with
-  | "01" -> "Jan"
-  | "02" -> "Feb"
-  | "03" -> "Mar"
-  | "04" -> "Apr"
-  | "05" -> "May"
-  | "06" -> "Jun"
-  | "07" -> "Jul"
-  | "08" -> "Aug"
-  | "09" -> "Sep"
-  | "10" -> "Oct"
-  | "11" -> "Nov"
-  | "12" -> "Dec"
-  | m -> m
+  | m -> Book_display.month_name m
   | exception Invalid_argument _ -> month
 
 let plans_for rule plans =

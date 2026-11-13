@@ -11,6 +11,15 @@ From 2026-11-09 (user decision) an entry names its commit (or comes in it) and s
 result, keeping synthetic checks, CI, latest-data checks, physical terminal/IME,
 human acceptance and P7/power loss apart. What changed and why is that commit's message.
 
+## Trend on the shared calendar, backspace and month names (2026-11-13)
+
+- `./tools/check` and `./tools/format --check` passed (exit 0), including the Trend
+  checks of short/long dates and day annotations, and the new
+  `month-name-reads-two-digit-months-only` examples.
+- Latest-data check not executed: no displayed text should change, and the
+  synthetic Trend and Scheduled checks cover the changed paths.
+- Physical terminal/IME and P7/power loss **not executed**.
+
 ## TUI: unused draft wording removed, Stock–Flow uses the shared footer (2026-11-13)
 
 - `./tools/check` and `./tools/format --check` passed (exit 0). No check reads

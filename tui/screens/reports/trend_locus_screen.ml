@@ -295,37 +295,10 @@ let editor_name t = match t.editor with Some editor -> editor.name | None -> ""
 let editor_days t = match t.editor with Some editor -> editor.day_text | None -> ""
 let editor_field t = match t.editor with Some editor -> editor.field | None -> `Name
 
-(* Dates *)
-
-let int_of_part date offset length =
-  if String.length date < offset + length then None
-  else
-    match int_of_string_opt (String.sub date offset length) with
-    | Some value -> Some value
-    | None -> None
-
-let year_of date = int_of_part date 0 4
-let month_of date = int_of_part date 5 2
-let day_of date = int_of_part date 8 2
-let month_key date = if String.length date >= 7 then Some (String.sub date 0 7) else None
-
-let month_length year month =
-  match month with
-  | 1 | 3 | 5 | 7 | 8 | 10 | 12 -> Some 31
-  | 4 | 6 | 9 | 11 -> Some 30
-  | 2 -> Some (if (year mod 4 = 0 && year mod 100 <> 0) || year mod 400 = 0 then 29 else 28)
-  | _ -> None
-
 let utf8_length text =
   let count = ref 0 in
   String.iter (fun c -> if Char.code c land 0xc0 <> 0x80 then incr count) text;
   !count
-
-let drop_last text =
-  if text = "" then text
-  else
-    let rec start n = if n > 0 && Char.code text.[n] land 0xc0 = 0x80 then start (n - 1) else n in
-    String.sub text 0 (start (String.length text - 1))
 
 (* Grain and scope *)
 
@@ -437,12 +410,10 @@ let selected_month (env : Screen.env) t =
       if Array.length points = 0 then None
       else
         let date = points.(effective_index t snap).R.start_day in
-        match (year_of date, month_of date) with
-        | Some year, Some month -> (
-            match month_length year month with
-            | Some length -> Some { length; key = Option.value ~default:"" (month_key date) }
-            | None -> None)
-        | _ -> None)
+        match Day.parts date with
+        | Ok (year, month, _) ->
+            Some { length = Day.days_in_month ~year ~month; key = String.sub date 0 7 }
+        | Error _ -> None)
 
 let parse_days text length =
   let tokens = split_day_tokens text in
@@ -474,8 +445,8 @@ let insert_text editor text =
 
 let backspace_text editor =
   match editor.field with
-  | `Name -> { editor with name = drop_last editor.name }
-  | `Days -> { editor with day_text = drop_last editor.day_text }
+  | `Name -> { editor with name = Line_edit.backspace editor.name }
+  | `Days -> { editor with day_text = Line_edit.backspace editor.day_text }
 
 let open_editor (env : Screen.env) t =
   if t.grain <> R.Day then
@@ -692,25 +663,10 @@ let handle (env : Screen.env) (_geometry : Screen.geometry) t input =
 let marker_of index = markers.(index mod Array.length markers)
 let separator = "   ·   "
 
-let month_name = function
-  | "01" -> "Jan"
-  | "02" -> "Feb"
-  | "03" -> "Mar"
-  | "04" -> "Apr"
-  | "05" -> "May"
-  | "06" -> "Jun"
-  | "07" -> "Jul"
-  | "08" -> "Aug"
-  | "09" -> "Sep"
-  | "10" -> "Oct"
-  | "11" -> "Nov"
-  | "12" -> "Dec"
-  | other -> other
-
 let short_date date =
   match String.split_on_char '-' date with
   | [ _; month; day ] -> (
-      month_name month ^ " "
+      Book_display.month_name month ^ " "
       ^ match int_of_string_opt day with Some day -> string_of_int day | None -> day)
   | _ -> date
 
@@ -721,7 +677,7 @@ let long_date date =
 
 let month_label key =
   match String.split_on_char '-' key with
-  | [ year; month ] -> month_name month ^ " " ^ year
+  | [ year; month ] -> Book_display.month_name month ^ " " ^ year
   | _ -> key
 
 (* The point still running on the observation day. *)
@@ -831,9 +787,9 @@ let flow_tokens ~width_of width tokens =
 let overlay_marker index = match index with 0 -> "A" | 1 -> "B" | _ -> "C"
 
 let overlay_contains (overlay : overlay) date =
-  match (month_key date, day_of date) with
-  | Some key, Some day -> key = overlay.month && List.mem day overlay.days
-  | _ -> false
+  match Day.parts date with
+  | Ok (_, _, day) -> String.sub date 0 7 = overlay.month && List.mem day overlay.days
+  | Error _ -> false
 
 (* Session overlays mark exact calendar dates of the shown Day points: one
    marker row under the axis (A/B/C, [*] where they meet) and a legend. *)

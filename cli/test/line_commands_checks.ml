@@ -64,6 +64,12 @@ let contains text fragment =
   at 0
 
 let run_all () =
+  (* One month-name table for every screen: a two-digit month number reads short,
+     anything else stays as written. *)
+  require
+    (List.map Book_display.month_name [ "01"; "11"; "12"; "00"; "13"; "+1"; "1"; "" ]
+    = [ "Jan"; "Nov"; "Dec"; "00"; "13"; "+1"; "1"; "" ])
+    "month-name-reads-two-digit-months-only";
   (* A prefix with one Locus is taken; several are numbered; Enter balances. *)
   let result, out, after =
     run "bk-r" `Record [ ""; "ramen"; "wa"; "1"; "-1200"; "fo"; ""; ""; "" ]

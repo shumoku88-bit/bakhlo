@@ -21,6 +21,15 @@ let format_money book measure q =
   Buffer.add_substring out raw stop (String.length raw - stop);
   Buffer.contents out
 
+let month_names =
+  [| "Jan"; "Feb"; "Mar"; "Apr"; "May"; "Jun"; "Jul"; "Aug"; "Sep"; "Oct"; "Nov"; "Dec" |]
+
+let month_name number =
+  let is_digit c = c >= '0' && c <= '9' in
+  if String.length number <> 2 || not (String.for_all is_digit number) then number
+  else
+    match int_of_string number with m when m >= 1 && m <= 12 -> month_names.(m - 1) | _ -> number
+
 let recent_measure book ~except =
   let other m = not (List.mem m except) in
   let used (e : B.entry) =

@@ -11,6 +11,10 @@ val quantity_value : book:B.t -> measure:string -> string -> quantity_value
 val format_money : B.t -> string -> Z.t -> string
 (** The Measure's exact decimals with the whole part grouped by three ("-1,234.50"). *)
 
+val month_name : string -> string
+(** A month number as the screens print it: ["11"] reads ["Nov"]; anything other
+    than ["01"].. ["12"] is returned as it is. *)
+
 val recent_measure : B.t -> except:string list -> string
 (** The Measure offered when a second one is asked for: the one the latest saved
     record used (in a row or as its original amount) apart from [except], else the
