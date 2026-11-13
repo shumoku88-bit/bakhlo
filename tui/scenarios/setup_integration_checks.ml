@@ -249,6 +249,20 @@ let run ~width_of ~directory ~path =
     | Some f -> Ui_form.notice f = "Source and destination Measures must differ."
     | _ -> false)
     "exchange-rejects-same-measure";
+  (* An amount refusal names its box, worded as everywhere else (Amount_refusal). *)
+  let zero_source =
+    match visible_form err_submitted with
+    | Some f ->
+        let f = Ui_form.set_text f "destination_measure" "eur" in
+        let f = Ui_form.set_text f "source_amount" "0" in
+        with_visible_form err_submitted (Ui_form.set_focused f 8)
+    | None -> failwith "expected modal form for exchange"
+  in
+  require
+    (match visible_form (key ~width_of zero_source `Enter) with
+    | Some f -> Ui_form.notice f = "Source amount: must be more than zero."
+    | None -> false)
+    "exchange-names-the-refused-amount";
   (* Successful exchange JPY -> EUR *)
   let ok_form =
     match visible_form err_submitted with

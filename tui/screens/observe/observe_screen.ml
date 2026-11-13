@@ -153,7 +153,10 @@ let submit_quantity (env : Screen.env) t submitted =
           refused "Enter single-line Locus and Measure tokens."
         else
           match B.parse_signed_amount env.book ~measure (String.trim (text "amount")) with
-          | Error why -> refused ("Invalid observed amount: " ^ why)
+          | Error why ->
+              refused
+                (Amount_refusal.say ~book:env.book ~measure ~field:"Observed amount" ~signed:true
+                   why)
           | Ok quantity ->
               let rows = draft.rows @ [ (locus, measure, quantity) ] in
               ( {

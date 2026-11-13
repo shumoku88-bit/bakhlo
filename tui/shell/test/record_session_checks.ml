@@ -776,7 +776,7 @@ let self_check ~width_of () =
   let unreg_m = text blank_editor "usd" in
   let unreg_m_refused = key unreg_m `Enter in
   require
-    (contains unreg_m_refused "Measure 'usd' scale is not configured in this book.")
+    (contains unreg_m_refused "Original Measure: the book has no Measure usd.")
     "orig-amount-unregistered-measure-refused";
 
   (* Scale 0 (JPY): allows integer, rejects decimals *)
@@ -784,7 +784,7 @@ let self_check ~width_of () =
   let jpy_amount = key jpy_editor `Enter in
   let jpy_decimal = key (text jpy_amount "500.5") `Enter in
   require
-    (contains jpy_decimal "Enter a positive original amount with at most 0 decimal places.")
+    (contains jpy_decimal "Original amount: jpy takes no decimal places.")
     "orig-amount-scale-0-decimal-refused";
   let jpy_valid = key (text (key (key jpy_amount `Home) `End) "5000") `Enter in
   require
@@ -804,7 +804,8 @@ let self_check ~width_of () =
      and arithmetic is exact. *)
   let misgrouped = key (text to_amount "12,34.5") `Enter in
   require
-    (contains misgrouped "Enter a positive original amount: digits grouped by three, or arithmetic.")
+    (contains misgrouped
+       "Original amount: write digits like 1,200 or 12.50, or arithmetic like (500+300)/2.")
     "orig-amount-misgrouped-comma-refused";
   let calculated = key (text to_amount "(10+20)/2") `Enter in
   require
@@ -813,12 +814,12 @@ let self_check ~width_of () =
   (* Validation: excess decimals (eur scale 2, input 30.001) *)
   let too_precise = key (text to_amount "30.001") `Enter in
   require
-    (contains too_precise "Enter a positive original amount with at most 2 decimal places.")
+    (contains too_precise "Original amount: eur takes at most 2 decimal places.")
     "orig-amount-precision-refused";
 
   (* Validation: zero or negative amount *)
   let zero_amt = key (text to_amount "0.00") `Enter in
-  require (contains zero_amt "Original amount must be positive.") "orig-amount-zero-refused";
+  require (contains zero_amt "Original amount: must be more than zero.") "orig-amount-zero-refused";
 
   (* Valid input: 30.00 eur *)
   let valid_orig = key (text to_amount "30.00") `Enter in

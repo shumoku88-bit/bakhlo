@@ -80,13 +80,6 @@ let review_form ~canon_day ~memo ~src_locus ~src_measure ~src_quanta_str ~dst_lo
 let open_editor ~book ~default_date _t =
   { editor = Some (Editing (exchange_form ~book ~default_date)) }
 
-let amount_refusal side measure = function
-  | "non-positive-amount" -> tr (side ^ " amount must be positive.")
-  | "division-by-zero" -> tr (side ^ " amount divides by zero.")
-  | "indivisible-amount" -> tr (side ^ " result cannot fit the Measure scale.")
-  | "measure-scale-not-supplied" -> Printf.sprintf "Measure '%s' scale is not configured." measure
-  | _ -> tr (side ^ " amount is invalid.")
-
 let submit_editing (env : Screen.env) submitted =
   let refuse notice =
     ({ editor = Some (Editing (Form.set_notice submitted notice)) }, Screen.Stay)
@@ -116,10 +109,15 @@ let submit_editing (env : Screen.env) submitted =
         refuse (tr "Destination Measure must be a nonempty single-line token.")
       else
         match B.parse_amount env.book ~measure:src_measure (text "source_amount") with
-        | Error why -> refuse (amount_refusal "Source" src_measure why)
+        | Error why ->
+            refuse
+              (Amount_refusal.say ~book:env.book ~measure:src_measure ~field:"Source amount" why)
         | Ok src_quanta -> (
             match B.parse_amount env.book ~measure:dst_measure (text "destination_amount") with
-            | Error why -> refuse (amount_refusal "Destination" dst_measure why)
+            | Error why ->
+                refuse
+                  (Amount_refusal.say ~book:env.book ~measure:dst_measure
+                     ~field:"Destination amount" why)
             | Ok dst_quanta -> (
                 let unapproved =
                   match B.approved_loci env.book with

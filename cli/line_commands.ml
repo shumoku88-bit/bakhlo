@@ -329,18 +329,11 @@ let save io (session : F.t) (tx : R.transaction) =
       let except = List.map (fun (p : B.posting) -> p.measure) tx.entry.effects in
       let default = Book_display.recent_measure book ~except in
       let measure = ask io ~default "Original Measure (what was paid in)" in
-      match List.assoc_opt measure (B.measures book) with
-      | None ->
-          say io ("The book has no Measure " ^ measure ^ ".");
-          `Edit
-      | Some scale -> (
-          match
-            Bakhlo_household.Amount.parse_positive ~decimals:scale (ask io "Original amount")
-          with
-          | Ok q -> `Original (measure, q)
-          | Error _ ->
-              say io "Enter a positive amount in that Measure.";
-              `Edit))
+      match B.parse_amount book ~measure (ask io "Original amount") with
+      | Ok q -> `Original (measure, q)
+      | Error why ->
+          say io (Amount_refusal.say ~book ~measure ~field:"Original amount" why);
+          `Edit)
   | "y" | "yes" ->
       let put = B.Put_entry { replace = tx.replace; entry = tx.entry; plan = tx.plan } in
       published io (F.publish session [ put ])
@@ -771,8 +764,8 @@ let plans_amount io (session : F.t) book series ~today =
       let rec amount () =
         match B.parse_amount book ~measure (ask io "New amount") with
         | Ok q -> q
-        | Error _ ->
-            say io "Enter a positive amount (digits grouped by three, or arithmetic).";
+        | Error why ->
+            say io (Amount_refusal.say ~book ~measure ~field:"New amount" why);
             amount ()
       in
       let amount = amount () in
@@ -1041,8 +1034,8 @@ let check io (session : F.t) =
                         (current book measure locus)))
               with
               | Ok q -> q
-              | Error _ ->
-                  say io "Enter the balance you see, like 12,345 or -500.";
+              | Error why ->
+                  say io (Amount_refusal.say ~book ~measure ~field:"Balance" ~signed:true why);
                   seen ()
             in
             rows ((locus, seen ()) :: acc))
@@ -1423,15 +1416,16 @@ let fx io (session : F.t) ~today =
               let m = ask io ~default (label ^ " Measure") in
               if List.mem_assoc m (B.measures book) then m
               else (
-                say io ("The book has no Measure " ^ m ^ ".");
+                say io
+                  (Amount_refusal.say ~book ~measure:m ~field:(label ^ " Measure") "unknown-measure");
                 measure ())
             in
             let measure = measure () in
             let rec amount () =
               match B.parse_amount book ~measure (ask io (label ^ " amount")) with
               | Ok q -> q
-              | Error _ ->
-                  say io "Enter a positive amount in that Measure.";
+              | Error why ->
+                  say io (Amount_refusal.say ~book ~measure ~field:(label ^ " amount") why);
                   amount ()
             in
             (locus, measure, amount ())

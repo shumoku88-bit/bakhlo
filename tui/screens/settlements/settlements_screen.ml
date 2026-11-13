@@ -110,14 +110,6 @@ let action_form env (r : Stl.row) =
       ]
     ()
 
-let amount_refusal ~positive measure = function
-  | "non-positive-amount" ->
-      tr (if positive then "Committed amount must be positive." else "Amount must be positive.")
-  | "division-by-zero" -> tr "Amount divides by zero."
-  | "indivisible-amount" -> tr "Result cannot fit the Measure scale."
-  | "measure-scale-not-supplied" -> Printf.sprintf "Measure '%s' scale is not configured." measure
-  | _ -> tr "Invalid amount."
-
 let commit (env : Screen.env) t submitted update success =
   let refused why =
     ( {
@@ -157,7 +149,8 @@ let submit (env : Screen.env) t submitted =
       else if measure = "" then stay (tr "Enter measure token.")
       else
         match B.parse_amount env.book ~measure (text "amount") with
-        | Error why -> stay (amount_refusal ~positive:true measure why)
+        | Error why ->
+            stay (Amount_refusal.say ~book:env.book ~measure ~field:"Committed amount" why)
         | Ok committed ->
             let label = match text "label" with "" -> None | l -> Some l in
             commit env t submitted
@@ -179,7 +172,7 @@ let submit (env : Screen.env) t submitted =
               (Printf.sprintf "Retracted commitment %s." id)
           else
             match B.parse_amount env.book ~measure:r.measure (text "amount") with
-            | Error why -> stay (amount_refusal ~positive:false r.measure why)
+            | Error why -> stay (Amount_refusal.say ~book:env.book ~measure:r.measure why)
             | Ok quanta ->
                 let verb = if kind_idx = 0 then "Settled" else "Reduced" in
                 commit env t submitted

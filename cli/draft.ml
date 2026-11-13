@@ -5,12 +5,6 @@ module R = Bakhlo_household.Record
 let tr message = message
 let format_message = Printf.sprintf
 
-(* Whether a refusal code mentions a reason, as in "row-2:invalid-amount". *)
-let mentions why reason =
-  let n = String.length reason in
-  let rec at i = i + n <= String.length why && (String.sub why i n = reason || at (i + 1)) in
-  at 0
-
 let coordinate ~locus ~measure : (B.coordinate, string) result =
   if locus = "" || measure = "" then Error "A balance coordinate needs a Locus and a Measure."
   else Ok { locus; measure }
@@ -36,41 +30,24 @@ let open_plan ~book plan =
       | why -> why)
     (R.open_plan ~book plan)
 
-(* Exact-amount and remainder refusals in words. *)
-let format_residual_error why =
-  if String.equal why "posting-required" then tr "At least one posting is required."
-  else
-    let line_prefix =
-      if String.starts_with ~prefix:"row-" why then
-        match String.index_opt why ':' with Some idx -> String.sub why 0 idx ^ ": " | None -> ""
-      else ""
-    in
-    if mentions why "invalid-amount" then line_prefix ^ tr "Invalid amount (for example 1000)."
-    else if mentions why "non-positive-amount" then
-      line_prefix ^ tr "Enter a positive amount magnitude."
-    else if mentions why "amount-precision" then
-      line_prefix ^ tr "The amount exceeds the Measure decimal scale."
-    else if mentions why "division-by-zero" then
-      line_prefix ^ tr "The amount expression divides by zero."
-    else if mentions why "indivisible-amount" then
-      line_prefix ^ tr "The result cannot be represented at this Measure's decimal scale."
-    else why
-
-let posting_message why =
-  let has = mentions why in
+(* A row refusal names its row, as in "row-2: amount-precision"; an amount
+   refusal is worded once, in Amount_refusal. *)
+let posting_message ~book ~measure why =
   match why with
   | "posting-required" -> tr "At least one posting is required."
   | "empty-measure" -> tr "A Measure is required."
-  | _ when has "invalid-amount" -> format_message "%s. Enter a valid exact decimal amount." why
-  | _ when has "non-positive-amount" -> format_message "%s. Enter a positive amount magnitude." why
-  | _ when has "amount-precision" -> format_message "%s. Check the Measure decimal scale." why
-  | _ when has "division-by-zero" || has "indivisible-amount" -> format_residual_error why
-  | _ when has "empty-locus" -> format_message "%s. Select an admitted Locus." why
-  | _ -> format_message "Invalid postings (%s)." why
+  | _ -> (
+      match (String.starts_with ~prefix:"row-" why, String.index_opt why ':') with
+      | true, Some colon -> (
+          let row = String.sub why 4 (colon - 4) in
+          match String.trim (String.sub why (colon + 1) (String.length why - colon - 1)) with
+          | "empty-locus" -> format_message "Row %s: choose an account." row
+          | code -> Amount_refusal.say ~book ~measure ~field:("Row " ^ row ^ " amount") code)
+      | _ -> format_message "Invalid postings (%s)." why)
 
-let message ~plan = function
+let message ~plan ~book ~measure = function
   | R.Day_format -> tr "Enter a valid Gregorian date (YYYY-MM-DD, YYYY/MM/DD or YYYY.MM.DD)."
-  | R.Postings why -> posting_message why
+  | R.Postings why -> posting_message ~book ~measure why
   | R.Unbalanced -> tr "The signed postings are unbalanced; their exact sum must be zero."
   | R.Original_measure -> tr "The Measure scale is not supplied in this book."
   | R.Admission { reason; id } -> (
@@ -94,10 +71,10 @@ let message ~plan = function
 
 let build_transaction ~new_id ~book ~mode content =
   Result.map_error
-    (fun why -> { message = message ~plan:false why })
+    (fun why -> { message = message ~plan:false ~book ~measure:content.R.draft.measure why })
     (R.build_transaction ~new_id ~book ~mode content)
 
 let build_plan ~new_id ~book ~editing ~day ~draft =
   Result.map_error
-    (fun why -> { message = message ~plan:true why })
+    (fun why -> { message = message ~plan:true ~book ~measure:draft.R.measure why })
     (R.build_plan ~new_id ~book ~editing ~day ~draft)

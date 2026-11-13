@@ -93,7 +93,7 @@ let validate_parameters session =
     Error "End date must not precede start date."
   else
     match amount session with
-    | Error message -> Error message
+    | Error why -> Error (Amount_refusal.say ~book:session.book ~measure:session.source.measure why)
     | Ok amount -> Ok (amount, eligible session)
 
 let selected_plans session eligible =

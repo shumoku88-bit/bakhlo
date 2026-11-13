@@ -11,6 +11,19 @@ From 2026-11-09 (user decision) an entry names its commit (or comes in it) and s
 result, keeping synthetic checks, CI, latest-data checks, physical terminal/IME,
 human acceptance and P7/power loss apart. What changed and why is that commit's message.
 
+## Amount refusals worded once (2026-11-13)
+
+- `./tools/check` and `./tools/format --check` passed (exit 0), with the new
+  `amount-refusals-name-the-field-and-the-limit` examples (every sentence in
+  `cli/amount_refusal.ml`, produced from the core's own parsers) and
+  `exchange-names-the-refused-amount`; the Record, original-amount and `bk r`
+  checks now expect the new sentences.
+- Latest-data check not executed: only refusal wording changed, and every
+  refusal path that has a check runs on synthetic books. Settlements, Observe and
+  bulk plan amounts have no wording check (Observe and bulk showed the bare code
+  before).
+- Physical terminal/IME and P7/power loss **not executed**.
+
 ## Stock–Flow reads balance-view.tsv like every other reader (2026-11-13)
 
 - `./tools/check` and `./tools/format --check` passed (exit 0), with the new

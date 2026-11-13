@@ -1,6 +1,7 @@
 (* `bk r` and `bk pay` against a synthetic book, with scripted answers. *)
 module F = Book_file
 module L = Line_commands
+module B = Bakhlo_household.Book
 
 let require condition name = if not condition then failwith name
 
@@ -70,6 +71,29 @@ let run_all () =
     (List.map Book_display.month_name [ "01"; "11"; "12"; "00"; "13"; "+1"; "1"; "" ]
     = [ "Jan"; "Nov"; "Dec"; "00"; "13"; "+1"; "1"; "" ])
     "month-name-reads-two-digit-months-only";
+  (* The sentences of cli/amount_refusal.ml, from the codes the core gives. *)
+  let money = Result.get_ok (B.read "BOOK\t1\nMEASURE\tjpy\t0\nMEASURE\tils\t2\nEND\n") in
+  let say ?field ?signed measure text =
+    let parse = if signed = Some true then B.parse_signed_amount else B.parse_amount in
+    match parse money ~measure text with
+    | Ok _ -> "taken"
+    | Error why -> Amount_refusal.say ~book:money ~measure ?field ?signed why
+  in
+  require
+    (say "jpy" "0" = "Amount: must be more than zero."
+    && say ~field:"Original amount" "ils" "12.505"
+       = "Original amount: ils takes at most 2 decimal places."
+    && say ~field:"Source amount" "jpy" "12.5" = "Source amount: jpy takes no decimal places."
+    && say ~field:"Row 2 amount" "jpy" "100/3"
+       = "Row 2 amount: the result is not a whole 1 jpy; nothing is rounded."
+    && say ~field:"Destination amount" "gbp" "10"
+       = "Destination amount: the book has no Measure gbp."
+    && say "ils" "12,34"
+       = "Amount: write digits like 1,200 or 12.50, or arithmetic like (500+300)/2."
+    && say "jpy" "5/0" = "Amount: the arithmetic divides by zero."
+    && say ~field:"Balance" ~signed:true "jpy" "abc" = "Balance: write digits like 12,345 or -500."
+    && say ~field:"Balance" ~signed:true "jpy" "" = "Balance: enter an amount.")
+    "amount-refusals-name-the-field-and-the-limit";
   (* balance-view.tsv as cli/balance_view_data.ml shows it: what Bakhlo writes reads
      back the same; a comment, a blank line or a third column refuses the whole file. *)
   let view = "cash\tjpy\nsmbc\tjpy\n" in
@@ -194,7 +218,9 @@ let run_all () =
       [ ""; "x"; "wallet"; "-abc"; "food"; "+5"; ""; ""; "-5"; ""; ""; ""; "" ]
   in
   require
-    (result = `Saved && contains out "Enter a valid exact decimal amount.")
+    (result = `Saved
+    && contains out
+         "Row 1 amount: write digits like 1,200 or 12.50, or arithmetic like (500+300)/2.")
     "bk-r-refusal-then-fix";
   (* End of input or "n" saves nothing. *)
   let result, _, after = run "bk-r-eof" `Record [ ""; "ramen"; "wallet"; "-1"; "food" ] in

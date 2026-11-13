@@ -1268,7 +1268,7 @@ let original_amount_integration_checks ~width_of ~directory () =
   in
   let unreg_refused = Option.get (H.handle ~width_of unreg_m (`Key (`Enter, []))) in
   require
-    (contains (rec_screen unreg_refused) "Measure 'gbp' scale is not configured in this book.")
+    (contains (rec_screen unreg_refused) "Original Measure: the book has no Measure gbp.")
     "orig-integration-unregistered-measure-refused";
   let clean_ed =
     List.fold_left
@@ -1290,8 +1290,7 @@ let original_amount_integration_checks ~width_of ~directory () =
   in
   let jpy_dec_refused = Option.get (H.handle ~width_of jpy_decimal (`Key (`Enter, []))) in
   require
-    (contains (rec_screen jpy_dec_refused)
-       "Enter a positive original amount with at most 0 decimal places.")
+    (contains (rec_screen jpy_dec_refused) "Original amount: jpy takes no decimal places.")
     "orig-integration-scale-0-decimal-refused";
   let jpy_clean =
     List.fold_left

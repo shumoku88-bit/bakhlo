@@ -384,7 +384,7 @@ let preview ~new_id ~book ~base_revision ~blocked t =
     | A.Plan_edit p, _ -> plan (Some p)
     | A.Actual _, Some (m, _) when not (List.mem_assoc m (B.measures book)) ->
         with_notice t
-          (Ui_text.format_message "Measure '%s' scale is not configured in this book." m)
+          (Amount_refusal.say ~book ~measure:m ~field:"Original Measure" "unknown-measure")
     | A.Actual mode, original_amount -> (
         let content = { R.day = t.day; memo = t.description; draft = draft t; original_amount } in
         match A.build_transaction ~new_id ~book ~mode content with
@@ -612,9 +612,9 @@ let rec handle ~new_id ~book ~base_revision ~blocked ~dimensions ~width_of t
                 | None ->
                     update
                       (with_notice t
-                         (Ui_text.format_message
-                            "Measure '%s' scale is not configured in this book." trimmed_m))
-                | Some scale -> (
+                         (Amount_refusal.say ~book ~measure:trimmed_m ~field:"Original Measure"
+                            "unknown-measure"))
+                | Some _ -> (
                     if ed.field = Original_measure then
                       update
                         {
@@ -624,21 +624,12 @@ let rec handle ~new_id ~book ~base_revision ~blocked ~dimensions ~width_of t
                           notice = "";
                         }
                     else
-                      match Bakhlo_household.Amount.parse_positive ~decimals:scale ed.amount with
-                      | Error "non-positive-amount" ->
-                          update (with_notice t (tr "Original amount must be positive."))
-                      | Error "amount-precision" ->
+                      match B.parse_amount book ~measure:trimmed_m ed.amount with
+                      | Error why ->
                           update
                             (with_notice t
-                               (Ui_text.format_message
-                                  "Enter a positive original amount with at most %d decimal places."
-                                  scale))
-                      | Error _ ->
-                          update
-                            (with_notice t
-                               (tr
-                                  "Enter a positive original amount: digits grouped by three, or \
-                                   arithmetic."))
+                               (Amount_refusal.say ~book ~measure:trimmed_m ~field:"Original amount"
+                                  why))
                       | Ok quanta ->
                           update
                             {
@@ -707,8 +698,8 @@ let rec handle ~new_id ~book ~base_revision ~blocked ~dimensions ~width_of t
                         | None ->
                             update
                               (with_notice t
-                                 (Ui_text.format_message
-                                    "Measure '%s' scale is not configured in this book." m))))
+                                 (Amount_refusal.say ~book ~measure:m ~field:"Original Measure"
+                                    "unknown-measure"))))
                 | A.Plan_new | A.Plan_edit _ -> update t)
           | `Tab, [] -> update (move_focus t 1)
           | `Tab, [ `Shift ] -> update (move_focus t (-1))
