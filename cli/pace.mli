@@ -1,12 +1,22 @@
-(** Daily Pace from the settings files beside the book; read-only, exact quanta. *)
+(** Daily Pace from the settings files beside the book; read-only, exact quanta.
+    `bk pace` and the Daily Pace screen both answer from here. *)
 
 module B = Bakhlo_household.Book
+
+val window_of :
+  config:(string -> (string option, string) result) ->
+  today:string ->
+  (string * string, string) result
+(** The current cycle in boundary-presets.tsv: its start and exclusive end. *)
 
 val pool_of :
   config:(string -> (string option, string) result) ->
   measure:string ->
   (B.coordinate list, string) result
 (** The pool in daily-pace.tsv for [measure]; a malformed file refuses as a whole. *)
+
+val format_pace_error : string -> string
+(** Why there is no pace today, in words, with the account when the core names it. *)
 
 val today :
   book:B.t ->
@@ -24,6 +34,9 @@ type projection = {
   available_after : Z.t;
 }
 
+val split_sign : string -> bool * string
+(** A What-if amount: a leading [+] is an income ([true]), [-] or no sign a purchase. *)
+
 val project : book:B.t -> B.daily_pace -> string -> (projection, string) result
 (** Today's pace after a purchase ([+amount]: an income), floored like the pace. *)
 
@@ -38,6 +51,13 @@ type plan = {
 }
 
 type options = { horizons : plan list; earliest : plan option }
+
+val available_after : book:B.t -> B.daily_pace -> string -> (Z.t, string) result
+(** What is left to spend after spending [purchase] today (whole units; empty: nothing). *)
+
+val resolve_date : B.daily_pace -> string -> (string, string) result
+(** A target date as typed: [D] or [M-D] names the first such day after today and
+    before the cycle end; any other spelling comes back unchanged to be checked. *)
 
 val plan :
   book:B.t ->

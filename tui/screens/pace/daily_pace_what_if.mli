@@ -5,17 +5,6 @@
    publishes or reserves. *)
 module B = Bakhlo_household.Book
 
-type projection = {
-  current_per_day : Z.t;
-  projected_per_day : Z.t;
-  change_per_day : Z.t;
-  available_after : Z.t;
-}
-
-val project : book:B.t -> B.daily_pace -> string -> (projection, string) result
-(** Exact quanta at the Measure's scale; a fraction is allowed only where the
-    Measure has decimals. Floor division as the pace itself; no clamping. *)
-
 type t
 
 val create : unit -> t

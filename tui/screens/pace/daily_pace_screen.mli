@@ -38,14 +38,4 @@ val detail_scroll : t -> int
 val resolve_pool : Screen.env -> (Bakhlo_household.Book.coordinate list, string) result
 val resolve_window : Screen.env -> (string * string, string) result
 val current_pace : Screen.env -> (Bakhlo_household.Book.daily_pace * string * string, string) result
-
-val today_pace :
-  book:Bakhlo_household.Book.t ->
-  measure:string ->
-  today:string ->
-  config:(string -> (string option, string) result) ->
-  (Bakhlo_household.Book.daily_pace * string * string, string) result
-(** Today's answer, its cycle start and exclusive end, from the captured
-    configuration files ([config name] is a file's bytes, [None] when absent). *)
-
 val detail_viewport : Screen.env -> Screen.geometry -> t -> Ui_panel.window

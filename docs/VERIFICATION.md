@@ -11,6 +11,17 @@ From 2026-11-09 (user decision) an entry names its commit (or comes in it) and s
 result, keeping synthetic checks, CI, latest-data checks, physical terminal/IME,
 human acceptance and P7/power loss apart. What changed and why is that commit's message.
 
+## Daily Pace screen answers through Pace (2026-11-13)
+
+- `./tools/check` and `./tools/format --check` passed (exit 0); the What-if and
+  Target plan checks in `pace_integration_checks.ml` now run against `Pace`.
+- Latest-data check on a throwaway copy of the household copy (deleted
+  afterwards), the binary before and after the change: `bk pace`, `bk pace if 500`,
+  `bk pace if +500` and an interactive `bk pace target` printed byte-identical
+  output, and tmux captures (120×40) of the Daily Pace screen and its What-if with
+  500 typed were identical. Outputs were compared, not recorded.
+- Physical terminal/IME and P7/power loss **not executed**.
+
 ## Amount refusals worded once (2026-11-13)
 
 - `./tools/check` and `./tools/format --check` passed (exit 0), with the new

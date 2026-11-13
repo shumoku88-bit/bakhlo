@@ -1,7 +1,22 @@
-(* Daily Pace from the settings files beside the book: today's answer
-   (Book.daily_pace over the pool in daily-pace.tsv and the current cycle of
-   boundary-presets.tsv), a purchase or income priced against it, and a daily spend
-   that keeps a target pace. Read-only; exact quanta; floors like the pace itself. *)
+(* Daily Pace: how much may be spent today.
+
+   The pool is the accounts in daily-pace.tsv; the cycle is the current window
+   of boundary-presets.tsv. With 1,000 jpy in the pool, 500 jpy of plans due
+   before the cycle ends and 1 day left, today's pace is (1,000 - 500) / 1 = 500
+   jpy a day (Book.daily_pace does the sum). Three questions are asked of it:
+
+     bk pace if 200    a purchase today: (500 - 200) / 1 = 300 a day
+     bk pace if +200   an income today:  (500 + 200) / 1 = 700 a day
+     bk pace target    the most to spend each day so that a target pace is
+                       still there on a chosen day (see [solve])
+
+   Every division floors, as the pace itself does, so no answer promises a
+   fraction of the smallest unit that is not there. Nothing here writes.
+
+   `bk pace` and the Daily Pace screen both answer from this module; before
+   2026-11-13 the screen kept its own copy of all of it. The numbers above are
+   checked in tui/scenarios/pace_integration_checks.ml (daily-pace-today-core500,
+   daily-pace-what-if-signed-income-and-purchase and the pace-target checks). *)
 module B = Bakhlo_household.Book
 module Day = Bakhlo_household.Day
 module Period = Bakhlo_household.Period
@@ -27,7 +42,7 @@ let pool_of ~config ~measure =
     | [] -> if acc = [] then Error "Daily Pace pool is empty." else Ok (List.rev acc)
     | line :: rest -> (
         match String.split_on_char '\t' line with
-        | [ locus; m ] when config_token locus && m = measure ->
+        | [ locus; m ] when config_token locus && config_token m && m = measure ->
             let coordinate = { B.locus; measure = m } in
             if List.mem coordinate acc then Error "Duplicate Daily Pace coordinate."
             else coordinates (coordinate :: acc) rest

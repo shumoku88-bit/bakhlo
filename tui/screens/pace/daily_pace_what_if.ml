@@ -5,53 +5,12 @@ module B = Bakhlo_household.Book
 module O = Ui_render
 module Panel = Ui_panel
 
-type projection = {
-  current_per_day : Z.t;
-  projected_per_day : Z.t;
-  change_per_day : Z.t;
-  available_after : Z.t;
-}
-
 let scale book measure = Option.value ~default:0 (List.assoc_opt measure (B.measures book))
-let unit_name (p : B.daily_pace) = String.uppercase_ascii p.measure
 
 (* The book's pace Measure, even when today's answer is unavailable. *)
 let units ~measure = String.uppercase_ascii measure
-
-(* [+] is an income, [-] or no sign a purchase; the rest is the amount. *)
-let split_sign input =
-  let rest () = String.sub input 1 (String.length input - 1) in
-  if String.starts_with ~prefix:"+" input then (true, rest ())
-  else if String.starts_with ~prefix:"-" input then (false, rest ())
-  else (false, input)
-
+let split_sign = Pace.split_sign
 let income input = fst (split_sign input)
-
-let project ~book (p : B.daily_pace) input =
-  let income, digits = split_sign input in
-  let valid =
-    digits <> ""
-    && String.length digits <= 18
-    && String.for_all
-         (fun c -> (c >= '0' && c <= '9') || (c = '.' && scale book p.measure > 0))
-         digits
-  in
-  if p.remaining_days <= 0 then Error "No remaining days in this cycle."
-  else if not valid then
-    Error ("Enter a " ^ unit_name p ^ " amount, +amount for income (up to 18 digits).")
-  else
-    match B.parse_signed_amount book ~measure:p.measure digits with
-    | Error _ -> Error ("Invalid " ^ unit_name p ^ " amount.")
-    | Ok quanta ->
-        let after = (if income then Z.add else Z.sub) p.available_through_end quanta in
-        let projected = Z.ediv after (Z.of_int p.remaining_days) in
-        Ok
-          {
-            current_per_day = p.daily_pace_quanta;
-            projected_per_day = projected;
-            change_per_day = Z.sub projected p.daily_pace_quanta;
-            available_after = after;
-          }
 
 type t = { amount : string; notice : string }
 
@@ -115,7 +74,7 @@ let rows ~width_of ~width ~book ~measure ~pace t =
         if t.amount = "" then
           info " Enter amount to compare (+amount for income); nothing is recorded."
         else
-          match project ~book p t.amount with
+          match Pace.project ~book p t.amount with
           | Error why -> info why
           | Ok r ->
               [

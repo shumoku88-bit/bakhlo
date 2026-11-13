@@ -8,135 +8,13 @@ module A = Draft
 module Panel = Ui_panel
 module Trend = Daily_pace_trend
 
-type plan = {
-  target_per_day : Z.t;
-  target_date : string;
-  purchase : Z.t;
-  days : int;
-  daily_spend : Z.t;
-  reachable : bool;
-  path : Z.t list;
-}
-
-type options = { horizons : plan list; earliest : plan option }
-
-let pace_on_target plan = match List.rev plan.path with last :: _ -> last | [] -> Z.zero
-let digits text = String.for_all (fun c -> c >= '0' && c <= '9') text
-
-(* Spending [s] on each of [days] days leaves [available - s*days] for
-   [remaining - days] days, so the largest [s] reaching target [n] is
-   floor((available - n*(remaining - days)) / days). *)
-let solve (p : B.daily_pace) available n purchase days date =
-  let rest = Z.of_int (p.remaining_days - days) in
-  let raw = Z.ediv (Z.sub available (Z.mul n rest)) (Z.of_int days) in
-  let spend = Z.max Z.zero raw in
-  {
-    target_per_day = n;
-    target_date = date;
-    purchase;
-    days;
-    daily_spend = spend;
-    reachable = Z.geq raw Z.zero;
-    path =
-      List.init (days + 1) (fun i ->
-          Z.ediv (Z.sub available (Z.mul spend (Z.of_int i))) (Z.of_int (p.remaining_days - i)));
-  }
-
-let unit_quanta book measure =
-  match List.assoc_opt measure (B.measures book) with
-  | Some scale -> Ok (Z.pow (Z.of_int 10) scale)
-  | None -> Error ("Unknown Measure " ^ measure ^ ".")
-
-let amount ~book (p : B.daily_pace) label text =
-  if String.length text > 18 || not (digits text) then
-    Error
-      (label ^ " accepts nonnegative " ^ String.uppercase_ascii p.measure
-     ^ " digits only (up to 18).")
-  else if text = "" then Error ("Invalid " ^ label ^ ".")
-  else Result.map (Z.mul (Z.of_string text)) (unit_quanta book p.measure)
-
-let available_after ~book (p : B.daily_pace) purchase =
-  if purchase = "" then Ok p.available_through_end
-  else Result.map (Z.sub p.available_through_end) (amount ~book p "Spend today" purchase)
-
-let target_amount ~book (p : B.daily_pace) target =
-  if target = "" then
-    Error
-      ("Enter a nonnegative target " ^ String.uppercase_ascii p.measure ^ "/day (up to 18 digits).")
-  else amount ~book p ("Target " ^ String.uppercase_ascii p.measure ^ "/day") target
+(* The plan itself (Pace.plan, Pace.options) is `bk pace target`'s; this module
+   only edits the three fields and paints the answer. *)
+let pace_on_target (plan : Pace.plan) =
+  match List.rev plan.path with last :: _ -> last | [] -> Z.zero
 
 let shift day n = match Day.shift_days day n with Ok d -> Some d | Error _ -> None
 let valid_date date = Day.normalize date = Ok date
-
-(* [D]/[DD] and [M-D]/[MM-DD] name the first such day after today and before
-   cycle end; any other spelling is returned unchanged for full validation. *)
-let resolve_date (p : B.daily_pace) text =
-  let part value =
-    if String.length value >= 1 && String.length value <= 2 && digits value then
-      int_of_string_opt value
-    else None
-  in
-  let month, day =
-    match String.split_on_char '-' text with
-    | [ day ] -> (Some None, part day)
-    | [ month; day ] -> (Option.map Option.some (part month), part day)
-    | _ -> (None, None)
-  in
-  match (month, day) with
-  | Some month, Some day ->
-      let fits date =
-        match Day.parts date with
-        | Ok (_, m, d) -> d = day && Option.fold ~none:true ~some:(( = ) m) month
-        | Error _ -> false
-      in
-      let rec find offset =
-        if offset >= p.remaining_days - 1 then
-          Error
-            ("No day " ^ text ^ " after today and before cycle end " ^ p.end_exclusive
-           ^ " (exclusive).")
-        else
-          match shift p.observed_at (offset + 1) with
-          | Some date when fits date -> Ok date
-          | _ -> find (offset + 1)
-      in
-      find 0
-  | _ -> Ok text
-
-let ( let* ) = Result.bind
-
-let plan ~book (p : B.daily_pace) ~target ~date ~purchase =
-  let* available = available_after ~book p purchase in
-  let* n = target_amount ~book p target in
-  let* date = resolve_date p date in
-  if not (valid_date date) then Error "Enter a real target date as YYYY-MM-DD."
-  else
-    let distance = Trend.day_number date - Trend.day_number p.observed_at in
-    if distance <= 0 || distance >= p.remaining_days then
-      Error
-        ("Target date must be after today and before cycle end " ^ p.end_exclusive ^ " (exclusive).")
-    else Ok (solve p available n (Z.sub p.available_through_end available) distance date)
-
-let options ~book (p : B.daily_pace) ~target ~purchase =
-  let* available = available_after ~book p purchase in
-  let* n = target_amount ~book p target in
-  let last = max 0 (p.remaining_days - 1) in
-  if last = 0 then Error "No later day remains in this cycle."
-  else
-    let plan_at days =
-      Option.map
-        (fun date -> solve p available n (Z.sub p.available_through_end available) days date)
-        (shift p.observed_at days)
-    in
-    Ok
-      {
-        horizons =
-          List.filter_map plan_at (List.filter (fun d -> d < last) [ 3; 7; 14; 21; 28; 42 ]);
-        earliest =
-          List.find_map
-            (fun days ->
-              Option.bind (plan_at days) (fun plan -> if plan.reachable then Some plan else None))
-            (List.init last (fun i -> i + 1));
-      }
 
 (* Editing state is ephemeral; nothing here is saved. *)
 
@@ -172,17 +50,17 @@ let horizons ~book pace t =
   match pace with
   | Error _ -> []
   | Ok p -> (
-      match options ~book p ~target:t.target ~purchase:t.purchase with
+      match Pace.options ~book p ~target:t.target ~purchase:t.purchase with
       | Ok o -> o.horizons
       | Error _ -> [])
 
-let selected plans t =
+let selected (plans : Pace.plan list) t =
   match t.horizon with
   | Some index -> max 0 (min index (List.length plans - 1))
   | None ->
       let rec first i = function
         | [] -> 0
-        | plan :: rest -> if plan.reachable then i else first (i + 1) rest
+        | plan :: rest -> if plan.Pace.reachable then i else first (i + 1) rest
       in
       first 0 plans
 
@@ -250,7 +128,7 @@ let resample path count =
            (Z.mul (Z.sub (at (day + 1) start) start) (Z.of_int (i * days mod den)))
            (Z.of_int den)))
 
-let chart_rows ~width_of ~width ~height ~fmt current plan =
+let chart_rows ~width_of ~width ~height ~fmt current (plan : Pace.plan) =
   let scale = Ui_chart.scale_for (plan.target_per_day :: current :: plan.path) in
   (* Widen the tick column for the [target] guide label when the plot can afford it. *)
   let axis = max (Ui_chart.axis_width ~width_of width scale fmt) (min 6 (width / 4)) in
@@ -276,10 +154,10 @@ let chart_rows ~width_of ~width ~height ~fmt current plan =
   in
   List.map (fun row -> (O.Plain, row)) rows @ [ (O.Chrome, date) ]
 
-let option_rows ~width_of ~width ~fmt ~measure options chosen =
+let option_rows ~width_of ~width ~fmt ~measure (options : Pace.options) chosen =
   let cells plan =
     [
-      short_date plan.target_date;
+      short_date plan.Pace.target_date;
       string_of_int plan.days;
       (if plan.reachable then fmt plan.daily_spend else "—");
       (if plan.reachable then fmt (Z.mul plan.daily_spend (Z.of_int plan.days)) else "—");
@@ -296,7 +174,7 @@ let option_rows ~width_of ~width ~fmt ~measure options chosen =
   (* A reachable row's pace then is the target by construction; the column only
      earns its place for a row whose zero-spend pace still falls short. *)
   let layouts =
-    if List.for_all (fun p -> p.reachable) options.horizons then
+    if List.for_all (fun p -> p.Pace.reachable) options.horizons then
       [ [ 0; 1; 2; 3 ]; [ 0; 1; 2 ]; [ 0; 2 ] ]
     else [ [ 0; 1; 2; 3; 4 ]; [ 0; 1; 2; 4 ]; [ 0; 2; 4 ] ]
   in
@@ -327,7 +205,7 @@ let option_rows ~width_of ~width ~fmt ~measure options chosen =
      @ List.mapi
          (fun i (plan, row) ->
            if i = chosen then (O.Active, render " ›" row)
-           else ((if plan.reachable then O.Plain else O.Chrome), render "  " row))
+           else ((if plan.Pace.reachable then O.Plain else O.Chrome), render "  " row))
          (List.combine options.horizons rows))
   @
   match options.earliest with
@@ -338,7 +216,7 @@ let option_rows ~width_of ~width ~fmt ~measure options chosen =
         ^ "), spending at most " ^ fmt plan.daily_spend ^ " " ^ measure ^ "/day")
   | None -> info O.Chrome " Not reachable in this cycle, even spending nothing."
 
-let result_rows ~width_of ~width ~fmt (p : B.daily_pace) plan =
+let result_rows ~width_of ~width ~fmt (p : B.daily_pace) (plan : Pace.plan) =
   let info style text =
     List.map (fun line -> (style, line)) (O.wrap_text ~width_of (max 1 width) text)
   in
@@ -385,7 +263,7 @@ let body_rows ~width_of ~width ~capacity ~book ~pace t =
   let resolved =
     match pace with
     | Ok p when t.date <> "" -> (
-        match resolve_date p t.date with
+        match Pace.resolve_date p t.date with
         | Ok date when valid_date date ->
             (if date = t.date then "  " else "  → " ^ date ^ " ") ^ weekday date
         | _ -> "")
@@ -413,7 +291,7 @@ let body_rows ~width_of ~width ~capacity ~book ~pace t =
       in
       (* The answer precedes context, so the smallest panes still show it. *)
       let bought =
-        match available_after ~book p t.purchase with
+        match Pace.available_after ~book p t.purchase with
         | Ok available when not (Z.equal available p.available_through_end) ->
             info O.Plain
               (" After "
@@ -440,7 +318,7 @@ let body_rows ~width_of ~width ~capacity ~book ~pace t =
            ^ "gives a daily plan. Nothing is recorded.")
         @ now
       else if t.date = "" then
-        match options ~book p ~target:t.target ~purchase:t.purchase with
+        match Pace.options ~book p ~target:t.target ~purchase:t.purchase with
         | Error why -> text @ info O.Plain why @ now
         | Ok o -> (
             let chosen = selected o.horizons t in
@@ -449,7 +327,7 @@ let body_rows ~width_of ~width ~capacity ~book ~pace t =
             | Some plan -> with_chart text plan
             | None -> text)
       else
-        match plan ~book p ~target:t.target ~date:t.date ~purchase:t.purchase with
+        match Pace.plan ~book p ~target:t.target ~date:t.date ~purchase:t.purchase with
         | Error why -> text @ info O.Plain why @ now
         | Ok plan -> with_chart (text @ result_rows ~width_of ~width ~fmt p plan @ now) plan)
 

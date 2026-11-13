@@ -91,27 +91,6 @@ let dates_between start_day through_day =
   List.init count (fun i ->
       match Day.shift_days start_day i with Ok d -> d | Error _ -> start_day)
 
-(* Exact cause of a refused pool balance, with its coordinate when recoverable. *)
-let format_pace_error why =
-  let coordinate () =
-    match String.split_on_char ':' why with
-    | [ _; locus; measure ] -> Some (locus ^ " " ^ measure)
-    | _ -> None
-  in
-  let balance label = match coordinate () with Some c -> label ^ ": " ^ c | None -> label ^ "." in
-  if String.starts_with ~prefix:"daily-pace-balance-amount-unknown:" why then
-    balance "Pool locus balance is unknown"
-  else if String.starts_with ~prefix:"daily-pace-balance-support-unknown:" why then
-    balance "Pool locus balance support is unknown"
-  else if String.equal why "daily-pace-non-positive-horizon" then
-    "Period end must be after observation date."
-  else if String.equal why "daily-pace-duplicate-coordinate" then
-    "Duplicate coordinate in Daily Pace pool."
-  else if String.equal why "daily-pace-pool-measure-mismatch" then
-    "Daily Pace pool contains mixed Measures."
-  else if String.equal why "unknown-measure" then "Unknown Measure in Daily Pace pool."
-  else why
-
 (* Sum exact pool balances; unknown or unsupported balances refuse instead of defaulting. *)
 let query_pool_balance book coords =
   let rec sum acc = function
@@ -121,7 +100,7 @@ let query_pool_balance book coords =
         | Some q -> sum (Z.add acc q.amount) rest
         | None ->
             Error
-              (format_pace_error
+              (Pace.format_pace_error
                  ("daily-pace-balance-support-unknown:" ^ c.locus ^ ":" ^ c.measure)))
   in
   sum Z.zero coords
@@ -177,7 +156,7 @@ let compute_samples ~book ~measure ~pool ~boundary_presets_text ~today ~preset =
         B.daily_pace book ~measure ~pool:coords ~observed_at:today ~end_exclusive:current_end
       with
       | Ok pace -> Ok pace
-      | Error why -> Error (format_pace_error why)
+      | Error why -> Error (Pace.format_pace_error why)
     in
     let activities = Hashtbl.create 64 in
     List.iter

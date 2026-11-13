@@ -20,7 +20,7 @@ module Panel = Ui_panel
 module Att = Attention_data
 module Stl = Settlement_data
 module Balances = Balances_screen
-module Pace = Daily_pace_screen
+module Pace_screen = Daily_pace_screen
 
 let tr = Ui_text.tr
 

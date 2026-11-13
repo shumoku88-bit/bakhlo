@@ -35,16 +35,16 @@ module Balances = Balances_screen
 
 let balance_items (state : C.state) = Balances.items (X.balances_env state) state.screens.balances
 
-module Pace = Daily_pace_screen
+module Pace_screen = Daily_pace_screen
 
 let pace_detail_viewport ~dimensions ~width_of (state : C.state) =
-  Pace.detail_viewport (X.pace_env state)
+  Pace_screen.detail_viewport (X.pace_env state)
     (X.screen_geometry ~dimensions ~width_of state)
     state.screens.pace
 
-let resolve_pace_pool (state : C.state) = Pace.resolve_pool (X.pace_env state)
-let resolve_pace_window (state : C.state) = Pace.resolve_window (X.pace_env state)
-let current_pace_result (state : C.state) = Pace.current_pace (X.pace_env state)
+let resolve_pace_pool (state : C.state) = Pace_screen.resolve_pool (X.pace_env state)
+let resolve_pace_window (state : C.state) = Pace_screen.resolve_window (X.pace_env state)
+let current_pace_result (state : C.state) = Pace_screen.current_pace (X.pace_env state)
 let open_attentions (state : C.state) = Att.open_items (C.attention state)
 
 let settlement_rows (state : C.state) =
@@ -59,13 +59,14 @@ let stock_flow_result (state : C.state) =
 let open_pool_editor (state : C.state) =
   {
     state with
-    screens = { state.screens with pace = Pace.open_pool (X.pace_env state) state.screens.pace };
+    screens =
+      { state.screens with pace = Pace_screen.open_pool (X.pace_env state) state.screens.pace };
   }
 
 (* The modal form the user currently sees, whichever owner holds it; mirrors the
    view precedence so scenarios do not depend on where a form is stored. *)
 let visible_form (state : C.state) =
-  if Pace.modal state.screens.pace then Pace.form state.screens.pace
+  if Pace_screen.modal state.screens.pace then Pace_screen.form state.screens.pace
   else if Attention_screen.modal state.screens.attention then
     Attention_screen.form state.screens.attention
   else if Settlements_screen.modal state.screens.settlements then
@@ -87,8 +88,11 @@ let visible_form_id state = Option.map Ui_form.id (visible_form state)
 
 (* Replace the visible form content, equivalent to typing into it. *)
 let with_visible_form (state : C.state) form =
-  if Pace.modal state.screens.pace then
-    { state with screens = { state.screens with pace = Pace.with_form form state.screens.pace } }
+  if Pace_screen.modal state.screens.pace then
+    {
+      state with
+      screens = { state.screens with pace = Pace_screen.with_form form state.screens.pace };
+    }
   else if Attention_screen.modal state.screens.attention then
     {
       state with

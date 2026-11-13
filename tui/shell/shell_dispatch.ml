@@ -279,7 +279,7 @@ and offer_created_pace state id =
       in
       apply_request { state with screens = { state.screens with scheduled } } request
 
-let pace_env state = screen_env ~config_files:Pace.config_files state
+let pace_env state = screen_env ~config_files:Pace_screen.config_files state
 let balances_env state = screen_env ~config_files:Balances.config_files state
 
 (* Migrated screen owners through the registry. A screen with an open editor
@@ -390,10 +390,11 @@ let open_command state = function
         state with
         overlay = No_overlay;
         message = "";
-        screens = { state.screens with pace = Pace.open_pool (pace_env state) state.screens.pace };
+        screens =
+          { state.screens with pace = Pace_screen.open_pool (pace_env state) state.screens.pace };
       }
   | M.Cycle_boundaries ->
-      let pace, request = Pace.open_cycle (pace_env state) state.screens.pace in
+      let pace, request = Pace_screen.open_cycle (pace_env state) state.screens.pace in
       apply_request
         { state with overlay = No_overlay; screens = { state.screens with pace } }
         request

@@ -5,32 +5,9 @@
    publishes, reserves or forecasts a later cycle. *)
 module B = Bakhlo_household.Book
 
-type plan = {
-  target_per_day : Z.t;
-  target_date : string;
-  purchase : Z.t;  (** Hypothetical spend today, already subtracted from [path]. *)
-  days : int;  (** Spending days: today through the day before [target_date]. *)
-  daily_spend : Z.t;  (** Largest quanta/day that keeps the target; 0 when unreachable. *)
-  reachable : bool;
-  path : Z.t list;  (** Pace at the start of each day, today through [target_date]. *)
-}
-
-type options = { horizons : plan list; earliest : plan option }
-
-val plan :
-  book:B.t ->
-  B.daily_pace ->
-  target:string ->
-  date:string ->
-  purchase:string ->
-  (plan, string) result
-(** Amounts are whole units of the pace Measure (digits only, at most 18). The
-    date may be [D], [M-D] or [YYYY-MM-DD]; short forms name the first such day
-    after today and before the cycle end. *)
-
-val options :
-  book:B.t -> B.daily_pace -> target:string -> purchase:string -> (options, string) result
-(** Horizons of 3/7/14/21/28/42 days before the cycle's last day. *)
+(* The plan is `bk pace target`'s (Pace.plan and Pace.options): amounts are whole
+   units of the pace Measure; the date may be [D], [M-D] or [YYYY-MM-DD]; undated,
+   horizons of 3/7/14/21/28/42 days before the cycle's last day. *)
 
 type t
 
