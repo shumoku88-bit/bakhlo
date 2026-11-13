@@ -19,6 +19,8 @@ human acceptance and P7/power loss apart. What changed and why is that commit's 
   the screen's foreign-Measure check expects the new sentence.
 - Latest-data check: `./ui pace` on the selected household copy (read-only)
   answered from its three-line pool as before.
+- CI for `1f6adc2` passed, the Linux PTY lane included
+  ([run 43431731801](https://github.com/shumoku88-bit/bakhlo/actions/runs/43431731801)).
 - Physical terminal/IME and P7/power loss **not executed**.
 
 ## Daily Pace screen answers through Pace (2026-11-13)
