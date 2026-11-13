@@ -11,6 +11,17 @@ From 2026-11-09 (user decision) an entry names its commit (or comes in it) and s
 result, keeping synthetic checks, CI, latest-data checks, physical terminal/IME,
 human acceptance and P7/power loss apart. What changed and why is that commit's message.
 
+## Daily Pace: average spent over the displayed days (2026-11-13)
+
+- `./tools/check` and `./tools/format --check` passed (exit 0), with the new
+  `pace-history-average-spent-*` and `pace-detail-average-spent` checks and the three
+  updated Selected day line-order checks.
+- Latest-data check: `./tools/household-copy refresh`, then `./ui` in tmux at 97×46 on
+  the copy: Daily Pace / 10d showed the full `Average spent` line unclipped in History
+  and in Selected day (amounts not recorded); the household's `book.txt` MD5 was the
+  same before and after; `clean-copies` kept the one copy.
+- Physical terminal/IME and P7/power loss **not executed**.
+
 ## The TUI restored (2026-11-11)
 
 - `./tools/check` passed: build of `@all`, every sample and core test, the bk command

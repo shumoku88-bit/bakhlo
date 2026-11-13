@@ -381,7 +381,41 @@ let summary_change ~book ~measure ~samples ~selected =
           | _ -> "change unavailable")
     | _ -> "previous day unavailable"
 
-(* LOAM historyRows: blank, heading, then a trailing window of [height - 2]
+(* What the household actually spent per day over the displayed days, today
+   included even though it is not over yet:
+
+     Spent 1,471 3,050 798 ... 738   17,470 in 10 days   1,747 jpy/day
+
+   Beside today's pace it tells whether the period ran above or below it. The
+   average is floored to the book's quantum, as Trend floors its windows, and
+   the exact total and day count always accompany it. A day whose activity is
+   unknown is left out of both, never counted as zero. *)
+let average_spent samples =
+  let total, days =
+    List.fold_left
+      (fun (total, days) s ->
+        match s.activity with
+        | None -> (total, days)
+        | Some a -> (Z.add total a.discretionary_outflow, days + 1))
+      (Z.zero, 0) samples
+  in
+  if days = 0 then None else Some (Z.fdiv total (Z.of_int days), total, days)
+
+let average_spent_texts ~book ~measure samples =
+  match average_spent samples with
+  | None -> []
+  | Some (average, total, days) ->
+      let short = "Average spent " ^ money_of book measure average in
+      [
+        Printf.sprintf "%s • %s %s in %d %s" short
+          (Book_display.format_money book measure total)
+          measure days
+          (if days = 1 then "day" else "days");
+        short;
+      ]
+
+(* LOAM historyRows: the period's average spending (blank when it does not fit),
+   heading, then a trailing window of [height - 2]
    dates. The selected date is marked " > ", or " * " while details own focus. *)
 let render_history ~width ~height ~width_of ~book ~today ~measure ~samples ~selected_index
     ~detail_focused =
@@ -459,7 +493,16 @@ let render_history ~width ~height ~width_of ~book ~today ~measure ~samples ~sele
              Other rows let exact values lead; unknown and overflow stay explicit. *)
           ((if selected_active then O.Active else O.Spans spans), text))
     in
-    (O.Plain, "") :: (O.Chrome, O.pad ~width_of width heading) :: rows
+    let average =
+      match
+        List.find_opt
+          (fun text -> width_of text + 1 <= width)
+          (average_spent_texts ~book ~measure samples)
+      with
+      | Some text -> (O.Heading, O.pad ~width_of width (" " ^ text))
+      | None -> (O.Plain, "")
+    in
+    average :: (O.Chrome, O.pad ~width_of width heading) :: rows
 
 (* Summary plus braille plot and date axis; history rows live in
    render_history. Tiny heights keep the selected date/pace summary, with
@@ -632,6 +675,11 @@ let render_detail ~width ~width_of ~book ~measure ~samples ~selected_index ~toda
             ^ " " ^ measure)
     | Error _ -> status "Day-to-day breakdown unavailable (not adjacent within one cycle)."
   in
+  let average =
+    match average_spent_texts ~book ~measure samples with
+    | full :: _ -> heading (full ^ " (floored)")
+    | [] -> []
+  in
   let prev = if index = 0 then None else List.nth_opt samples (index - 1) in
   match List.nth_opt samples index with
   | None -> muted "No sample selected."
@@ -663,7 +711,7 @@ let render_detail ~width ~width_of ~book ~measure ~samples ~selected_index ~toda
             @ plain ("Scheduled deductions: " ^ amount s.deductions)
             @ plain ("Available: " ^ amount s.available_through_end)
       in
-      header @ body @ disclosure
+      header @ average @ body @ disclosure
       @ match prev with Some p when known p && known s -> movement p s | _ -> [])
   | Some s -> (
       let first = (List.hd samples).day and last = (List.nth samples (count - 1)).day in
@@ -672,6 +720,7 @@ let render_detail ~width ~width_of ~book ~measure ~samples ~selected_index ~toda
       in
       muted ("Period: " ^ preset_label preset)
       @ muted ("Display: " ^ first ^ " through " ^ last)
+      @ average
       @ heading ("Selected " ^ s.day)
       @ heading ("Pace: " ^ pace ^ if s.day = today then "  current" else "")
       @ muted (summary_change ~book ~measure ~samples ~selected:index)

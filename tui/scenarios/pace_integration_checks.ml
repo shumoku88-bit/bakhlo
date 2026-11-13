@@ -1261,15 +1261,17 @@ let daily_pace_graph_render_checks ~width_of () =
   in
   let disclosure = [ "Reconstructed current truth."; "no separate daily snapshot is kept." ] in
   let spent = "Spent: 0 jpy (diff: +4,807 jpy)" in
+  let average = "Average spent 0 jpy/day • 0 jpy in 2 days (floored)" in
   require
     (detail [ d18; d19 ] 1
     = expected_rows
-        ~headings:[ "Selected 2026-10-19"; "Pace: 4,807 jpy/day  current"; spent ]
+        ~headings:[ "Selected 2026-10-19"; "Pace: 4,807 jpy/day  current"; spent; average ]
         ~ordinary:(supporting_money @ [ "Available: 62,500 / remaining days" ] @ movement)
         ~warnings:[]
         ([
            "Period: 10d";
            "Display: 2026-10-18 through 2026-10-19";
+           average;
            "Selected 2026-10-19";
            "Pace: 4,807 jpy/day  current";
            "change +343 jpy/day";
@@ -1282,11 +1284,12 @@ let daily_pace_graph_render_checks ~width_of () =
   require
     (detail [ unknown18; d19 ] 1
     = expected_rows
-        ~headings:[ "Selected 2026-10-19: 4,807 jpy/day"; spent ]
+        ~headings:[ "Selected 2026-10-19: 4,807 jpy/day"; spent; average ]
         ~ordinary:(supporting_money @ [ "Available: 62,500" ])
         ~warnings:[]
         ([
            "Supported: 1/2 days";
+           average;
            "Selected 2026-10-19: 4,807 jpy/day";
            "previous day unavailable";
            spent;
@@ -1296,10 +1299,11 @@ let daily_pace_graph_render_checks ~width_of () =
     "pace-detail-partial-history-loam-order";
   require
     (detail [ unknown18; d19 ] 0
-    = expected_rows ~headings:[ "Spent: 0 jpy" ] ~ordinary:[]
+    = expected_rows ~headings:[ "Spent: 0 jpy"; average ] ~ordinary:[]
         ~warnings:[ "Selected 2026-10-18: unavailable, not zero"; "Historical pace unavailable." ]
         ([
            "Supported: 1/2 days";
+           average;
            "Selected 2026-10-18: unavailable, not zero";
            "Historical pace unavailable.";
            "Spent: 0 jpy";
@@ -1486,6 +1490,48 @@ let daily_pace_graph_render_checks ~width_of () =
     && Base.String.is_substring full ~substring:"+3,464"
     && not (Base.String.is_substring full ~substring:"+231"))
     "pace-history-same-day-margin-not-prior-day-change";
+  (* The period's average spending counts today and every known day, floors to
+     the quantum beside its exact total, and leaves an unknown day out. *)
+  let spending amounts =
+    List.mapi
+      (fun i amount ->
+        {
+          (sample ~day:(Printf.sprintf "2026-10-%02d" (17 + i)) ()) with
+          activity =
+            Option.map (fun n -> { B.quiet_day with discretionary_outflow = Z.of_int n }) amount;
+        })
+      amounts
+  in
+  let average_row ~width samples =
+    Trend.render_history ~width ~height:6 ~width_of ~book ~today:"2026-10-19" ~measure:"jpy"
+      ~samples ~selected_index:0 ~detail_focused:false
+    |> List.hd |> snd |> String.trim
+  in
+  require
+    (average_row ~width:70 (spending [ Some 1000; Some 0; Some 501 ])
+    = "Average spent 500 jpy/day • 1,501 jpy in 3 days")
+    "pace-history-average-spent-includes-today-floored";
+  require
+    (average_row ~width:70 (spending [ Some 1000; None; Some 501 ])
+    = "Average spent 750 jpy/day • 1,501 jpy in 2 days")
+    "pace-history-average-spent-skips-unknown-day";
+  require
+    (average_row ~width:70 (spending [ Some 738 ]) = "Average spent 738 jpy/day • 738 jpy in 1 day")
+    "pace-history-average-spent-one-day";
+  require
+    (average_row ~width:30 (spending [ Some 1000; Some 0; Some 501 ]) = "Average spent 500 jpy/day")
+    "pace-history-average-spent-short";
+  require
+    (average_row ~width:20 (spending [ Some 1000; Some 0; Some 501 ]) = ""
+    && average_row ~width:70 (spending [ None; None ]) = "")
+    "pace-history-average-spent-blank-not-clipped";
+  require
+    (Trend.render_detail ~width:80 ~width_of ~book ~measure:"jpy"
+       ~samples:(spending [ Some 1000; Some 0; Some 501 ])
+       ~selected_index:2 ~today:"2026-10-19" ~preset:Trend.Ten_days
+    |> List.exists (fun (_, row) ->
+        String.trim row = "Average spent 500 jpy/day • 1,501 jpy in 3 days (floored)"))
+    "pace-detail-average-spent";
   List.iter
     (fun (width, height) ->
       let rows = painted_history width height in

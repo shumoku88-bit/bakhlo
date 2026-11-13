@@ -249,7 +249,7 @@ Scheduledでopen予定を選び、`g`を押すと定期生成（Scheduled / Gene
 
 Homeで`d`を押すと、今日の目安（Daily Pace）画面が開き、過去から現在に至る日々の消化ペース推移（Trend）を表示する。
 今日のTrendはCurrent／What-ifと同じ`Book.daily_pace`の回答を使い、期限超過の未払い予定も控除する。過去日のPaceには全Pool座標のゼロ起点支持が必要。現在観測だけの台帳では過去日を`unknown`として残し、グラフの線を繋がない。独立に分かる当日の取引額まで不明やゼロに置換しない。
-通常寸法では上段が全幅グラフ、下段がHistory／Selected day。上部のTodayは選択日と独立して今日の目安を表示し、今日の支持されたactivityがあり全文が収まればSpentと同日の差も表示する。期間名・選択位置／件数を表示する。48×14では短いHistory、32×9では日付と完全なPaceを優先する。`i`／Enter／Tabで詳細へ切り替え、広幅ではグラフとHistoryを残し、狭幅では詳細へ全幅を渡す。定数系列・単一点にもLOAM同様の余白付き目盛りを使う。Historyは各列の完全な値が収まる幅ならDay／Quanta/day／Spent／Pace diffを表示し、狭幅では日付とPaceに絞る。`Spent`はPoolの取引ごとの純流出から支払済み予定・同日反転の対を除いた予定外支出、`Pace diff`は同日のPace − Spentであり、前日比ではない。
+通常寸法では上段が全幅グラフ、下段がHistory／Selected day。上部のTodayは選択日と独立して今日の目安を表示し、今日の支持されたactivityがあり全文が収まればSpentと同日の差も表示する。期間名・選択位置／件数を表示する。48×14では短いHistory、32×9では日付と完全なPaceを優先する。`i`／Enter／Tabで詳細へ切り替え、広幅ではグラフとHistoryを残し、狭幅では詳細へ全幅を渡す。定数系列・単一点にもLOAM同様の余白付き目盛りを使う。Historyは各列の完全な値が収まる幅ならDay／Quanta/day／Spent／Pace diffを表示し、狭幅では日付とPaceに絞る。`Spent`はPoolの取引ごとの純流出から支払済み予定・同日反転の対を除いた予定外支出、`Pace diff`は同日のPace − Spentであり、前日比ではない。Historyの先頭行は表示期間に実際に使ったペース（`Average spent`：今日を含む各日のSpentの合計÷日数、帳簿の最小単位へ切り捨て、合計と日数を併記）で、収まらない幅では短縮し、それも収まらなければ空行にする。同じ行をSelected dayにも出す。
 
 - **期間プリセット切替 (`1`〜`5`)**:
   - `1`: 10d（過去10日間）

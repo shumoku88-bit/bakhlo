@@ -98,8 +98,10 @@ val render_history :
   selected_index:int ->
   detail_focused:bool ->
   (Ui_render.style * string) list
-(** LOAM History rows for an inner [height]: blank, heading and a trailing
-    window of [height - 2] dates; empty below one date row. Partial history's
+(** History rows for an inner [height]: the displayed days' average spending
+    per day (today included, floored, with its exact total and day count; blank
+    when it does not fit), heading and a trailing window of [height - 2] dates;
+    empty below one date row. Partial history's
     narrow Value / status fallback keeps its selected marker during detail focus. *)
 
 val change_preset :
@@ -128,4 +130,5 @@ val render_detail :
   preset:preset ->
   (Ui_render.style * string) list
 (** LOAM Selected day lines, already wrapped to [width]: full history when every
-    day is supported, otherwise Supported k/n with unknown dates as gaps. *)
+    day is supported, otherwise Supported k/n with unknown dates as gaps. Both
+    carry the displayed days' average spending. *)
