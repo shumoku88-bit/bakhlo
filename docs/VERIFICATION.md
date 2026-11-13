@@ -18,6 +18,8 @@ human acceptance and P7/power loss apart. What changed and why is that commit's 
   `month-name-reads-two-digit-months-only` examples.
 - Latest-data check not executed: no displayed text should change, and the
   synthetic Trend and Scheduled checks cover the changed paths.
+- CI for `d9062f2` passed, the Linux PTY lane included
+  ([run 43426066174](https://github.com/shumoku88-bit/bakhlo/actions/runs/43426066174)).
 - Physical terminal/IME and P7/power loss **not executed**.
 
 ## TUI: unused draft wording removed, Stock–Flow uses the shared footer (2026-11-13)
@@ -26,6 +28,8 @@ human acceptance and P7/power loss apart. What changed and why is that commit's 
   Stock–Flow's footer; the removed literal was byte-identical to `Report_frame.footer`
   (compared in the diff).
 - Latest-data check not needed: no displayed text or behaviour changed.
+- CI for `268cefb` passed, the Linux PTY lane included
+  ([run 43425818760](https://github.com/shumoku88-bit/bakhlo/actions/runs/43425818760)).
 - Physical terminal/IME and P7/power loss **not executed**.
 
 ## TUI Exchange and Record Ctrl-O: the same offered Measures (2026-11-13)
