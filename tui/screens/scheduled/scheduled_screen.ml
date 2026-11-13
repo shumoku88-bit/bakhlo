@@ -206,7 +206,7 @@ let unless_blocked (env : Screen.env) message =
 let input_text value = function
   | `Key (`ASCII c, []) when Char.code c >= 32 && Char.code c <> 127 ->
       Some (value ^ String.make 1 c)
-  | `Key (`Uchar c, []) when O.printable_uchar c -> Some (value ^ O.utf8 c)
+  | `Key (`Uchar c, []) when Line_edit.printable c -> Some (value ^ O.utf8 c)
   | `Key (`Backspace, []) -> Some (Line_edit.backspace value)
   | _ -> None
 

@@ -460,7 +460,7 @@ let handle ~blocked ~dimensions:((width, height) as _dim) ~width_of t (input : U
               if t.focus = 0 && not (is_date_char c) then Updated t
               else if t.focus = 0 && String.length (value t) >= 10 && t.cursor = None then Updated t
               else Updated (insert t (String.make 1 c))
-          | `Uchar c, [] when t.focus < first_action t && O.printable_uchar c ->
+          | `Uchar c, [] when t.focus < first_action t && Line_edit.printable c ->
               if t.focus = 0 then Updated t else Updated (insert t (O.utf8 c))
           | _ -> Updated t))
   | `End -> Closed

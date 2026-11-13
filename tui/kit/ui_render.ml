@@ -32,10 +32,6 @@ let utf8 c =
   Uutf.Buffer.add_utf_8 b c;
   Buffer.contents b
 
-let printable_uchar c =
-  let n = Uchar.to_int c in
-  n >= 32 && (n < 127 || n > 159)
-
 let visible text =
   let b = Buffer.create (String.length text) in
   Uutf.String.fold_utf_8

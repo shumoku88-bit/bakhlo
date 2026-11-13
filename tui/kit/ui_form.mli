@@ -16,6 +16,7 @@ type t = {
   summary : string list;
   fields : field list;
   focused : int;
+  cursor : int option;  (** In the focused text field; [None] is its end. *)
   notice : string;
 }
 

@@ -16,6 +16,7 @@ type t = {
   summary : string list;
   fields : field list;
   focused : int;
+  cursor : int option;  (** In the focused text field; [None] is its end. *)
   notice : string;
 }
 
@@ -30,7 +31,8 @@ let focused t = t.focused
 
 let set_focused t idx =
   let count = List.length t.fields in
-  if count = 0 then { t with focused = 0 } else { t with focused = max 0 (min (count - 1) idx) }
+  if count = 0 then { t with focused = 0; cursor = None }
+  else { t with focused = max 0 (min (count - 1) idx); cursor = None }
 
 let get_field t fid = List.find_opt (fun (f : field) -> f.id = fid) t.fields
 
@@ -93,7 +95,7 @@ let action_buttons ?(id = "action") ?(confirm = "Confirm") ?(cancel = "Cancel") 
     ()
 
 let create ~id ?(payload = "") ~title ?(summary = []) ?(fields = []) ?(notice = "") () =
-  { id; payload; title; summary; fields; focused = 0; notice }
+  { id; payload; title; summary; fields; focused = 0; cursor = None; notice }
 
 let focused_field t =
   if t.focused >= 0 && t.focused < List.length t.fields then Some (List.nth t.fields t.focused)
@@ -135,7 +137,7 @@ let handle_input t (input : Ui_input.input) : event =
     if count = 0 then Updated t
     else
       let next = (t.focused + delta + count) mod count in
-      Updated { t with focused = next }
+      Updated { t with focused = next; cursor = None }
   in
   let primary () =
     match primary_button t with Some (b : button) when b.is_cancel -> Cancel | _ -> Submit t
@@ -158,15 +160,13 @@ let handle_input t (input : Ui_input.input) : event =
               | `Key (`Arrow `Up, []) -> move_focus (-1)
               | `Key (`Arrow `Down, []) -> move_focus 1
               | `Key (`Enter, []) -> enter ()
-              | `Key (`ASCII c, []) when Char.code c >= 32 && Char.code c <> 127 ->
-                  let updated = value ^ String.make 1 c in
-                  Updated (set_text { t with notice = "" } field.id updated)
-              | `Key (`Uchar c, []) when Ui_render.printable_uchar c ->
-                  let updated = value ^ Ui_render.utf8 c in
-                  Updated (set_text { t with notice = "" } field.id updated)
-              | `Key (`Backspace, []) ->
-                  let updated = Line_edit.backspace value in
-                  Updated (set_text { t with notice = "" } field.id updated)
+              | `Key (key, []) -> (
+                  (* Every input box edits its line alike (Line_edit.edit). *)
+                  match Line_edit.edit ~value ~cursor:t.cursor key with
+                  | Some (updated, cursor) ->
+                      let notice = if updated = value then t.notice else "" in
+                      Updated (set_text { t with notice; cursor } field.id updated)
+                  | None -> Updated t)
               | _ -> Updated t)
           | Choice { options; selected } -> (
               let n = List.length options in
@@ -222,7 +222,7 @@ let render_rows ~width ~height ~width_of t =
         let prompt = O.clip_text ~width_of (max 0 (width - 1)) prompt in
         let inset = width_of prompt in
         let text, caret =
-          O.input_text ~width_of ~width:(width - inset) ~cursor:None ~caret:"|" value
+          O.input_text ~width_of ~width:(width - inset) ~cursor:t.cursor ~caret:"|" value
         in
         (Option.fold ~none:O.Plain ~some:(fun col -> O.Input (inset + col)) caret, prompt ^ text)
     | Text { value; placeholder } ->

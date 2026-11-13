@@ -460,7 +460,7 @@ let safe_text text =
   let valid = ref true in
   Uutf.String.fold_utf_8
     (fun () _ -> function
-      | `Uchar c -> if not (O.printable_uchar c) then valid := false
+      | `Uchar c -> if not (Line_edit.printable c) then valid := false
       | `Malformed _ -> valid := false)
     () text;
   !valid
@@ -497,7 +497,7 @@ let rec handle ~new_id ~book ~base_revision ~blocked ~dimensions ~width_of t
           paste = Some (text ^ String.make 1 c, invalid || Char.code c < 32 || Char.code c = 127);
         }
   | `Key (`Uchar c, []), Some (text, invalid) ->
-      update { t with paste = Some (text ^ O.utf8 c, invalid || not (O.printable_uchar c)) }
+      update { t with paste = Some (text ^ O.utf8 c, invalid || not (Line_edit.printable c)) }
   | `Key _, Some (text, _) -> update { t with paste = Some (text, true) }
   | `Key (button, mods), None -> (
       (* Ctrl letters act the same in either case. *)
@@ -656,7 +656,7 @@ let rec handle ~new_id ~book ~base_revision ~blocked ~dimensions ~width_of t
               update
                 (edit_original t ed
                    (Line_edit.insert ~value:(original_value ed) ~cursor:t.cursor typed))
-          | `Uchar c, [] when O.printable_uchar c ->
+          | `Uchar c, [] when Line_edit.printable c ->
               let typed = O.utf8 c in
               update
                 (edit_original t ed
@@ -732,7 +732,7 @@ let rec handle ~new_id ~book ~base_revision ~blocked ~dimensions ~width_of t
               if t.focus = 0 && not (is_date_char c) then update t
               else if t.focus = 0 && String.length (value t) >= 10 && t.cursor = None then update t
               else update (insert t (String.make 1 c))
-          | `Uchar c, [] when t.focus < action_start t && O.printable_uchar c ->
+          | `Uchar c, [] when t.focus < action_start t && Line_edit.printable c ->
               if t.focus = 0 then update t else update (insert t (O.utf8 c))
           | _ -> update t))
   | `End, _ ->

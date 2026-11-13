@@ -248,7 +248,7 @@ let extend_plans ~new_id ~(source : B.plan) candidates resolutions =
 let typed value = function
   | `Key (`ASCII c, []) when Char.code c >= 32 && Char.code c <> 127 ->
       Some (value ^ String.make 1 c)
-  | `Key (`Uchar c, []) when O.printable_uchar c -> Some (value ^ O.utf8 c)
+  | `Key (`Uchar c, []) when Line_edit.printable c -> Some (value ^ O.utf8 c)
   | `Key (`Backspace, []) -> Some (Line_edit.backspace value)
   | _ -> None
 

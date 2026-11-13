@@ -66,6 +66,40 @@ let input_checks ~width_of () =
     && O.cursor_in_rows ~width_of ~width:8 [ (O.Input 3, "ab") ] = None
     && O.cursor_in_rows ~width_of ~width:8 [ (O.Plain, "|") ] = None)
     "input-hidden-clipped-and-literal-caret";
+  (* Every input box edits its line alike (Line_edit.edit), the shared form too. *)
+  let keys value keys =
+    List.fold_left
+      (fun (value, cursor) key ->
+        Option.value ~default:(value, cursor) (Line_edit.edit ~value ~cursor key))
+      (value, None) keys
+  in
+  require
+    (keys "ils" [ `Arrow `Left; `Arrow `Left; `ASCII 'x' ] = ("ixls", Some 2)
+    && keys "日本" [ `Home; `Uchar (Uchar.of_int 0x3042) ] = ("あ日本", Some 3)
+    && keys "abc" [ `Arrow `Left; `Backspace; `End ] = ("ac", None)
+    && keys "ab" [ `ASCII '\x7f'; `Uchar (Uchar.of_int 0x85) ] = ("ab", None))
+    "line-edit-keys";
+  let form =
+    Ui_form.create ~id:"f" ~title:"F"
+      ~fields:
+        [
+          Ui_form.text_field ~id:"measure" ~label:"Measure" ~value:"ils" ();
+          Ui_form.text_field ~id:"amount" ~label:"Amount" ();
+        ]
+      ()
+  in
+  let press form key =
+    match Ui_form.handle_input form (`Key (key, [])) with Ui_form.Updated f -> f | _ -> form
+  in
+  let edited = List.fold_left press form [ `Arrow `Left; `Arrow `Left; `ASCII 'x' ] in
+  let moved = press edited (`Arrow `Down) in
+  require
+    (Ui_form.get_text edited "measure" = Some "ixls"
+    && List.mem (O.Input 11, "Measure: ix|ls")
+         (Ui_form.render_rows ~width:30 ~height:5 ~width_of edited)
+    && moved.Ui_form.cursor = None
+    && Ui_form.get_text (press moved (`ASCII '5')) "amount" = Some "5")
+    "form-text-has-a-cursor";
   print_endline
     "PASS: shared input windows, retained UTF-8 bytes, insertion cells and recursive Columns caret \
      bounds."

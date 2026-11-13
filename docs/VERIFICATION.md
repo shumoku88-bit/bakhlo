@@ -11,6 +11,15 @@ From 2026-11-09 (user decision) an entry names its commit (or comes in it) and s
 result, keeping synthetic checks, CI, latest-data checks, physical terminal/IME,
 human acceptance and P7/power loss apart. What changed and why is that commit's message.
 
+## Form text fields have a cursor; one line-editing rule (2026-11-13)
+
+- `./tools/check` and `./tools/format --check` passed (exit 0), with the new
+  `line-edit-keys` and `form-text-has-a-cursor` checks; every existing form check
+  still passes.
+- tmux at 100×34 on a synthetic copy of `examples/book.txt` (deleted afterwards):
+  in Exchange, Source Measure `jpy`, ←←, `x` showed `jx|py`.
+- Physical terminal/IME and P7/power loss **not executed**.
+
 ## Record panels drawn with the shared panel border (2026-11-13)
 
 - `./tools/check` and `./tools/format --check` passed (exit 0).

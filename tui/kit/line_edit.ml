@@ -28,3 +28,36 @@ let erase ~value ~cursor =
   let prefix = backspace (String.sub value 0 at) in
   let updated = prefix ^ String.sub value at (String.length value - at) in
   (updated, String.length prefix)
+
+(* What a key types, if anything. A control character never reaches the text:
+   below space, DEL and the C1 range (128-159) are refused, everything else is a
+   character the household meant, Japanese included. *)
+let printable c =
+  let n = Uchar.to_int c in
+  n >= 32 && (n < 127 || n > 159)
+
+let typed : Ui_input.key -> string option = function
+  | `ASCII c when printable (Uchar.of_char c) -> Some (String.make 1 c)
+  | `Uchar c when printable c ->
+      let b = Buffer.create 4 in
+      Buffer.add_utf_8_uchar b c;
+      Some (Buffer.contents b)
+  | _ -> None
+
+(* One key on one line of text, the same in every input box:
+
+     ← →        one character left or right
+     Home End   to the start or the end
+     Backspace  the character before the cursor
+     a, あ, 1   typed at the cursor
+
+   [None] for any other key, which stays the screen's to decide (Enter, Tab, ↑↓). *)
+let edit ~value ~cursor (key : Ui_input.key) =
+  let at (text, cursor) = Some (text, Some cursor) in
+  match key with
+  | `Arrow `Left -> Some (value, Some (move ~value ~cursor (-1)))
+  | `Arrow `Right -> Some (value, Some (move ~value ~cursor 1))
+  | `Home -> Some (value, Some 0)
+  | `End -> Some (value, None)
+  | `Backspace -> at (erase ~value ~cursor)
+  | key -> Option.bind (typed key) (fun text -> at (insert ~value ~cursor text))

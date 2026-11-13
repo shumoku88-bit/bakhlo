@@ -630,7 +630,7 @@ let handle_editor t (editor : editor) input =
       | `Days -> apply_editor t editor)
   | `Key (`ASCII c, []) when c >= ' ' && c <> '\127' ->
       stay { t with editor = Some (insert_text editor (String.make 1 c)) }
-  | `Key (`Uchar c, []) when O.printable_uchar c ->
+  | `Key (`Uchar c, []) when Line_edit.printable c ->
       stay { t with editor = Some (insert_text editor (O.utf8 c)) }
   | _ -> (t, Screen.Ignored)
 

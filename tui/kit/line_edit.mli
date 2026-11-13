@@ -15,3 +15,14 @@ val insert : value:string -> cursor:int option -> string -> string * int
 
 val erase : value:string -> cursor:int option -> string * int
 (** The text without the scalar before the cursor, and the cursor where that scalar began. *)
+
+val printable : Uchar.t -> bool
+(** A character the household can type: not a control character (C0, DEL, C1). *)
+
+val typed : Ui_input.key -> string option
+(** The text a key types: a printable ASCII character or Unicode scalar. *)
+
+val edit : value:string -> cursor:int option -> Ui_input.key -> (string * int option) option
+(** One key on one line, the same in every input box: ←/→ move one scalar,
+    Home/End go to either end, Backspace erases before the cursor and a printable
+    key is typed at it. [None] for any other key. *)

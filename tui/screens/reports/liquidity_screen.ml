@@ -143,7 +143,7 @@ let handle (env : Screen.env) geometry t input =
           match input with
           | `Key (`ASCII c, []) when Char.code c >= 32 && Char.code c <> 127 ->
               clear (invalidate t (Some (value ^ String.make 1 c)))
-          | `Key (`Uchar c, []) when O.printable_uchar c ->
+          | `Key (`Uchar c, []) when Line_edit.printable c ->
               clear (invalidate t (Some (value ^ O.utf8 c)))
           | `Key (`Backspace, []) -> clear (invalidate t (Some (Line_edit.backspace value)))
           | _ -> (t, Screen.Ignored))
