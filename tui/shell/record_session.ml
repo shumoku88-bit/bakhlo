@@ -766,42 +766,9 @@ let action_line ~width_of width t =
     | Some index -> label index (List.nth labels index)
     | None -> tr "[Preview] … [Cancel]"
 
-let sub_border ~width_of ~width ?(style = O.Frame) title =
-  if width < 4 then (style, O.pad ~width_of width "")
-  else
-    let left_decor = "╭ " and right_decor = "╮" in
-    let min_decor = width_of left_decor + width_of right_decor in
-    if width <= min_decor then (style, O.pad ~width_of width (O.clip_text ~width_of width "╭──╮"))
-    else
-      let title_clipped = O.clip_text ~width_of (width - min_decor) (tr title) in
-      let rule_len = max 0 (width - min_decor - width_of title_clipped) in
-      let raw =
-        left_decor ^ title_clipped ^ " " ^ O.rule ~width_of (max 0 (rule_len - 1)) ^ right_decor
-      in
-      (style, O.pad ~width_of width (O.clip_text ~width_of width raw))
-
-let sub_bottom ~width_of ~width ?(style = O.Frame) ?(title = "") () =
-  if width < 2 then (style, O.pad ~width_of width "")
-  else
-    let left_decor = if title = "" then "╰" else "╰ " in
-    let right_decor = "╯" in
-    let min_decor = width_of left_decor + width_of right_decor in
-    if width <= min_decor then (style, O.pad ~width_of width (O.clip_text ~width_of width "╰──╯"))
-    else
-      let available = width - min_decor in
-      let title_text =
-        if title = "" then "" else O.clip_text ~width_of (max 0 (available - 2)) title ^ " "
-      in
-      let rule_len = max 0 (available - width_of title_text) in
-      let raw = left_decor ^ title_text ^ O.rule ~width_of rule_len ^ right_decor in
-      (style, O.pad ~width_of width (O.clip_text ~width_of width raw))
-
+(* A row inside a Record panel: the borders touch the text, as in frame_rows ~inset:0. *)
 let inner_line ~width_of ~width style text =
-  let left = "│" and right = "│" in
-  let room = max 0 (width - width_of left - width_of right) in
-  let content = O.clip_text ~width_of room text in
-  let padded = content ^ String.make (max 0 (room - width_of content)) ' ' in
-  (style, left ^ padded ^ right)
+  (style, "│" ^ O.pad ~width_of (max 0 (width - 2)) text ^ "│")
 
 (* LOAM quick capture: a bounded framed modal with the footer inside the frame.
    The frame's border shifts the caret one cell to the right. *)
@@ -815,13 +782,13 @@ let quick_modal ~book ~(surface : Quick_capture.surface) ~width_of q =
     let shift (style, text) =
       match style with O.Input cell -> (O.Input (cell + 1), text) | _ -> (style, text)
     in
-    [ sub_border ~width_of ~width:surface.width ~style:O.Focused_frame "Record" ]
+    [ O.panel_border ~inset:0 ~width_of ~width:surface.width ~style:O.Focused_frame (tr "Record") ]
     @ List.map
         (fun (style, text) ->
           let style, text = shift (style, text) in
           inner_line ~width_of ~width:surface.width style text)
         rows
-    @ [ sub_bottom ~width_of ~width:surface.width ~style:O.Focused_frame () ]
+    @ [ O.panel_bottom ~width_of ~width:surface.width ~style:O.Focused_frame () ]
 
 let original_amount_screen ~book:_ ~dimensions:(width, height) ~width_of t (ed : original_editor) =
   let width = max 0 width and height = max 0 height in
@@ -844,10 +811,10 @@ let original_amount_screen ~book:_ ~dimensions:(width, height) ~width_of t (ed :
   let a_s = match a_caret with Some c -> O.Input (1 + c) | None -> O.Plain in
   let fields_panel =
     [
-      sub_border ~width_of ~width ~style:O.Focused_frame "Original amount";
+      O.panel_border ~inset:0 ~width_of ~width ~style:O.Focused_frame (tr "Original amount");
       inner_line ~width_of ~width m_s m_text;
       inner_line ~width_of ~width a_s a_text;
-      sub_bottom ~width_of ~width ~style:O.Focused_frame ();
+      O.panel_bottom ~width_of ~width ~style:O.Focused_frame ();
     ]
   in
   let meaning_h = max 0 (avail - 4) in
@@ -867,9 +834,9 @@ let original_amount_screen ~book:_ ~dimensions:(width, height) ~width_of t (ed :
       let expl_rows = List.map (fun s -> inner_line ~width_of ~width O.Chrome s) shown_expl in
       let pad_len = max 0 (cap - List.length expl_rows) in
       let pad_rows = List.init pad_len (fun _ -> inner_line ~width_of ~width O.Plain "") in
-      [ sub_border ~width_of ~width ~style:O.Frame "Meaning" ]
+      [ O.panel_border ~inset:0 ~width_of ~width ~style:O.Frame (tr "Meaning") ]
       @ expl_rows @ pad_rows
-      @ [ sub_bottom ~width_of ~width ~style:O.Frame () ]
+      @ [ O.panel_bottom ~width_of ~width ~style:O.Frame () ]
   in
   let all_rows = [ title_row ] @ fields_panel @ meaning_panel @ feedback_rows @ navigation in
   List.filteri (fun i _ -> i < height) all_rows
@@ -997,9 +964,12 @@ let screen ?surface ~book ~dimensions:(width, height) ~width_of t =
                 (List.length lines) more
             in
             let panel =
-              [ sub_border ~width_of ~width ~style:O.Focused_frame "Movement / signed postings" ]
+              [
+                O.panel_border ~inset:0 ~width_of ~width ~style:O.Focused_frame
+                  (tr "Movement / signed postings");
+              ]
               @ shown_rows @ pad_rows
-              @ [ sub_bottom ~width_of ~width ~style:O.Focused_frame ~title:bottom () ]
+              @ [ O.panel_bottom ~width_of ~width ~style:O.Focused_frame ~title:bottom () ]
             in
             let gate_rows =
               if gate_height = 0 then []
@@ -1076,11 +1046,11 @@ let screen ?surface ~book ~dimensions:(width, height) ~width_of t =
                   let q_style = match q_caret with Some c -> O.Input (1 + c) | None -> O.Plain in
                   let movement_panel =
                     [
-                      sub_border ~width_of ~width ~style:m_style "Movement";
+                      O.panel_border ~inset:0 ~width_of ~width ~style:m_style (tr "Movement");
                       inner_line ~width_of ~width d_style d_text;
                       inner_line ~width_of ~width m_f_style m_text;
                       inner_line ~width_of ~width q_style q_text;
-                      sub_bottom ~width_of ~width ~style:m_style ();
+                      O.panel_bottom ~width_of ~width ~style:m_style ();
                     ]
                   in
                   let make_postings_panel ~p_width ~p_height =
@@ -1143,9 +1113,12 @@ let screen ?surface ~book ~dimensions:(width, height) ~width_of t =
                     let p_pad =
                       List.init p_pad_len (fun _ -> inner_line ~width_of ~width:p_width O.Plain "")
                     in
-                    [ sub_border ~width_of ~width:p_width ~style:p_style "Postings" ]
+                    [
+                      O.panel_border ~inset:0 ~width_of ~width:p_width ~style:p_style
+                        (tr "Postings");
+                    ]
                     @ posting_rows @ p_pad @ [ p_context_line ]
-                    @ [ sub_bottom ~width_of ~width:p_width ~style:p_style ~title:p_sub () ]
+                    @ [ O.panel_bottom ~width_of ~width:p_width ~style:p_style ~title:p_sub () ]
                   in
                   let make_candidates_panel ~c_width ~c_height =
                     let cand_focused = is_locus t in
@@ -1205,9 +1178,12 @@ let screen ?surface ~book ~dimensions:(width, height) ~width_of t =
                     let c_pad =
                       List.init c_pad_len (fun _ -> inner_line ~width_of ~width:c_width O.Plain "")
                     in
-                    [ sub_border ~width_of ~width:c_width ~style:c_style "Locus candidates" ]
+                    [
+                      O.panel_border ~inset:0 ~width_of ~width:c_width ~style:c_style
+                        (tr "Locus candidates");
+                    ]
                     @ candidate_lines @ c_pad @ [ help_line; admit_line ]
-                    @ [ sub_bottom ~width_of ~width:c_width ~style:c_style ~title:c_sub () ]
+                    @ [ O.panel_bottom ~width_of ~width:c_width ~style:c_style ~title:c_sub () ]
                   in
                   let lower_panes =
                     if wide then
@@ -1331,9 +1307,11 @@ let screen ?surface ~book ~dimensions:(width, height) ~width_of t =
                       (List.length fields) more
                   in
                   let panel =
-                    [ sub_border ~width_of ~width ~style:O.Focused_frame "Fields" ]
+                    [
+                      O.panel_border ~inset:0 ~width_of ~width ~style:O.Focused_frame (tr "Fields");
+                    ]
                     @ panel_content @ pad_rows
-                    @ [ sub_bottom ~width_of ~width ~style:O.Focused_frame ~title:bottom () ]
+                    @ [ O.panel_bottom ~width_of ~width ~style:O.Focused_frame ~title:bottom () ]
                   in
                   let feedback_rows = List.map (raw O.Status) feedback in
                   let action_rows =

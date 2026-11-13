@@ -11,6 +11,15 @@ From 2026-11-09 (user decision) an entry names its commit (or comes in it) and s
 result, keeping synthetic checks, CI, latest-data checks, physical terminal/IME,
 human acceptance and P7/power loss apart. What changed and why is that commit's message.
 
+## Record panels drawn with the shared panel border (2026-11-13)
+
+- `./tools/check` and `./tools/format --check` passed (exit 0).
+- tmux captures on a synthetic copy of `examples/book.txt` (deleted afterwards),
+  binary before and after, at 80×24, 120×40, 50×16 and 34×12: the quick capture,
+  the full form, the Original amount editor and an empty-Save refusal were
+  byte-identical (16 pairs).
+- Physical terminal/IME and P7/power loss **not executed**.
+
 ## Reports read period and scroll keys in one place (2026-11-13)
 
 - `./tools/check` and `./tools/format --check` passed (exit 0), including the
