@@ -20,7 +20,11 @@ human acceptance and P7/power loss apart. What changed and why is that commit's 
   The three captures were byte-identical.
 - CI for `ed09de8` passed, the Linux PTY lane included
   ([run 43436213034](https://github.com/shumoku88-bit/bakhlo/actions/runs/43436213034)).
-- Physical terminal/IME and P7/power loss **not executed**.
+- Human/IME acceptance (user report, 2026-11-13): after `ed09de8` the user recorded
+  one Actual with a Japanese memo in WezTerm and reported no problem typing it or
+  moving the cursor. Which screen was used was not stated; the saved record was
+  seen on a read-only household copy.
+- P7/power loss **not executed**.
 
 ## Form text fields have a cursor; one line-editing rule (2026-11-13)
 
