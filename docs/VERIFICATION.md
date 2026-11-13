@@ -20,6 +20,8 @@ human acceptance and P7/power loss apart. What changed and why is that commit's 
   check reads their scroll yet.
 - Latest-data check not executed: key handling only; the synthetic report checks
   drive every changed screen.
+- CI for `2238f5d` passed, the Linux PTY lane included
+  ([run 43432664782](https://github.com/shumoku88-bit/bakhlo/actions/runs/43432664782)).
 - Physical terminal/IME and P7/power loss **not executed**.
 
 ## One daily-pace.tsv reader; bk pace pool refuses what it cannot read (2026-11-13)
