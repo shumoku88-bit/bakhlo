@@ -141,10 +141,14 @@ user-approved migration of `../bakhlo-data` (Principles).
 
 - Cutover (user decision 2026-10-21): the operational household is `../bakhlo-data`
   (imported once by `./tools/import-loam`; see its `LOAM-RECORD.md`). The AI never
-  writes it; only the user records, through `bk`. AI checks use copies in ignored
-  scratch. The user opens it with `./tools/household`, which on exit commits changes and
-  pushes them to the private GitHub backup `shumoku88-bit/bakhlo-data` (user decision
-  2026-10-21); never make that repository public. `../loam-data` is the frozen LOAM
+  writes it; only the user records, through `bk` or, since 2026-11-24 (user decision),
+  bqn-book's Emacs screen (`../bqn-book`, the same book.txt in BQN). Both take
+  `book.txt.lock` and refuse a book changed since it was loaded, so one writes at a
+  time and neither loses the other's record (bqn-book `tests/test_with_bk.sh`). AI
+  checks use copies in ignored scratch. The user opens it with `./tools/household`,
+  which on exit commits changes and pushes them to the private GitHub backup
+  `shumoku88-bit/bakhlo-data` (user decision 2026-10-21); bqn-book does the same after
+  each save (`bin/backup`). Never make that repository public. `../loam-data` is the frozen LOAM
   reference except for an explicit user-requested reflection of Bakhlo recording
   history (user decision: this conversation). For that request, AI may write the LOAM
   original through canonical LOAM commands/publishers, after preserving a recoverable
