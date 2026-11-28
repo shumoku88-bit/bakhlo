@@ -347,6 +347,21 @@ let summary_text ~width ~width_of ~book ~today ~measure ~partial sel =
   else if width_of label <= width then label ^ fit_value ~width:room ~width_of value ^ marker
   else O.clip_text ~width_of width (sel.day ^ " ◆ …")
 
+(* How far a day moved the pace from the day before. A past day's pace is the
+   guide at its end, so the change is what that day did to it:
+
+     2026-10-18  2,000 jpy/day
+     2026-10-19  1,900 jpy/day  -100   spent 3,000  (2,000 - 3,000) / 10 days
+
+   Spending exactly the pace leaves it unchanged; income raises it too. A new
+   cycle starts over, so there is nothing to compare across its boundary. *)
+let change_from previous current =
+  if previous.end_exclusive <> current.end_exclusive then None
+  else
+    match (previous.pace_quanta, current.pace_quanta) with
+    | Some prior, Some now -> Some (Z.sub now prior)
+    | _ -> None
+
 let summary_change ~book ~measure ~samples ~selected =
   if selected = 0 then "first point"
   else
@@ -354,10 +369,9 @@ let summary_change ~book ~measure ~samples ~selected =
     | Some previous, Some current -> (
         if previous.end_exclusive <> current.end_exclusive then "change unavailable (cycle reset)"
         else
-          match (previous.pace_quanta, current.pace_quanta) with
-          | Some prior, Some now ->
-              "change " ^ signed_money book measure (Z.sub now prior) ^ " " ^ measure ^ "/day"
-          | _ -> "change unavailable")
+          match change_from previous current with
+          | Some change -> "change " ^ signed_money book measure change ^ " " ^ measure ^ "/day"
+          | None -> "change unavailable")
     | _ -> "previous day unavailable"
 
 (* What the household actually spent per day over the displayed days, today
@@ -421,16 +435,31 @@ let render_history ~width ~height ~width_of ~book ~today ~measure ~samples ~sele
     in
     let partial = count_supported samples < count in
     let table = width >= 46 && List.exists (fun s -> s.activity <> None) samples in
+    (* Change is the first column to go when the pane narrows: the selected
+       day's change stays in the summary above. *)
+    let with_change = width >= 58 in
+    let by_index = Array.of_list samples in
+    let change_at i = if i = 0 then None else change_from by_index.(i - 1) by_index.(i) in
     let heading, row =
       if table then
         let rest = width - 3 - 11 in
+        let change_width = if with_change then max 8 (rest * 16 / 100) else 0 in
+        let rest = rest - change_width in
         let pace_width = max 14 (rest * 42 / 100) and spent_width = max 9 (rest * 28 / 100) in
         let diff_width = max 0 (rest - pace_width - spent_width) in
         ( "   " ^ O.pad ~width_of 11 "Day"
           ^ O.pad_left ~width_of pace_width "Quanta/day"
+          ^ (if with_change then O.pad_left ~width_of change_width "Change" else "")
           ^ O.pad_left ~width_of spent_width "Spent"
           ^ O.pad_left ~width_of diff_width "Pace diff",
-          fun s ->
+          fun i s ->
+            let change =
+              if not with_change then []
+              else
+                match change_at i with
+                | Some q -> [ cell O.Heading change_width (signed_money book measure q) ]
+                | None -> [ cell O.Chrome change_width "—" ]
+            in
             let spent, diff =
               match s.activity with
               | None -> (cell O.Chrome spent_width "—", cell O.Chrome diff_width "—")
@@ -443,14 +472,15 @@ let render_history ~width ~height ~width_of ~book ~today ~measure ~samples ~sele
                         cell O.Heading diff_width
                           (signed_money book measure (Z.sub q activity.discretionary_outflow)) )
             in
-            [ (O.Heading, O.pad ~width_of 11 s.day); pace_cell pace_width s; spent; diff ] )
+            [ (O.Heading, O.pad ~width_of 11 s.day); pace_cell pace_width s ]
+            @ change @ [ spent; diff ] )
       else
         let current_width = if (not partial) && width >= 39 then 9 else 0 in
         let date_width = min 12 (width - 3) in
         let value_width = max 0 (width - 3 - date_width - current_width) in
         ( "   " ^ O.pad ~width_of date_width "Day"
           ^ O.pad_left ~width_of value_width (if partial then "Value / status" else "Quanta/day"),
-          fun s ->
+          fun _ s ->
             [ (O.Heading, O.pad ~width_of date_width s.day); pace_cell value_width s ]
             @ if current_width > 0 && s.day = today then [ (O.Chrome, "  current") ] else [] )
     in
@@ -465,7 +495,8 @@ let render_history ~width ~height ~width_of ~book ~today ~measure ~samples ~sele
             else " > "
           in
           let spans =
-            O.fit_spans ~width_of width (((if chosen then O.Heading else O.Plain), marker) :: row s)
+            O.fit_spans ~width_of width
+              (((if chosen then O.Heading else O.Plain), marker) :: row (start + offset) s)
           in
           let text = O.spans_text spans in
           (* The focused row, including its padding, remains one selection band.

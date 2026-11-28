@@ -1488,12 +1488,44 @@ let daily_pace_graph_render_checks ~width_of () =
     Trend.render_history ~width ~height ~width_of ~book ~today:"2026-10-19" ~measure:"jpy"
       ~samples:history ~selected_index:1 ~detail_focused:false
   in
-  let full = painted_history 70 5 |> List.map snd |> String.concat "\n" in
+  (* Change is the prior-day move (4,233 -> 4,464); Pace diff stays the same
+     day's margin (4,464 - 1,000). The first day has nothing to compare. *)
+  let line width row = snd (List.nth (painted_history width 5) row) in
+  (* The texts appear in this order, each once, as the columns do. *)
+  let in_order text needles =
+    let rec go from = function
+      | [] -> true
+      | needle :: rest -> (
+          match Base.String.substr_index text ~pattern:needle ~pos:from with
+          | Some at -> go (at + String.length needle) rest
+          | None -> false)
+    in
+    go 0 needles
+  in
   require
-    (Base.String.is_substring full ~substring:"1,000"
-    && Base.String.is_substring full ~substring:"+3,464"
-    && not (Base.String.is_substring full ~substring:"+231"))
-    "pace-history-same-day-margin-not-prior-day-change";
+    (in_order (line 70 1) [ "Quanta/day"; "Change"; "Spent"; "Pace diff" ]
+    && in_order (line 70 2) [ "2026-10-18"; "4,233 jpy/day"; "—"; "0"; "+4,233" ])
+    "pace-history-first-day-change-unknown-not-zero";
+  require
+    (in_order (line 70 3) [ "2026-10-19"; "4,464 jpy/day"; "+231"; "1,000"; "+3,464" ])
+    "pace-history-change-beside-same-day-margin";
+  let reset =
+    [
+      sample ~day:"2026-10-18" ~q:4233 ~stop:"2026-10-19" (); { current with activity = Some spent };
+    ]
+  in
+  require
+    (Trend.render_history ~width:70 ~height:5 ~width_of ~book ~today:"2026-10-19" ~measure:"jpy"
+       ~samples:reset ~selected_index:0 ~detail_focused:false
+    |> List.exists (fun (_, row) ->
+        Base.String.is_substring row ~substring:"2026-10-19"
+        && Base.String.is_substring row ~substring:"—"
+        && not (Base.String.is_substring row ~substring:"+231")))
+    "pace-history-change-not-across-cycle";
+  require
+    ((not (Base.String.is_substring (snd (List.nth (painted_history 57 5) 1)) ~substring:"Change"))
+    && Base.String.is_substring (snd (List.nth (painted_history 57 5) 3)) ~substring:"+3,464")
+    "pace-history-change-goes-first-when-narrow";
   (* The period's average spending counts today and every known day, floors to
      the quantum beside its exact total, and leaves an unknown day out. *)
   let spending amounts =
@@ -1602,8 +1634,9 @@ let daily_pace_graph_render_checks ~width_of () =
   require
     (snd (List.nth full 2)
     = "   " ^ O.pad ~width_of 11 first.day
-      ^ O.pad_left ~width_of 23 "4,233 jpy/day"
-      ^ O.pad_left ~width_of 15 "0" ^ O.pad_left ~width_of 18 "+4,233")
+      ^ O.pad_left ~width_of 20 "4,233 jpy/day"
+      ^ O.pad_left ~width_of 8 "—" ^ O.pad_left ~width_of 13 "0" ^ O.pad_left ~width_of 15 "+4,233"
+    )
     "pace-history-canonical-table-text";
   let unknown = { first with Trend.pace_quanta = None } in
   let overflow = { first with Trend.pace_quanta = Some huge_digit } in

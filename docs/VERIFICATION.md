@@ -11,6 +11,18 @@ From 2026-11-09 (user decision) an entry names its commit (or comes in it) and s
 result, keeping synthetic checks, CI, latest-data checks, physical terminal/IME,
 human acceptance and P7/power loss apart. What changed and why is that commit's message.
 
+## Daily Pace History shows each day's Change (2026-11-28)
+
+- `./tools/check` and `./tools/format --check` passed (exit 0), with the new
+  `pace-history-first-day-change-unknown-not-zero`, `pace-history-change-beside-same-day-margin`,
+  `pace-history-change-not-across-cycle` and `pace-history-change-goes-first-when-narrow`
+  checks; `pace-history-canonical-table-text` updated for the new column.
+- Latest-data check: tmux at 150×44 on a fresh household copy (`./ui`, `d`, `h`, read only;
+  the household unchanged, copies cleaned). Every History row but the first showed a Change
+  equal to its Pace minus the row above's, and the selected day's summary `change` matched
+  its row.
+- CI, physical terminal/IME and P7/power loss **not executed** yet.
+
 ## Every input box edits through Line_edit (2026-11-13)
 
 - `./tools/check` and `./tools/format --check` passed (exit 0).
