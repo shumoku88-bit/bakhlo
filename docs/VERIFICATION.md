@@ -21,7 +21,9 @@ human acceptance and P7/power loss apart. What changed and why is that commit's 
   the household unchanged, copies cleaned). Every History row but the first showed a Change
   equal to its Pace minus the row above's, and the selected day's summary `change` matched
   its row.
-- CI, physical terminal/IME and P7/power loss **not executed** yet.
+- CI for `bf0fec8` passed, the Linux PTY lane included
+  ([run 46098002938](https://github.com/shumoku88-bit/bakhlo/actions/runs/46098002938)).
+- Physical terminal/IME and P7/power loss **not executed**.
 
 ## Every input box edits through Line_edit (2026-11-13)
 
